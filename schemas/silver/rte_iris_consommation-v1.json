@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sobr.ia/schemas/silver/rte_iris_consommation-v1.json",
+  "title": "Sobr.ia — Silver entity: rte_iris_consommation v1",
+  "description": "Consommation industrielle annuelle d'électricité et de gaz par maille IRIS (Open Data Réseaux Énergies — RTE/NaTran/Teréga). Schéma v1 permissif : conserve toutes les colonnes ODRÉ d'origine en ajoutant deux colonnes systématiques de traçabilité. Le typage strict (code_iris, conso_elec_mwh, conso_gaz_mwh, etc.) interviendra en v2 après observation directe du schéma RTE.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_copper_sha256", "_ingested_at"],
+  "properties": {
+    "_copper_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA-256 du fichier Copper d'origine (lineage)."
+    },
+    "_ingested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Horodatage UTC d'écriture en Silver."
+    }
+  }
+}

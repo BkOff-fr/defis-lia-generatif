@@ -6,14 +6,14 @@
 
 ## Vue calendaire
 
-| Sprint | Dates | Thème | Bloquants levés |
-|--------|-------|-------|-----------------|
-| S0 | 12-18 mai | Revue bibliographique + cadrage scientifique | Méthodologie défendable |
-| S1 | 19-25 mai | Bootstrap technique + schémas | Repo, CI, ADR figés |
-| S2 | 26 mai-1 juin | Pipeline médaillon — **ComparIA + RTE IRIS** (Tier 1 défi) | Copper/Silver/Gold opérationnels sur datasets officiels |
-| S3 | 2-8 juin | Pipeline médaillon — Tier 2 (ADEME, EcoLogits, HF, ML.Energy, CodeCarbon) | Référentiel complet en Gold |
-| S4 | 9-15 juin | Estimateur Rust pt.1 (formule + Monte-Carlo) | Cœur scientifique fonctionnel |
-| S5 | 16-22 juin | Estimateur Rust pt.2 + audit ledger | Validation croisée passée |
+| Sprint | Dates | Thème | Bloquants levés | Statut |
+|--------|-------|-------|-----------------|:------:|
+| S0 | 12-18 mai | Revue bibliographique + cadrage scientifique | Méthodologie défendable | 🟡 |
+| S1 | 19-25 mai | Bootstrap technique + foundation pipeline (C01) | Repo, CI, ADR figés, trait DataLayer + helpers | ✅ |
+| S2 | 26 mai-1 juin | Pipeline médaillon — **ComparIA** (Tier 1, C02) | 1ʳᵉ source officielle ingérée | ✅ |
+| S3 | 2-8 juin | Pipeline médaillon — **RTE IRIS** (Tier 1, C03) | 2ᵉ source officielle (territoriale) ingérée | ✅ |
+| S4 | 9-15 juin | Assemblage Gold (referentiel.sqlite + analytics.parquet, C04) | Pipeline complet Copper→Silver→Gold | ✅ |
+| S5 | 16-22 juin | Estimateur Rust (formule AFNOR + Monte-Carlo + validation Luccioni) | Cœur scientifique fonctionnel | 🔜 |
 | S6 | 23-29 juin | UI MVP pt.1 + module géolocalisation M9 | App lance + estime + géolocalise |
 | S7 | 30 juin-6 juillet | UI MVP pt.2 + import logs M10 | Workbench + comparateur + CSV |
 | S8 | 7-13 juillet | Simulateur scénarios M4 + extension navigateur M11 | Scénarios + badge live |

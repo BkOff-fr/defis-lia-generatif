@@ -121,9 +121,9 @@ impl ManifestFileEntry {
         if self.name.trim().is_empty() {
             return Err(IngestError::schema("entry.name vide"));
         }
-        if !self.url.starts_with("https://") {
+        if !is_acceptable_url(&self.url) {
             return Err(IngestError::schema(format!(
-                "entry.url doit être HTTPS : {}",
+                "entry.url doit être HTTPS (ou loopback http pour les tests) : {}",
                 self.url
             )));
         }
@@ -135,6 +135,16 @@ impl ManifestFileEntry {
         }
         Ok(())
     }
+}
+
+
+/// Vérifie qu'une URL est acceptable pour un manifest :
+/// HTTPS partout, ou HTTP loopback (utile en tests avec wiremock).
+fn is_acceptable_url(url: &str) -> bool {
+    url.starts_with("https://")
+        || url.starts_with("http://127.0.0.1")
+        || url.starts_with("http://localhost")
+        || url.starts_with("http://[::1]")
 }
 
 #[cfg(test)]
@@ -167,6 +177,19 @@ mod tests {
         e.url = "http://insecure.example/".into();
         assert!(e.validate().is_err());
     }
+    #[test]
+    fn entry_accepts_loopback_http_for_tests() {
+        for url in [
+            "http://127.0.0.1:12345/file",
+            "http://localhost:8080/x",
+            "http://[::1]:9000/y",
+        ] {
+            let mut e = sample_entry();
+            e.url = url.into();
+            assert!(e.validate().is_ok(), "loopback {url} doit être accepté");
+        }
+    }
+
 
     #[test]
     fn entry_validates_hash_length() {

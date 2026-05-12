@@ -92,14 +92,30 @@ Détails : [ADR-0009](docs/adr/ADR-0009-medallion-architecture.md), [CDC §7.3](
 | Phase | Statut |
 |-------|--------|
 | Cadrage (CDC + ADR + roadmap) | ✅ Terminé |
-| S0 — Revue biblio + méthodologie | 🔜 À démarrer |
-| S1 — Bootstrap technique | ⏳ |
-| S2-S3 — Pipeline médaillon (ingestion) | ⏳ |
-| S4-S5 — Estimateur scientifique | ⏳ |
-| S6-S8 — UI + extensions modules | ⏳ |
+| S0 — Revue biblio + méthodologie | 🟡 En parallèle |
+| S1 — Bootstrap technique | ✅ Terminé |
+| S2-S3 — Pipeline médaillon (ingestion ComparIA + RTE IRIS) | ✅ Terminé |
+| S4 — Assemblage Gold (referentiel.sqlite + analytics.parquet) | ✅ Terminé |
+| S5 — Estimateur scientifique (Monte-Carlo, validation Luccioni) | 🔜 À démarrer |
+| S6-S8 — UI Tauri + extensions modules | ⏳ |
 | S9 — Notebook + rapport | ⏳ |
 | S10-S11 — Polish + tests utilisateurs | ⏳ |
 | S12 — Soumission data.gouv.fr | ⏳ |
+
+### Pipeline data opérationnel
+
+À ce jalon, `cargo run -p sobria-ingest -- pipeline run` produit (sur données synthétiques en CI) :
+
+```
+data/gold/
+├── referentiel.sqlite     ← 3 tables : sources, silver_entities, lineage (WAL)
+├── analytics.parquet      ← catalogue 4 entités (DuckDB-friendly)
+├── datasheet.jsonld       ← PROV-O + schema.org/Dataset
+└── MANIFEST.sha256        ← intégrité (format sha256sum)
+```
+
+**~85 tests automatiques verts** (unit + intégration + property-based).
+**2 sources Tier 1** opérationnelles : ComparIA (Beta.gouv) + RTE IRIS (ODRÉ).
 
 ---
 

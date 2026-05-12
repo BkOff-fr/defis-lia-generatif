@@ -13,6 +13,7 @@ use tracing::{info, warn};
 use crate::{
     context::Context,
     error::IngestResult,
+    gold::{assemble_gold, GoldArtifacts},
     layer::{
         CopperSnapshot, DataLayer, GoldContribution, HealthReport, SilverEntity,
     },
@@ -60,6 +61,8 @@ pub struct PipelineReport {
     pub gold_contributions: Vec<StepResult<GoldContribution>>,
     /// Lignée Gold finale.
     pub gold_lineage: GoldLineage,
+    /// Artefacts Gold produits (chemins sur disque), si l'assemblage a réussi.
+    pub gold_artifacts: Option<GoldArtifacts>,
 }
 
 impl PipelineReport {
@@ -252,7 +255,7 @@ impl LayerRegistry {
         (contribs, lineage)
     }
 
-    /// Pipeline complet Copper → Silver → Gold.
+    /// Pipeline complet Copper → Silver → Gold + assemblage des artefacts.
     pub async fn run_full_pipeline(&self, ctx: &Context) -> IngestResult<PipelineReport> {
         let started_at = Utc::now();
         info!(source_count = self.sources.len(), "pipeline médaillon : démarrage");
@@ -260,6 +263,22 @@ impl LayerRegistry {
         let copper = self.run_copper(ctx).await;
         let silver = self.run_silver(ctx, &copper).await;
         let (gold_contributions, gold_lineage) = self.run_gold(ctx, &silver).await;
+
+        // Assemblage Gold : produit referentiel.sqlite, analytics.parquet,
+        // datasheet.jsonld, MANIFEST.sha256. Voir chantier C04.
+        let sources_meta: Vec<crate::layer::SourceMeta> =
+            self.sources.iter().map(|s| s.meta()).collect();
+        let gold_artifacts =
+            match assemble_gold(ctx, &silver, &sources_meta, &gold_lineage).await {
+                Ok(artifacts) => {
+                    info!("gold: assemblage terminé");
+                    Some(artifacts)
+                },
+                Err(e) => {
+                    warn!(error = %e, "gold: assemblage échoué");
+                    None
+                },
+            };
 
         let finished_at = Utc::now();
         let report = PipelineReport {
@@ -269,6 +288,7 @@ impl LayerRegistry {
             silver,
             gold_contributions,
             gold_lineage,
+            gold_artifacts,
         };
         info!(
             succeeded = report.fully_successful_count(),
@@ -293,6 +313,16 @@ impl Default for LayerRegistry {
 
 #[cfg(test)]
 mod tests {
+    fn temp_ctx() -> (tempfile::TempDir, Context) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let ctx = Context {
+            data_root: tmp.path().to_path_buf(),
+            incremental: false,
+            seed: 42,
+        };
+        (tmp, ctx)
+    }
+
     use std::path::PathBuf;
 
     use async_trait::async_trait;
@@ -404,7 +434,7 @@ mod tests {
     #[tokio::test]
     async fn empty_registry_runs_cleanly() {
         let reg = LayerRegistry::new();
-        let ctx = Context::default();
+        let (_tmp, ctx) = temp_ctx();
         let report = reg.run_full_pipeline(&ctx).await.unwrap();
         assert!(report.copper.is_empty());
         assert!(report.silver.is_empty());
@@ -416,7 +446,7 @@ mod tests {
     async fn pipeline_runs_all_steps_for_ok_source() {
         let mut reg = LayerRegistry::new();
         reg.register(Arc::new(OkSource { id_static: "src-a" }));
-        let ctx = Context::default();
+        let (_tmp, ctx) = temp_ctx();
         let report = reg.run_full_pipeline(&ctx).await.unwrap();
 
         assert_eq!(report.copper.len(), 1);
@@ -436,7 +466,7 @@ mod tests {
         reg.register(Arc::new(CopperFailSource));
         reg.register(Arc::new(OkSource { id_static: "ok-2" }));
 
-        let ctx = Context::default();
+        let (_tmp, ctx) = temp_ctx();
         let report = reg.run_full_pipeline(&ctx).await.unwrap();
 
         assert_eq!(report.copper.len(), 3);
@@ -455,7 +485,7 @@ mod tests {
     async fn health_check_default_ok() {
         let mut reg = LayerRegistry::new();
         reg.register(Arc::new(OkSource { id_static: "src" }));
-        let ctx = Context::default();
+        let (_tmp, ctx) = temp_ctx();
         let reports = reg.health_check_all(&ctx).await;
         assert_eq!(reports.len(), 1);
         let r = reports[0].result.as_ref().unwrap();

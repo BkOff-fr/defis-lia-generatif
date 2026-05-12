@@ -143,6 +143,7 @@ impl GoldLineage {
     }
 
     /// Liste des `source_id` distincts ayant contribué.
+    #[must_use]
     pub fn source_ids(&self) -> Vec<&str> {
         let mut seen = BTreeSet::new();
         for silver in &self.silver_inputs {
@@ -236,7 +237,7 @@ mod tests {
             source_id: source.into(),
             manifest_path: PathBuf::from(format!("copper/{source}/2026-05-12/manifest.json")),
             file_name: file.into(),
-            file_sha256: std::iter::repeat(hash_byte).take(64).collect(),
+            file_sha256: std::iter::repeat_n(hash_byte, 64).collect(),
         }
     }
 

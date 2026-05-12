@@ -33,7 +33,7 @@ jsonschema = { workspace = true }
 rusqlite = { workspace = true }
 duckdb = { workspace = true }
 # polars : ajoutée au chantier #2 (parsing Parquet ComparIA).
-# polars = { workspace = true }
+polars = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

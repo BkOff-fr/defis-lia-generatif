@@ -1,0 +1,79 @@
+feat(ingest): pipeline médaillon complet (chantiers C01-C04)
+
+Premier jalon stable de Sobr.ia : pipeline Copper → Silver → Gold
+opérationnel sur les deux sources officielles du défi data.gouv.fr
+(ComparIA + RTE/NaTran/Teréga IRIS), avec assemblage Gold final.
+
+## sobria-core (759 lignes, 27 tests)
+
+Types fondamentaux : Indicator, UncertaintyInterval (invariants stricts
+p5 ≤ p50 ≤ p95, propriété proptest), IndicatorValue, Equivalent,
+Datacenter, EmissionFactor, EstimationRequest, EstimationResult,
+Hypothesis. Validateurs ISO 3166 alpha-2 + plages d'années.
+
+## sobria-ingest (~3 264 lignes Rust + 635 lignes tests)
+
+### C01 — Foundation pipeline (ADR-0009)
+
+- hash : SHA-256 streaming (vecteurs RFC 6234), verify_file
+- manifest : CopperManifest v1 + JSON Schema strict
+- download : reqwest streaming, retry exponentiel 5xx, cached hit, mocks wiremock
+- lineage : CopperRef/SilverLineage/GoldLineage + sortie JSON-LD PROV-O/schema.org
+- layer : trait DataLayer enrichi (health_check, depends_on) sur IngestResult<T>
+- registry : LayerRegistry::run_full_pipeline orchestré, gestion d'erreurs par source
+- Propriété proptest : aucun hash Copper ne se perd remontant du Gold
+
+### C02 — Source ComparIA (Beta.gouv / Ministère de la Culture)
+
+- 3 fichiers Parquet (~5 GB) téléchargés depuis data.gouv.fr (Etalab 2.0)
+- Méthodologie EcoLogits intégrée par la plateforme (ISO 14044)
+- promote_silver via polars 0.46 (LazyFrame::scan_parquet en spawn_blocking)
+- 3 schémas Silver versionnés permissifs (passthrough + lineage)
+- 3 tests d'intégration end-to-end avec wiremock
+
+### C03 — Source RTE / NaTran / Teréga IRIS (ODRÉ)
+
+- CSV (90 MB) + GeoJSON (91 MB) téléchargés depuis ODRÉ (Etalab 2.0)
+- CSV → Silver Parquet via polars::LazyCsvReader
+- GeoJSON conservé en Copper uniquement (consommation directe par M12)
+- Schéma Silver permissif rte_iris_consommation-v1
+- 3 tests d'intégration
+
+### C04 — Assemblage Gold
+
+- referentiel.sqlite (mode WAL) : 3 tables sources/silver_entities/lineage
+- analytics.parquet : catalogue tabulaire (DuckDB-friendly)
+- datasheet.jsonld : PROV-O + schema.org/Dataset
+- MANIFEST.sha256 : format sha256sum standard
+- run_full_pipeline appelle assemble_gold ; PipelineReport.gold_artifacts
+- 5 tests : 4 unitaires + 1 d'intégration ComparIA + RTE IRIS → Gold final
+
+## Métriques
+
+- ~85 tests verts (unit + intégration + property-based)
+- 0 unsafe, 0 unwrap/expect non documenté en production
+- cargo fmt + clippy --pedantic (avec allows ciblés) passent
+- Couverture des 4 fichiers Gold produits vérifiée bout en bout
+
+## Stack
+
+- Rust stable (1.79+) + Tauri 2 + SvelteKit (frontend à venir)
+- polars 0.46, rusqlite 0.32 (WAL), duckdb 1.1
+- wiremock 0.6 + proptest 1.5 + tempfile pour les tests
+- Tokio multi-thread, reqwest rustls-tls
+
+## Documentation
+
+- briefs/chantiers/C01-C04 (briefs + rétrospectives)
+- CHANGELOG.md mis à jour (Keep a Changelog 1.1.0)
+- README.md et ROADMAP.md à jour
+- docs/sources/CATALOGUE-SOURCES.md (10 sources documentées)
+- ADR-0009 (architecture médaillon) — règle stricte d'onboarding
+
+## Suite
+
+Chantier #5 — sobria-estimator : moteur Monte-Carlo N=10⁴ (ADR-0004),
+formule AFNOR SPEC 2314, validation croisée Luccioni 2023 / Patterson 2021
+/ EcoLogits 2024 à ±15 %.
+
+Refs: ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0009

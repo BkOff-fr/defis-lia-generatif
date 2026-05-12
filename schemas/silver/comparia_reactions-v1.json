@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sobr.ia/schemas/silver/comparia_reactions-v1.json",
+  "title": "Sobr.ia — Silver entity: comparia_reactions v1",
+  "description": "Réactions message par message ComparIA promues en Silver. Schéma v1 permissif — voir comparia_conversations-v1.json pour la rationale.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["_copper_sha256", "_ingested_at"],
+  "properties": {
+    "_copper_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA-256 du fichier Copper d'origine (lineage)."
+    },
+    "_ingested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Horodatage UTC d'écriture en Silver."
+    }
+  }
+}
