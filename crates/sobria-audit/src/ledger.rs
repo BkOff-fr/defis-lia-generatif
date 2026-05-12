@@ -9,7 +9,7 @@ use tracing::{debug, info};
 
 use crate::{
     entry::{AuditEntry, PURGED_SENTINEL},
-    error::{AuditError, AuditResult},
+    error::AuditResult,
 };
 
 /// Rapport d'intégrité produit par [`AuditLedger::verify_chain`].
@@ -297,18 +297,18 @@ mod tests {
 
     #[test]
     fn append_many_and_verify() {
+        const N: usize = 50;
         let (_tmp, mut ledger) = open_temp();
-        let n = 50;
         let mut prev_sig = String::new();
-        for i in 1..=n {
+        for i in 1..=N {
             let entry = ledger.append(&sample_result()).unwrap();
-            assert_eq!(entry.id, i);
+            assert_eq!(usize::try_from(entry.id).unwrap(), i);
             assert_eq!(entry.prev_sig, prev_sig);
             prev_sig = entry.sig;
         }
         let report = ledger.verify_chain().unwrap();
         assert!(report.valid, "{}", report.message);
-        assert_eq!(report.total_entries, n as usize);
+        assert_eq!(report.total_entries, N);
     }
 
     #[test]
