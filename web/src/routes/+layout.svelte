@@ -1,0 +1,321 @@
+<script lang="ts">
+  import '../app.css';
+  import {
+    Zap,
+    Layers,
+    Scale,
+    TrendingUp,
+    Upload,
+    Globe,
+    Download,
+    ShieldCheck,
+    BookOpen,
+    Settings2
+  } from 'lucide-svelte';
+
+  type Props = { children?: import('svelte').Snippet };
+  let { children }: Props = $props();
+
+  type RailItem = { label: string; icon: typeof Zap; href: string };
+
+  // Pathname réactif, autonome (évite `$app/stores` qui ne résout pas dans
+  // le tsconfig SvelteKit généré — voir .svelte-kit/tsconfig.json).
+  let pathname = $state(typeof window !== 'undefined' ? window.location.pathname : '/');
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    const update = () => {
+      pathname = window.location.pathname;
+    };
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  });
+
+  // Le rail référence des routes futures (Workbench, Comparer, …). Les liens
+  // sont posés pour que SvelteKit calcule l'état actif via $page.url.pathname,
+  // mais seul `/` (Estimer) existe à ce jour.
+  const items: RailItem[] = [
+    { label: 'Estimer', icon: Zap, href: '/' },
+    { label: 'Workbench', icon: Layers, href: '/workbench' },
+    { label: 'Comparer', icon: Scale, href: '/comparer' },
+    { label: 'Simuler', icon: TrendingUp, href: '/simuler' }
+  ];
+  const itemsIO: RailItem[] = [
+    { label: 'Importer', icon: Upload, href: '/importer' },
+    { label: 'Géolocaliser', icon: Globe, href: '/territoire' },
+    { label: 'Exporter', icon: Download, href: '/exporter' }
+  ];
+  const itemsAudit: RailItem[] = [
+    { label: "Journal d'audit", icon: ShieldCheck, href: '/audit' },
+    { label: 'Méthodologie', icon: BookOpen, href: '/methodo' }
+  ];
+
+  function isActive(href: string, current: string): boolean {
+    return href === '/' ? current === '/' : current.startsWith(href);
+  }
+</script>
+
+<!-- Ambient mesh + grain layer -->
+<div class="amb" aria-hidden="true"></div>
+
+<!-- Topographic contour decoration (top-right) -->
+<svg class="topo" viewBox="0 0 600 600" fill="none" aria-hidden="true">
+  <g stroke="rgb(197 240 74)" stroke-width="0.6" fill="none" opacity="0.5">
+    <path d="M 300 300 m -200, 0 a 200,200 0 1,0 400,0 a 200,200 0 1,0 -400,0" />
+    <path d="M 300 300 m -160, 0 a 160,180 -10 1,0 320,20 a 160,180 -10 1,0 -320,-20" />
+    <path d="M 300 300 m -120, -10 a 120,140 -20 1,0 240,40 a 120,140 -20 1,0 -240,-40" />
+    <path d="M 300 300 m -80, -10 a 80,100 -30 1,0 160,40 a 80,100 -30 1,0 -160,-40" />
+    <path d="M 300 300 m -45, -8 a 45,55 -40 1,0 90,20 a 45,55 -40 1,0 -90,-20" />
+    <path d="M 300 300 m -18, -4 a 18,22 -50 1,0 36,8 a 18,22 -50 1,0 -36,-8" />
+  </g>
+</svg>
+
+<div class="app">
+  <nav class="rail" aria-label="Navigation principale">
+    <a class="brand-mark" href="/" title="Sobr.ia" aria-label="Sobr.ia — accueil">
+      <svg viewBox="0 0 44 44" fill="none" aria-hidden="true">
+        <path
+          d="M 12 14 C 12 9, 32 9, 32 18 C 32 23, 12 23, 12 28 C 12 35, 32 35, 32 30"
+          stroke="#c5f04a"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          fill="none"
+        />
+        <circle cx="32" cy="14" r="2.4" fill="#c5f04a" />
+      </svg>
+    </a>
+
+    {#each items as item (item.href)}
+      {@const Icon = item.icon}
+      {@const active = isActive(item.href, pathname)}
+      <a
+        class="rail-btn"
+        class:active
+        href={item.href}
+        title={item.label}
+        aria-label={item.label}
+        aria-current={active ? 'page' : undefined}
+      >
+        <Icon size={20} strokeWidth={1.6} />
+      </a>
+    {/each}
+
+    <div class="rail-sep" aria-hidden="true"></div>
+
+    {#each itemsIO as item (item.href)}
+      {@const Icon = item.icon}
+      {@const active = isActive(item.href, pathname)}
+      <a
+        class="rail-btn"
+        class:active
+        href={item.href}
+        title={item.label}
+        aria-label={item.label}
+        aria-current={active ? 'page' : undefined}
+      >
+        <Icon size={20} strokeWidth={1.6} />
+      </a>
+    {/each}
+
+    <div class="rail-sep" aria-hidden="true"></div>
+
+    {#each itemsAudit as item (item.href)}
+      {@const Icon = item.icon}
+      {@const active = isActive(item.href, pathname)}
+      <a
+        class="rail-btn"
+        class:active
+        href={item.href}
+        title={item.label}
+        aria-label={item.label}
+        aria-current={active ? 'page' : undefined}
+      >
+        <Icon size={20} strokeWidth={1.6} />
+      </a>
+    {/each}
+
+    <div class="rail-foot">
+      <a class="rail-btn" href="/parametres" title="Paramètres" aria-label="Paramètres">
+        <Settings2 size={20} strokeWidth={1.6} />
+      </a>
+      <div class="rail-version">v0.2.0 · LOCAL</div>
+    </div>
+  </nav>
+
+  <main class="canvas scrollable">
+    {@render children?.()}
+  </main>
+</div>
+
+<style>
+  :global(html),
+  :global(body) {
+    overflow: hidden;
+  }
+
+  .amb {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .amb::before {
+    content: '';
+    position: absolute;
+    inset: -10%;
+    background:
+      radial-gradient(ellipse 800px 500px at 80% 12%, rgba(197, 240, 74, 0.1), transparent 60%),
+      radial-gradient(ellipse 700px 600px at 18% 88%, rgba(126, 182, 255, 0.06), transparent 65%),
+      radial-gradient(ellipse 600px 400px at 50% 50%, rgba(245, 183, 105, 0.04), transparent 70%);
+    filter: blur(20px);
+  }
+  .amb::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1, 0 0 0 0 1, 0 0 0 0 1, 0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.7;
+    mix-blend-mode: overlay;
+  }
+
+  .topo {
+    position: fixed;
+    top: -40px;
+    right: -100px;
+    width: 600px;
+    height: 600px;
+    z-index: 0;
+    opacity: 0.12;
+    pointer-events: none;
+    transform-origin: center;
+    animation: drift 60s linear infinite;
+  }
+  @keyframes drift {
+    from {
+      transform: rotate(0);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: var(--rail-w) 1fr;
+    height: 100vh;
+  }
+
+  .rail {
+    background: rgba(10, 13, 11, 0.55);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 22px 0 18px;
+    gap: 4px;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 18px;
+    position: relative;
+    border-bottom: none;
+    animation: breath 4s ease-in-out infinite;
+  }
+  .brand-mark svg {
+    width: 44px;
+    height: 44px;
+  }
+  .brand-mark::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--lime-glow), transparent 70%);
+    filter: blur(8px);
+    z-index: -1;
+  }
+  @keyframes breath {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.04);
+    }
+  }
+
+  .rail-sep {
+    width: 24px;
+    height: 1px;
+    background: var(--border);
+    margin: 10px 0;
+  }
+
+  .rail-btn {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: transparent;
+    color: var(--ivory-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease);
+    position: relative;
+    text-decoration: none;
+  }
+  .rail-btn:hover {
+    background: var(--surface-hi);
+    color: var(--ivory);
+  }
+  .rail-btn:hover :global(svg) {
+    transform: scale(1.12);
+    transition: transform 250ms var(--ease-spring);
+  }
+  .rail-btn.active {
+    background: var(--surface-hi);
+    color: var(--lime);
+  }
+  .rail-btn.active::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 22px;
+    background: var(--lime);
+    border-radius: 2px;
+    box-shadow: 0 0 12px var(--lime-glow);
+  }
+
+  .rail-foot {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+  }
+  .rail-version {
+    font: 500 9px/1.3 var(--font-mono);
+    color: var(--ivory-4);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.08em;
+    padding: 12px 0;
+  }
+
+  .canvas {
+    overflow-y: auto;
+    position: relative;
+  }
+</style>
