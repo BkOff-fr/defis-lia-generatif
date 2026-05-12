@@ -19,6 +19,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
+futures = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -26,12 +27,13 @@ tracing-subscriber = { workspace = true }
 reqwest = { workspace = true }
 chrono = { workspace = true }
 sha2 = { workspace = true }
-polars = { workspace = true }
 clap = { workspace = true }
 schemars = { workspace = true }
 jsonschema = { workspace = true }
 rusqlite = { workspace = true }
 duckdb = { workspace = true }
+# polars : ajoutée au chantier #2 (parsing Parquet ComparIA).
+# polars = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

@@ -1,7 +1,6 @@
 //! Indicateurs environnementaux et leur restitution.
 //!
-//! Voir CDC §4.2 (indicateurs calculés) et
-//! [ADR-0004](../../docs/adr/ADR-0004-monte-carlo.md) (propagation d'incertitude).
+//! Voir CDC §4.2 (indicateurs calculés) et ADR-0004 (incertitude).
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -9,9 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::error::{SobriaError, SobriaResult};
 
 /// Indicateurs environnementaux supportés.
-///
-/// Les variantes sont sérialisées en snake_case. `Co2Eq` devient
-/// `"co2_eq"`, `CriticalMetals` devient `"critical_metals"`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum Indicator {
@@ -58,13 +54,6 @@ pub struct UncertaintyInterval {
 
 impl UncertaintyInterval {
     /// Construit un intervalle après validation des invariants.
-    ///
-    /// # Erreurs
-    ///
-    /// Retourne `SobriaError::SchemaValidation` si :
-    /// - Une valeur est NaN ou infinie.
-    /// - Une valeur est strictement négative.
-    /// - L'ordre `p5 ≤ p50 ≤ p95` est violé.
     pub fn new(p5: f64, p50: f64, p95: f64) -> SobriaResult<Self> {
         if !(p5.is_finite() && p50.is_finite() && p95.is_finite()) {
             return Err(SobriaError::SchemaValidation(
@@ -84,18 +73,12 @@ impl UncertaintyInterval {
         Ok(Self { p5, p50, p95 })
     }
 
-    /// Construit un intervalle « ponctuel » (sans incertitude).
-    /// Utile pour les valeurs déterministes (ex: tokens d'entrée connus).
-    ///
-    /// # Erreurs
-    ///
-    /// Voir [`Self::new`].
+    /// Construit un intervalle ponctuel (sans incertitude).
     pub fn point(value: f64) -> SobriaResult<Self> {
         Self::new(value, value, value)
     }
 
     /// Largeur relative de l'intervalle (P95 - P5) / P50.
-    /// Retourne `None` si P50 vaut 0.
     #[must_use]
     pub fn relative_width(&self) -> Option<f64> {
         if self.p50 == 0.0 {
@@ -105,11 +88,7 @@ impl UncertaintyInterval {
         }
     }
 
-    /// Revalide un intervalle (utile après désérialisation depuis JSON).
-    ///
-    /// # Erreurs
-    ///
-    /// Voir [`Self::new`].
+    /// Revalide un intervalle (utile après désérialisation).
     pub fn validate(&self) -> SobriaResult<()> {
         Self::new(self.p5, self.p50, self.p95).map(|_| ())
     }
@@ -122,20 +101,18 @@ pub struct IndicatorValue {
     pub indicator: Indicator,
     /// Intervalle d'incertitude restitué.
     pub interval: UncertaintyInterval,
-    /// Unité humainement lisible (ex: `"gCO2eq"`, `"Wh"`).
+    /// Unité humainement lisible.
     pub unit: String,
 }
 
 /// Équivalent parlant pour l'utilisateur final.
-///
-/// Exemple : « ≈ 17 m en voiture thermique » pour un résultat CO₂eq.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Equivalent {
-    /// Description courte (ex: `"km en voiture thermique"`).
+    /// Description courte.
     pub label: String,
-    /// Valeur de l'équivalent dans son unité propre.
+    /// Valeur de l'équivalent.
     pub value: f64,
-    /// Source documentaire (URL, DOI, ou clé BibTeX).
+    /// Source documentaire.
     pub source: String,
 }
 
@@ -205,7 +182,6 @@ mod tests {
     }
 
     proptest! {
-        /// Property : tout intervalle construit avec `new` respecte ses invariants.
         #[test]
         fn prop_interval_invariants(
             p5 in 0.0_f64..1e9,

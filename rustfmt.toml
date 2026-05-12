@@ -1,4 +1,5 @@
 # Configuration rustfmt — Sobr.ia
+# Options stables uniquement (nightly retirées).
 # Voir CLAUDE.md §4.1 pour les conventions de code.
 
 edition = "2021"
@@ -6,25 +7,8 @@ max_width = 100
 hard_tabs = false
 tab_spaces = 4
 
-# Imports organisés par groupe (std, externes, crate)
-imports_granularity = "Crate"
-group_imports = "StdExternalCrate"
-
-# Lisibilité
-use_field_init_shorthand = true
-use_try_shorthand = true
 reorder_imports = true
 reorder_modules = true
-
-# Commentaires
-wrap_comments = true
-comment_width = 100
-normalize_comments = true
-
-# Formatage cohérent
+use_field_init_shorthand = true
+use_try_shorthand = true
 match_block_trailing_comma = true
-trailing_comma = "Vertical"
-fn_args_layout = "Tall"
-
-# Performance
-edition_2024_resolver = false

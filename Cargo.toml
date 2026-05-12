@@ -58,15 +58,15 @@ duckdb = { version = "1.1", features = ["bundled"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
 
 # Data engineering
-polars = { version = "0.43", features = ["lazy", "parquet", "csv", "json", "dtype-full"] }
+polars = { version = "0.46", features = ["lazy", "parquet", "csv", "json", "dtype-full"] }
 arrow = "53"
 arrow-schema = "53"
 
 # Dates / temps
 chrono = { version = "0.4", features = ["serde"] }
 
-# Schémas / validation
-schemars = "0.8"
+# Schémas / validation (feature `chrono` requise pour DateTime<Utc>)
+schemars = { version = "0.8", features = ["chrono"] }
 jsonschema = "0.26"
 
 # Randomisation (Monte-Carlo — ADR-0004)

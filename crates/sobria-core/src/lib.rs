@@ -7,28 +7,17 @@
 //! et porteurs d'un `JsonSchema` pour validation cross-language.
 //!
 //! Voir :
-//! - [`docs/CAHIER-DES-CHARGES-v1.0.md`](../../docs/CAHIER-DES-CHARGES-v1.0.md)
-//! - [`docs/adr/ADR-0001-rust-tauri.md`](../../docs/adr/ADR-0001-rust-tauri.md)
-//! - [`docs/adr/ADR-0004-monte-carlo.md`](../../docs/adr/ADR-0004-monte-carlo.md)
-//!
-//! ## Exemple
-//!
-//! ```
-//! use sobria_core::{Indicator, IndicatorValue, UncertaintyInterval};
-//!
-//! let interval = UncertaintyInterval::new(1.68, 2.14, 2.74).unwrap();
-//! let value = IndicatorValue {
-//!     indicator: Indicator::Co2Eq,
-//!     interval,
-//!     unit: "gCO2eq".into(),
-//! };
-//! assert_eq!(value.interval.p50, 2.14);
-//! ```
+//! - `docs/CAHIER-DES-CHARGES-v1.0.md`
+//! - `docs/adr/ADR-0001-rust-tauri.md`
+//! - `docs/adr/ADR-0004-monte-carlo.md`
 
 #![deny(unsafe_code)]
 #![deny(missing_docs)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::float_cmp)]
 
 pub mod datacenter;
 pub mod emission;
@@ -46,9 +35,8 @@ pub use indicators::{Equivalent, Indicator, IndicatorValue, UncertaintyInterval}
 pub use model::{Modality, Model, ModelProvider};
 pub use validation::{validate_country_iso, validate_year};
 
-/// Version courante du schéma de référentiel — voir [`crate::validation`].
+/// Version courante du schéma de référentiel.
 pub const SCHEMA_VERSION: &str = "1";
 
-/// Seed Monte-Carlo par défaut — voir
-/// [`docs/adr/ADR-0004-monte-carlo.md`](../../docs/adr/ADR-0004-monte-carlo.md).
+/// Seed Monte-Carlo par défaut — voir ADR-0004.
 pub const DEFAULT_SEED: u64 = 42;

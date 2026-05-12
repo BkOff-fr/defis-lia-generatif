@@ -1,297 +1,430 @@
 # Prompt à donner à Claude Design — Sobr.ia (itération 2)
 
-> **Usage** : copier le bloc « Prompt à coller » ci-dessous et le re-soumettre à Claude Design pour obtenir une version complète des composants. Le prompt fait référence à la maquette UI textuelle [`MAQUETTE-UI-TEXTUELLE.md`](MAQUETTE-UI-TEXTUELLE.md) qui doit être jointe ou copiée en pièce jointe.
+> **Usage** : copier le bloc « Prompt à coller » ci-dessous. Le visuel (palette, typo, formes, animations) est volontairement laissé libre — Thibault gère le langage graphique. Le but de ce prompt est de **décrire le contenu, les données, les interactions et la richesse fonctionnelle** pour que les composants livrés soient complets et immersifs.
 
 ---
 
 ## Prompt à coller
 
 ```
-Tu travailles sur Sobr.ia, une application desktop+mobile+web (Tauri 2 + SvelteKit)
-qui mesure et visualise l'impact environnemental de l'IA générative pour le
-défi data.gouv.fr. Le projet est candidat sur la rigueur scientifique ET la
-frugalité visuelle — c'est notre différenciant.
+Tu travailles sur Sobr.ia, une application Tauri (desktop, mobile, web) qui
+mesure et visualise l'impact environnemental de l'IA générative pour le défi
+data.gouv.fr.
 
-PREMIÈRE ITÉRATION : tu as déjà produit une base de composants. Cette deuxième
-itération doit compléter la palette en couvrant TOUS les composants spécifiques
-listés ci-dessous. Plusieurs composants dataviz manquent, notamment des
-diagrammes Sankey, des histogrammes Monte-Carlo, des bandes d'incertitude et
-une carte choroplèthe IRIS.
+Le langage visuel (couleurs, formes, typographie, animations) est défini en
+dehors de toi — ne fais aucune proposition d'esthétique. Tu te concentres
+exclusivement sur :
 
-═══════════════════════════════════════════════════════════════════════════════
-1. CONTRAINTES DESIGN SYSTEM (à respecter strictement)
-═══════════════════════════════════════════════════════════════════════════════
-
-PALETTE (mode sombre par défaut — économie énergétique écrans OLED) :
-- Fond principal       : #0d1117
-- Surfaces (cartes)    : #161b22
-- Bordures subtiles    : #30363d (1 px)
-- Texte primaire       : #c9d1d9
-- Texte secondaire     : #8b949e
-- Accent vert sobriété : #3fb950   (succès, valeurs basses, "bon")
-- Accent ambre         : #d29922   (vigilance, valeurs moyennes)
-- Erreur / haut impact : #f85149   (rouge, valeurs hautes, alertes)
-- Accent info (lien)   : #58a6ff
-
-PALETTE MODE CLAIR (alternative — utilisateur peut basculer) :
-- Fond #ffffff, surface #f6f8fa, bordures #d0d7de, texte #24292f
-
-TYPOGRAPHIE :
-- UI : Inter Variable (web font auto-hébergée), poids 400-700
-- Nombres et code : JetBrains Mono Variable
-- Tailles : 12 / 14 / 16 / 20 / 28 / 40 px (Major Second)
-
-ESPACEMENTS : grille 4 px — utiliser 4 / 8 / 16 / 24 / 40 / 64.
-
-COINS ARRONDIS : 4 px (inputs), 8 px (cartes), 12 px (modales).
-
-ANIMATIONS : 150-250 ms ease-out maximum. Désactivables via
-`prefers-reduced-motion`.
-
-ICONOGRAPHIE : lucide-icons stroke 1.5, jamais bicolore.
-
-ACCESSIBILITÉ : RGAA AA / WCAG 2.1 AA obligatoire. Contraste ≥ 4.5:1 pour
-texte, ≥ 3:1 pour grandes valeurs et bordures d'interaction. Tous les graphes
-ont une description textuelle (aria-label) et un mode tableau alternatif
-accessible par les lecteurs d'écran.
-
-DATAVIZ : palettes daltoniens uniquement (Viridis, Cividis, ColorBrewer
-"YlGnBu" inversé pour "moins c'est mieux"). Jamais de rouge/vert seul.
-
-PHILOSOPHIE : "frugalité visuelle" — pas de skeuomorphisme, pas d'ombres
-portées massives, pas de dégradés tape-à-l'œil. L'interface incarne le sujet
-qu'elle traite. Inspiration : Linear, Vercel dashboard, Stripe Atlas, le tout
-moins lumineux.
+  - Le CONTENU exact qu'affiche chaque composant.
+  - Les DONNÉES qu'il consomme (avec exemples plausibles).
+  - Les INTERACTIONS attendues.
+  - Les ÉTATS à gérer (vide, chargement, succès, erreur, dégradé).
+  - L'INTENTION NARRATIVE — comment l'utilisateur comprend ce qu'il voit.
 
 ═══════════════════════════════════════════════════════════════════════════════
-2. COMPOSANTS DATAVIZ MANQUANTS (priorité absolue)
+1. ITÉRATION PRÉCÉDENTE
 ═══════════════════════════════════════════════════════════════════════════════
 
-2.1 — SankeyEnergy (D3-based)
+Tu as déjà produit une première base. Cette itération doit COMPLÉTER, pas
+remplacer. Plusieurs composants critiques manquent — notamment des
+visualisations de données (Sankey énergétique, histogramme Monte-Carlo,
+bande d'incertitude, carte choroplèthe au niveau IRIS).
+
+═══════════════════════════════════════════════════════════════════════════════
+2. CONTEXTE D'IMMERSION
+═══════════════════════════════════════════════════════════════════════════════
+
+L'utilisateur typique veut comprendre, en quelques secondes, "combien coûte"
+en environnement le fait d'utiliser une IA générative. Il oscille entre
+plusieurs sentiments : curiosité, scepticisme ("vos chiffres viennent d'où ?"),
+et besoin de justification (RSE, presse, décisions publiques).
+
+Notre promesse narrative : "rien n'est caché, tout est mesuré honnêtement,
+chaque valeur a une source cliquable, chaque incertitude est explicitée."
+
+Trois fils rouges traversent toute l'interface :
+
+  A. INCERTITUDE EXPLICITE — aucune valeur n'est affichée sans son intervalle
+     P5-P95 issu du Monte-Carlo. L'utilisateur doit comprendre intuitivement
+     qu'on lui dit une fourchette, pas une vérité.
+
+  B. TRAÇABILITÉ — chaque chiffre, chaque hypothèse est cliquable et mène à
+     la source (URL, DOI, datasheet, paper). Pas de "boîte noire".
+
+  C. LOCAL — l'utilisateur garde le contrôle. Aucune donnée ne part en
+     dehors de son appareil sauf consentement explicite. C'est rappelé en
+     permanence quelque part dans le shell.
+
+═══════════════════════════════════════════════════════════════════════════════
+3. COMPOSANTS DATAVIZ MANQUANTS (priorité absolue)
+═══════════════════════════════════════════════════════════════════════════════
+
+3.1 — Diagramme de Sankey énergétique
+─────────────────────────────────────
+QUOI : visualise comment l'énergie est distribuée pour un prompt unitaire.
+
+DONNÉES TYPIQUES :
+  Compute       3.2 Wh ─┐
+  Idle          0.4 Wh  ├─► × PUE 1.3 ─► Cooling+overhead ─► Total 4.87 Wh
+  Networking    0.1 Wh ─┘
+
+CONTENU :
+  - Sources (gauche) : compute, idle, networking, embodied amorti.
+  - Étape intermédiaire : facteur PUE.
+  - Destination (droite) : énergie totale livrée.
+  - Chaque flux porte sa valeur (Wh) + son intervalle (P5-P95 entre crochets).
+  - Le PUE est annoté avec sa source (datacenter X, ADEME, etc.).
+
+INTERACTIONS :
+  - Survol d'un flux : tooltip avec valeur exacte, intervalle, source.
+  - Clic sur une étape : panneau latéral qui détaille les hypothèses.
+  - Légende cliquable pour masquer/afficher chaque flux.
+  - Mode "tableau" alternatif (a11y) — toggle visible.
+
+ÉTATS :
+  - Vide ("aucune estimation").
+  - Chargement (recalcul en cours).
+  - Succès.
+  - Erreur ("source PUE indisponible pour ce datacenter").
+
+INTENTION : montrer qu'un prompt qui consomme N Wh "compute" en consomme en
+réalité PUE × N à la sortie du datacenter, et que la part embodied (fabrication
+hardware) est rarement nulle.
+
+
+3.2 — Histogramme Monte-Carlo
 ─────────────────────────────
-Flux énergétique d'un prompt :
-  Compute (3.2 Wh) ──┐
-                     ├─► PUE 1.3 ─► Total 4.87 Wh
-  Idle (0.4 Wh) ─────┤
-  Networking (0.1)  ─┘
-- Largeur des flux proportionnelle à la valeur.
-- Couleurs : Viridis du sombre au clair selon la valeur.
-- Tooltip au survol avec la valeur exacte + intervalle P5-P95.
-- Légende cliquable pour filtrer.
-- Mode tableau alternatif a11y.
+QUOI : la distribution des 10 000 simulations Monte-Carlo qui ont produit
+l'estimation.
 
-2.2 — HistogramMC (histogramme Monte-Carlo)
-───────────────────────────────────────────
-Restitue les 10 000 tirages Monte-Carlo d'une estimation :
-- Histogramme à 30-50 barres.
-- Lignes verticales pointillées sur P5, P50 (médiane), P95.
-- Bande P5-P95 surlignée en arrière-plan (rectangle semi-transparent).
-- Axe X : valeur de l'indicateur (avec son unité).
-- Axe Y : densité (pas nombre brut).
-- Annotation flottante : "P5 = 1.68 / P50 = 2.14 / P95 = 2.74 gCO2eq".
+DONNÉES TYPIQUES :
+  - 10 000 valeurs en gCO2eq pour un prompt
+  - Médiane (P50) = 2.14 g, intervalle [1.68, 2.74]
+  - Forme typique : log-normale légèrement asymétrique à droite
 
-2.3 — UncertaintyBand (courbe avec bande d'incertitude)
-───────────────────────────────────────────────────────
-Pour les projections temporelles (simulateur de scénarios) :
-- Ligne médiane (P50) en accent vert.
-- Bande P5-P95 remplie semi-transparente autour.
-- Axe X : temps (mois ou années).
-- Axe Y : valeur cumulée de l'indicateur.
-- Annotations sur les pics ou jalons (ex: "2030 — cumul N tonnes CO2eq").
-- Variants : aires empilées si plusieurs scénarios comparés côte à côte.
+CONTENU :
+  - Histogramme à 30-50 classes.
+  - Trois lignes verticales : P5, P50, P95, étiquetées avec leur valeur.
+  - Bande P5-P95 surlignée derrière l'histogramme.
+  - Axe X : valeur de l'indicateur + son unité (gCO2eq, Wh, L, etc.).
+  - Sous-titre : "10 000 tirages Monte-Carlo, seed 42 (reproductible)".
 
-2.4 — ChoroplethMap IRIS France (D3 + GeoJSON IRIS)
-───────────────────────────────────────────────────
-Carte de France au niveau IRIS (~50 000 polygones — performance critique !) :
-- Projection Lambert 93 (officielle pour la France).
-- Coloration par classe (quantiles 5-7 buckets) selon l'indicateur sélectionné.
-- Palette Viridis (faible → fort).
-- Possibilité de zoom (Île-de-France, AURA, Occitanie…) via picker.
-- Hover : tooltip avec code IRIS, nom commune, valeur.
-- Click : sélection IRIS, panneau latéral avec détails.
-- Légende discrète bas-droite.
-- Mode "outliers only" qui n'affiche que les 100 IRIS top consommation.
-- Fallback raster (PNG) si performance vectorielle insuffisante.
+INTERACTIONS :
+  - Hover sur une classe : nombre de tirages dans cette classe.
+  - Bouton "exporter les 10 000 tirages" (CSV).
+  - Switch indicateur si plusieurs ont été calculés (CO2eq, énergie, eau).
 
-2.5 — HeatmapModels (matrice modèles × indicateurs)
-───────────────────────────────────────────────────
-Matrice pour le comparateur (M5) :
-- Lignes : modèles sélectionnés (2 à 8).
-- Colonnes : indicateurs (Énergie, CO2eq, Eau, Embodied, Coût, Latency).
-- Cellules colorées par valeur normalisée (palette divergente Viridis).
-- Indication "données manquantes" : motif diagonal hachuré.
-- Tri par colonne au clic header.
-- Mode "normalisation" : par colonne (relatif à max), absolu, ou %.
-- Annotations valeurs absolues dans la cellule (toggle).
+INTENTION : prouver visuellement que la médiane n'est pas une vérité
+ponctuelle. L'utilisateur "voit" l'incertitude au lieu de la lire.
 
-2.6 — Treemap (consommation par catégorie)
-──────────────────────────────────────────
-Pour le workbench M3 : répartition des modèles par provider × taille × usage.
-- Squarified treemap classique.
-- 3 niveaux : provider → famille → modèle.
-- Couleur selon l'indicateur dominant.
-- Drill-down au clic.
 
-2.7 — Ridge Plot (distribution modèles)
-───────────────────────────────────────
-Distributions empilées des Wh/req par modèle (workbench, vue dense).
-- Une ligne par modèle, distribution KDE.
-- Tri par médiane.
-- Mode "normalize y" : chaque ligne à la même hauteur visuelle.
+3.3 — Courbe avec bande d'incertitude (projection temporelle)
+─────────────────────────────────────────────────────────────
+QUOI : projection sur 5 ans du cumul d'un scénario macro (simulateur M4).
+
+DONNÉES TYPIQUES :
+  - Population : 50 000 fonctionnaires
+  - Taux d'adoption : 60 % avec croissance +5%/an
+  - Modèle : mix 60% GPT-4o-mini + 40% Claude 3.5
+  - Projection : cumul CO2eq mensuel sur 2026-01 → 2030-12
+  - Pour chaque mois : P5, P50, P95
+
+CONTENU :
+  - Ligne médiane (P50) bien visible.
+  - Bande P5-P95 remplie semi-transparente autour.
+  - Axe X : temps (mois ou années).
+  - Axe Y : valeur cumulée + unité.
+  - Annotations sur jalons importants ("fin 2027 = 200 t CO2eq cumulés").
+  - Petit panneau récapitulatif : "cumul 5 ans ≈ 1 850 t [1 320 – 2 580]".
+
+INTERACTIONS :
+  - Sliders au-dessus du graphe pour ajuster taux, fréquence, modèle —
+    le graphe se recalcule en live (≤ 1 s).
+  - Comparaison : superposer 2 ou 3 scénarios côte à côte.
+  - Mode "linéaire vs log Y" toggle.
+
+VARIANTES :
+  - Aires empilées si plusieurs scénarios.
+  - Aire seule sans P5-P95 si donnée déterministe (rare).
+
+INTENTION : faire comprendre que les projections macro sont des
+intervalles, pas des courbes lisses.
+
+
+3.4 — Carte choroplèthe IRIS de France
+──────────────────────────────────────
+QUOI : carte de France au niveau IRIS (~50 000 polygones, plus petite maille
+INSEE). Spécifique au module M12 "Territoire français".
+
+DONNÉES TYPIQUES :
+  - Source primaire : RTE/NaTran/Teréga "Consommation annuelle IRIS sites
+    industriels raccordés au transport" (data.gouv.fr).
+  - Pour chaque IRIS : consommation élec annuelle (MWh), consommation gaz
+    annuelle (MWh), nombre de sites industriels.
+  - Croisement avec ComparIA pour les scénarios d'usage LLM.
+
+CONTENU :
+  - Carte projetée en Lambert 93 (la projection officielle française).
+  - Coloration par classe en quantiles (5-7 buckets).
+  - Indicateur affiché sélectionnable : conso élec, conso gaz, ratio
+    élec/gaz, "candidat datacenter" (heuristique), croisement avec usage LLM.
+  - Légende avec les bornes des classes.
+  - Sous-titre : "Référentiel IRIS INSEE 2023, données 2024".
+
+INTERACTIONS :
+  - Hover sur un IRIS : tooltip avec code IRIS, nom commune, valeur exacte.
+  - Clic : panneau latéral avec fiche détaillée (top 5 sites industriels,
+    estimation d'usage LLM si on croise ComparIA).
+  - Zoom sur région via picker (IDF, AURA, Occitanie, etc.).
+  - Mode "top 100" : n'affiche que les 100 IRIS les plus consommateurs,
+    les autres en grisé.
+  - Mode "écart à la moyenne nationale" (palette divergente).
+  - Exporter en GeoJSON enrichi ou PNG haute résolution.
+
+ÉTATS :
+  - Chargement (long potentiellement : 50k polygones).
+  - Données partielles (certains IRIS en secret statistique → motif hachuré).
+  - Erreur (référentiel non chargé).
+
+PERFORMANCE : critique à anticiper. Suggestion : tuiles vectorielles ou
+simplification topologique selon le niveau de zoom.
+
+INTENTION : passer du chiffre national désincarné au territoire concret.
+"Regarde, c'est cet IRIS-là qui consomme N MWh, à côté de chez toi."
+
+
+3.5 — Heatmap modèles × indicateurs
+───────────────────────────────────
+QUOI : matrice comparative pour le module M5 (comparateur).
+
+DONNÉES TYPIQUES :
+  - Lignes : 2 à 8 modèles sélectionnés (GPT-4o, GPT-4o-mini, Claude 3.5,
+    Mistral L, Llama 70B, Llama 8B).
+  - Colonnes : Énergie, CO2eq, Eau, Embodied, Coût, Latence.
+  - Valeurs : intervalle P5-P95 dans chaque cellule.
+  - Normalisation : par défaut absolue ; toggle relatif à la meilleure valeur.
+
+CONTENU :
+  - Cellule : valeur (P50) + petit indicateur d'incertitude en filigrane.
+  - Indicateur "données manquantes" pour les modèles fermés sans mesure
+    fiable (motif hachuré + tooltip explicatif).
+  - Score composite paramétrable (sliders au-dessus pour pondérer les
+    indicateurs).
+  - Classement automatique sous la matrice (top 3 modèles selon le score).
+
+INTERACTIONS :
+  - Tri par colonne au clic header.
+  - Ajout/retrait de modèle en drag-and-drop ou via picker.
+  - Mode "normalize" toggle (absolu / % du max / écart à la médiane).
+  - Annotations valeurs absolues ON/OFF dans la cellule.
+
+INTENTION : permettre une décision rapide ("quel modèle choisir pour mon
+SaaS ?") avec transparence sur les hypothèses (sources cliquables).
+
+
+3.6 — Treemap consommation
+──────────────────────────
+QUOI : vue dense pour le workbench M3 — répartition des modèles par catégorie.
+
+DONNÉES TYPIQUES :
+  - 100-200 modèles du référentiel.
+  - 3 niveaux : provider → famille → modèle.
+  - Aire proportionnelle à l'indicateur sélectionné (Wh/req par défaut).
+
+CONTENU :
+  - Squarified treemap classique.
+  - Étiquettes lisibles aux 2 premiers niveaux.
+
+INTERACTIONS :
+  - Drill-down au clic.
+  - Switch indicateur (Wh, gCO2eq, eau).
+  - Breadcrumb retour navigation.
+
+INTENTION : montrer "qui pèse" dans l'écosystème (OpenAI vs Mistral vs
+modèles ouverts).
+
+
+3.7 — Ridge plot des distributions
+──────────────────────────────────
+QUOI : distributions empilées (KDE) des Wh/req par modèle — vue dense pour
+le workbench.
+
+CONTENU :
+  - Une ligne par modèle, distribution KDE remplie.
+  - Tri par médiane (du moins gourmand au plus gourmand).
+  - Mode "normalize y" : chaque distribution à la même hauteur visuelle.
+  - Mode "absolute" : hauteurs proportionnelles.
+
+INTERACTIONS :
+  - Hover sur une ligne : surligne et montre la médiane.
+  - Filtre par taille de modèle, provider, modalité.
+
+INTENTION : voir d'un coup d'œil la dispersion entre modèles, pas seulement
+les médianes.
 
 ═══════════════════════════════════════════════════════════════════════════════
-3. COMPOSANTS UI TRANSVERSAUX MANQUANTS
+4. COMPOSANTS UI TRANSVERSAUX MANQUANTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-3.1 — MetricCard
-────────────────
-Carte affichant une métrique avec son incertitude.
-Props : indicator (CO2eq | Energy | Water | …), p5, p50, p95, unit, sparkline?
-État vide : "Pas encore estimé".
-État chargement : skeleton shimmer doux.
-État alerte : bordure ambre/rouge selon seuil.
+4.1 — MetricCard (carte d'indicateur)
+─────────────────────────────────────
+CONTENU : un indicateur (CO2eq, énergie, eau, etc.) avec sa valeur P50,
+son intervalle P5-P95, son unité, optionnellement une sparkline d'historique,
+et un badge "équivalent parlant" (ex: "≈ 17 m voiture").
+ÉTATS : vide, chargement, succès, erreur, valeur dégradée (proxy).
+INTERACTIONS : clic sur la carte → vue détaillée de l'indicateur.
 
-3.2 — SourcePopover
+4.2 — SourcePopover
 ───────────────────
-Pop-over cliquable depuis une valeur ou hypothèse.
-Affiche : titre source, auteurs, année, DOI/URL cliquable, citation
-formatée APA, bouton "Copier la citation".
+CONTENU : ouvre depuis n'importe quelle valeur ou hypothèse. Affiche
+titre source, auteurs, année, DOI/URL cliquable, citation formatée APA,
+bouton "Copier la citation BibTeX".
+INTENTION : "rien n'est caché, tout est sourcé".
 
-3.3 — EquivalentBadge
+4.3 — EquivalentBadge
 ─────────────────────
-Badge inline pour les équivalents parlants.
-Ex: "≈ 17 m en voiture thermique" avec icône 🚗 (lucide).
-Hover : source de l'équivalent.
+CONTENU : équivalent parlant inline (ex: "≈ 17 m en voiture thermique",
+"≈ 0.5 s de douche chaude", "≈ 3 écrans-heures").
+INTERACTION : hover affiche la source de la conversion (ADEME, etc.).
 
-3.4 — LedgerEntry
-─────────────────
-Ligne d'audit (Module M7).
-Affiche : timestamp UTC court, modèle, tokens in/out, indicateur principal,
-hash SHA-256 tronqué (cliquable → copie complète).
-État : "intégrité ✓" en vert / "compromise" en rouge.
+4.4 — LedgerEntry (ligne d'audit)
+─────────────────────────────────
+CONTENU : timestamp UTC, modèle, tokens in/out, indicateur principal,
+hash SHA-256 tronqué cliquable (copie complète au clic).
+ÉTAT : "chaîne intègre ✓" ou "compromise" en cas d'altération détectée.
+INTENTION : démontrer la traçabilité réglementaire (CSRD).
 
-3.5 — HypothesisChip
+4.5 — HypothesisChip
 ────────────────────
-Chip cliquable représentant une hypothèse utilisée.
-Texte : clé courte (ex: "PUE 1.3"), couleur selon catégorie
-(hardware / énergie / méthodologie).
-Click : ouvre SourcePopover.
+CONTENU : chip représentant une hypothèse utilisée par le moteur, avec
+une clé courte (ex: "PUE 1.3", "ε_decode 1.8 mJ/tok").
+INTERACTION : clic → SourcePopover.
+INTENTION : rendre les rouages visibles, jamais cachés.
 
-3.6 — LocalIndicator (bandeau permanent)
-────────────────────────────────────────
-Bandeau bas d'écran shell :
-  🔒 100 % local • Référentiel YYYY.MM.DD • N alertes
-- Discret mais toujours visible.
-- Clic sur "alertes" → panneau de diagnostic.
+4.6 — LocalIndicator (bandeau permanent du shell)
+─────────────────────────────────────────────────
+CONTENU : "🔒 100 % local • Référentiel YYYY.MM.DD • N alertes".
+INTERACTION : clic sur "alertes" → panneau de diagnostic réseau / données.
+INTENTION : rassurer en permanence sur la confidentialité.
 
-3.7 — UncertaintyTooltip
-────────────────────────
-Tooltip standard pour toute valeur incertaine.
-Format : "2.14 gCO2eq [1.68–2.74]" avec icône (i) info.
-Hover prolongé : "Intervalle de confiance à 90 % issu de 10 000 simulations
-Monte-Carlo (seed 42)."
+4.7 — UncertaintyTooltip (standard pour toute valeur incertaine)
+────────────────────────────────────────────────────────────────
+CONTENU : "2.14 gCO2eq [1.68–2.74]" + icône info.
+HOVER PROLONGÉ : "Intervalle de confiance à 90 % issu de 10 000 simulations
+Monte-Carlo (seed 42). Cliquer pour voir l'histogramme complet."
+INTERACTION : clic → ouvre HistogramMC dans une modale.
 
-3.8 — IntervalSlider
+4.8 — IntervalSlider
 ────────────────────
-Slider double-poignée pour filtrer par plage de valeurs (workbench).
-Affiche min/max + valeur courante.
+CONTENU : slider double-poignée pour filtrer par plage (utilisé dans le
+workbench pour ne voir que les modèles consommant entre X et Y Wh/req).
+ÉTAT : valeurs min, max et courantes affichées.
 
-3.9 — ConfidenceIndicator
+4.9 — ConfidenceIndicator
 ─────────────────────────
-Petit indicateur visuel de confiance des données :
-  ▓░░░░░ Faible | ▓▓▓░░░ Moyenne | ▓▓▓▓▓░ Élevée | ▓▓▓▓▓▓ Très élevée
-Hover : explication de la note.
+CONTENU : indicateur visuel de confiance des données (faible / moyenne /
+élevée / très élevée).
+HOVER : explication de la note ("3 sources concordantes, mesures directes
+sur hardware standardisé").
+INTENTION : honnêteté radicale — "voici ce qu'on sait vraiment".
 
-3.10 — DatasheetCallout
+4.10 — DatasheetCallout
 ───────────────────────
-Encadré "Datasheet for Datasets" (Gebru et al.) cliquable sur le bouton
-"Exporter dataset" → ouvre la fiche complète.
+CONTENU : encadré "Datasheet for Datasets" (Gebru et al.) accessible
+depuis le bouton "Exporter dataset" → ouvre la fiche complète (motivation,
+composition, collecte, recommended uses, limitations, etc.).
+INTENTION : rigueur scientifique communiquée à l'utilisateur final.
 
 ═══════════════════════════════════════════════════════════════════════════════
-4. ÉCRANS À PRODUIRE (vue d'ensemble — détail dans MAQUETTE-UI-TEXTUELLE.md)
+5. ÉCRANS À PRODUIRE
 ═══════════════════════════════════════════════════════════════════════════════
 
-Pour CHACUN des 9 écrans + onboarding + extension overlay :
-- Layout desktop 1280×800 + variants tablette 1024×768 et mobile 390×844
-- États : vide / chargement / résultat / erreur
-- Mockups haute-fidélité + spec interactive (focus/hover/active)
-- Annotations d'accessibilité (ordre tabulation, aria-labels)
+12 écrans au total. Détail exhaustif dans la maquette UI textuelle
+(MAQUETTE-UI-TEXTUELLE.md) jointe en référence.
 
-ÉCRANS :
-1. Estimer un prompt          (Module M2)
-2. Workbench                  (Module M3)
-3. Comparer                   (Module M5)
-4. Simuler des scénarios      (Module M4)
-5. Importer logs entreprise   (Module M10)
-6. Géolocaliser datacenter    (Module M9)
-7. Rapports & exports         (Module M6)
-8. Journal d'audit            (Module M7)
-9. Méthodologie & aide        (Module M8)
-10. Territoire français       (Module M12 — NOUVEAU, avec ChoroplethMap)
-11. Onboarding 4 étapes
-12. Extension navigateur (overlay sur ChatGPT/Claude/Mistral)
+Pour CHAQUE écran :
+  - Layout pour desktop, tablette et mobile.
+  - Tous les états (vide, chargement, succès, erreur, hors-ligne).
+  - Annotations d'accessibilité (ordre de tabulation, libellés ARIA).
 
-ÉCRAN PRIORITAIRE M12 (Territoire français — nouveau, ajouté en v1.2) :
-- ChoroplethMap IRIS France plein écran
-- Panneau latéral droit : filtres + KPI agrégés (total MWh, top 10 IRIS)
-- Toolbar haut : sélecteur d'indicateur (consommation, intensité carbone,
-  ratio élec/gaz, croisement avec usage LLM)
-- Sélection région via picker carte ou liste
-- Mode "scénario national" : superposer projection ComparIA + RTE IRIS
+LISTE :
+  1. Estimer un prompt              (M2)
+  2. Workbench (référentiel)        (M3)
+  3. Comparateur                     (M5)
+  4. Simulateur de scénarios         (M4)
+  5. Importer logs entreprise        (M10)
+  6. Géolocaliser datacenter         (M9)
+  7. Rapports & exports              (M6)
+  8. Journal d'audit                 (M7)
+  9. Méthodologie & aide             (M8)
+ 10. Territoire français             (M12 — nouveau, avec ChoroplethMap)
+ 11. Onboarding 4 étapes
+ 12. Extension navigateur (overlay sur ChatGPT / Claude / Mistral / Gemini)
 
-═══════════════════════════════════════════════════════════════════════════════
-5. CONTRAINTES TECHNIQUES (à anticiper dans le design)
-═══════════════════════════════════════════════════════════════════════════════
-
-- Composants livrables : Svelte 5 (runes), TypeScript strict
-- Pas de framework UI lourd : tout est custom (Skeleton CSS-only ou rien).
-- Imports JS autorisés : Observable Plot, D3 v7, lucide-svelte. Rien d'autre.
-- Bundle final ≤ 200 Ko gzip (frontend total).
-- Cible RGAA AA validée par axe-core en CI.
-- Mode hors-ligne : tous les graphes doivent fonctionner sans réseau (données
-  pré-chargées via stores Svelte).
-- i18n : tous les textes en clés `kebab-case` consommables par svelte-i18n.
+ÉCRAN PRIORITAIRE M12 (nouveau en v1.2) :
+  - ChoroplethMap IRIS plein écran (composant §3.4).
+  - Panneau latéral : filtres + KPI agrégés (total MWh, top 10 IRIS).
+  - Toolbar : sélecteur d'indicateur, mode "scénario national" qui
+    superpose ComparIA + RTE IRIS.
+  - Récit guidé en bas de page : "Voici comment lire cette carte" (3 étapes).
 
 ═══════════════════════════════════════════════════════════════════════════════
-6. LIVRABLES ATTENDUS POUR CETTE ITÉRATION
+6. CONTRAINTES TECHNIQUES (à anticiper dans la conception)
+═══════════════════════════════════════════════════════════════════════════════
+
+  - Bundle frontend final ≤ 200 Ko gzip (cf. CDC NF).
+  - Tous les composants doivent fonctionner hors-ligne (données chargées
+    via stores Svelte / IndexedDB).
+  - i18n : tous les textes affichés via clés kebab-case (svelte-i18n).
+    Pas de texte en dur dans les composants.
+  - Conformité RGAA AA / WCAG 2.1 AA obligatoire.
+  - Pas de framework UI lourd : composants custom.
+  - Imports JS autorisés pour la dataviz : Observable Plot, D3 v7,
+    lucide-svelte. Rien d'autre.
+
+═══════════════════════════════════════════════════════════════════════════════
+7. CE QUE TU NE FAIS PAS
+═══════════════════════════════════════════════════════════════════════════════
+
+  - Pas de palette imposée. Pas de couleurs nommées.
+  - Pas de typographie nommée.
+  - Pas d'espacements en pixels.
+  - Pas de coins arrondis suggérés.
+  - Pas de durées d'animation.
+  - Pas de référence à d'autres produits comme inspiration esthétique.
+
+Concentre-toi sur le contenu, les données, les interactions, et la
+narration. Le visuel est décidé en dehors de toi.
+
+═══════════════════════════════════════════════════════════════════════════════
+8. LIVRABLES ATTENDUS
 ═══════════════════════════════════════════════════════════════════════════════
 
 Pour chaque composant nouveau ou révisé :
-1. Composant Svelte fonctionnel (.svelte) avec props typés.
-2. Variants documentés (au moins : default, hover, focus, error, empty).
-3. Storybook / page de démo avec exemples réalistes (utiliser des valeurs
-   plausibles : GPT-4o-mini ≈ 2 gCO2eq, mix FR ≈ 56 gCO2eq/kWh).
-4. Spec d'accessibilité (rôle ARIA, aria-label dynamique, ordre de tabulation,
-   contrastes vérifiés).
-5. Notes de performance si pertinent (notamment ChoroplethMap IRIS — 50k
-   polygones).
+  1. Spécification fonctionnelle complète (contenu, données, états,
+     interactions, narration).
+  2. Exemples de données plausibles (valeurs réalistes : GPT-4o-mini ≈
+     2 gCO2eq, mix FR ≈ 56 gCO2eq/kWh, etc.).
+  3. Squelette Svelte (.svelte) avec props typés mais STYLES VIDES — le
+     style sera ajouté hors de ton périmètre.
+  4. Notes d'accessibilité (rôle ARIA, ordre de tabulation, alternatives
+     textuelles pour les graphes).
+  5. Notes de performance si pertinent (notamment ChoroplethMap IRIS).
+
+ORDRE DE PRIORITÉ :
+  - §3 — composants dataviz manquants (différenciants majeurs)
+  - §4 — composants UI transversaux
+  - §5 — écrans (en intégrant les composants déjà produits)
 
 ═══════════════════════════════════════════════════════════════════════════════
-7. RÉFÉRENCE AUTORITAIRE
-═══════════════════════════════════════════════════════════════════════════════
-
-La spec textuelle exhaustive est dans MAQUETTE-UI-TEXTUELLE.md ci-jointe.
-En cas de conflit entre ce prompt et la maquette, la maquette prévaut pour
-les écrans, et ce prompt prévaut pour le design system et la liste des
-composants à produire.
-
-═══════════════════════════════════════════════════════════════════════════════
-
-Commence par les 7 composants dataviz manquants (§2) — ce sont les plus
-différenciants pour notre candidature. Ensuite les composants UI transversaux
-(§3). Termine par les écrans (§4) en intégrant les composants déjà produits.
 ```
 
 ---
 
 ## Notes pour Thibault
 
-1. **Joins la maquette textuelle** (`MAQUETTE-UI-TEXTUELLE.md`) au prompt — Claude Design a besoin de la spec écran par écran pour ne rien rater.
-2. **Insiste sur les graphes dataviz** : c'est le différenciant majeur. Un Sankey énergétique et un histogramme Monte-Carlo bien faits = effet "wow" garanti devant le jury.
-3. **Mentionne explicitement M12** : c'est le module Territoire français ajouté en v1.2, Claude Design ne le connaît pas si la première itération a été lancée avant le pivot.
-4. **Demande une charte de variants** : pour chaque composant, l'état default + hover + focus + active + disabled + error + empty. Ça t'évitera des allers-retours pour faire passer la a11y plus tard.
-5. **Cible RGAA AA dès maintenant** : c'est dans NF-12, plus tard ça coûte beaucoup plus cher de revenir corriger.
-
-Une fois la nouvelle itération reçue, on intégrera les composants Svelte dans `web/src/lib/components/`. Si tu veux, je peux préparer l'arborescence cible dès maintenant pour qu'il n'y ait plus qu'à copier-coller.
-
-[Prompt complet à copier-coller](computer://C:\Users\NR2201ZE\Desktop\defis-lia-generatif\docs\ux\PROMPT-CLAUDE-DESIGN.md)
+1. **Joins la maquette textuelle en pièce jointe** ([MAQUETTE-UI-TEXTUELLE.md](MAQUETTE-UI-TEXTUELLE.md)) — c'est la source autoritaire pour les écrans, le prompt ci-dessus ne reprend que la liste.
+2. **Insiste sur les §3 dataviz** — le Sankey énergétique et l'histogramme Monte-Carlo sont les composants les plus différenciants devant le jury, et ce sont aussi les plus susceptibles d'être oubliés.
+3. **Le module M12 (Territoire français) est nouveau** depuis le pivot ComparIA — si la première itération date d'avant, Claude Design ne le connaît pas du tout.
+4. **Le prompt précise explicitement « pas de couleurs, pas de typo, pas de formes »** — comme ça il ne se croira pas tenu de proposer un visuel.
+5. Quand tu reçois la nouvelle itération, dis-le moi : je prépare l'arborescence `web/src/lib/components/` pour qu'il n'y ait plus qu'à coller les composants Svelte.

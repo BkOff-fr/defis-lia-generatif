@@ -185,14 +185,9 @@ impl Downloader {
         // On écrase systématiquement le partiel — pas de resume v1.0.
         let mut file = tokio::fs::File::create(partial).await?;
 
-        let response = self.client.get(url).send().await?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(IngestError::Http(
-                response.error_for_status().expect_err("status non-success → error_for_status retourne Err"),
-            ));
-        }
-
+        // `error_for_status()` convertit un statut 4xx/5xx en erreur,
+        // automatiquement remontée en `IngestError::Http` via `From`.
+        let response = self.client.get(url).send().await?.error_for_status()?;
         let captured = capture_headers(response.headers());
 
         let mut stream = response.bytes_stream();
