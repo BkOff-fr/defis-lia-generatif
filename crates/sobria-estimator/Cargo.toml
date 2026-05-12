@@ -1,20 +1,23 @@
-# sobria-estimator — squelette S1
+# sobria-estimator — moteur Monte-Carlo (ADR-0004 + chantier C05)
 [package]
 name = "sobria-estimator"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Crate Sobr.ia — estimator (squelette S1, à implémenter dans le sprint dédié)"
+description = "Moteur Monte-Carlo de l'écosystème Sobr.ia (formule AFNOR SPEC 2314)"
 
 [dependencies]
 sobria-core = { path = "../sobria-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+chrono = { workspace = true }
+schemars = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+rand_xoshiro = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
