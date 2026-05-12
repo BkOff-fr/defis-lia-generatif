@@ -12,7 +12,7 @@
     AlertTriangle,
     Info,
     PlugZap
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import {
     estimatePrompt,
     isTauriContext,

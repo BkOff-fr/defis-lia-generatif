@@ -13,7 +13,7 @@
     Bookmark,
     GitCompare,
     Check
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import type { Calibration, ModelPresetDto } from '$lib/api';
 
   type Props = {

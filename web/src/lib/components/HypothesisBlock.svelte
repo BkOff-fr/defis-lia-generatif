@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FlaskConical, ExternalLink, ArrowUpRight } from 'lucide-svelte';
+  import { FlaskConical, ExternalLink, ArrowUpRight } from '@lucide/svelte';
   import type { HypothesisDto } from '$lib/api';
 
   type Props = { hypotheses: HypothesisDto[] };

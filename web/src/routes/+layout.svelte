@@ -11,7 +11,7 @@
     ShieldCheck,
     BookOpen,
     Settings2
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
 
   type Props = { children?: import('svelte').Snippet };
   let { children }: Props = $props();

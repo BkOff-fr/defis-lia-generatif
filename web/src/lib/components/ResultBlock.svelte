@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Leaf, Droplet, Hexagon } from 'lucide-svelte';
+  import { Leaf, Droplet, Hexagon } from '@lucide/svelte';
   import type { EstimationResultDto, IndicatorDto } from '$lib/api';
 
   type Props = { result: EstimationResultDto };
