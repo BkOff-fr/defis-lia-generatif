@@ -1,10 +1,18 @@
 # Cahier des charges — Sobr.ia
 
-> **Version** : 1.1 (figée)
+> **Version** : 1.2 (figée)
 > **Date** : 12 mai 2026
 > **Auteur** : Thibault (étudiant, candidat au défi data.gouv.fr)
 > **Défi** : « L'impact environnemental de l'IA générative » — defis.data.gouv.fr
 > **Statut** : Référence projet. Toute modification = bump version + ADR associé.
+>
+> **Changelog v1.2** : pivot sur les datasets officiels du défi data.gouv.fr.
+> - **ComparIA** (Beta.gouv / Ministère de la Culture) devient le dataset central : 5 GB de conversations + votes + réactions sur LLMs, méthodologie EcoLogits intégrée.
+> - **Consommation IRIS sites industriels** (RTE/NaTran/Teréga via ODRÉ) ajouté pour la dimension territoriale française.
+> - Nouveau module **M12 — Territoire français** (cartographie IRIS, scénarios régionaux).
+> - Suppression d'Electricity Maps et MaxMind GeoLite2 (paywalls / licences virales).
+> - 0 clé API bloquante pour v1.0.
+>
 > **Changelog v1.1** : ajout de l'architecture médaillon (ADR-0009) — pipeline Copper/Silver/Gold automatique pour toutes les sources.
 
 ---
@@ -94,7 +102,7 @@ Produire **une stack complète et open-source** (dataset + application + extensi
 
 ---
 
-## 4. Périmètre fonctionnel — 11 modules
+## 4. Périmètre fonctionnel — 12 modules
 
 | ID | Module | Description | Cible v1.0 |
 |----|--------|-------------|------------|
@@ -109,6 +117,7 @@ Produire **une stack complète et open-source** (dataset + application + extensi
 | M9 | **Géolocalisation datacenter** | Détection IP/zone → datacenter probable, mix élec local | ✅ Bloquant |
 | M10 | **Import logs entreprise** | Import CSV/JSONL/Parquet, profil RSE complet | ✅ Bloquant |
 | M11 | **Extension navigateur** | Chrome/Firefox MV3, capture vie réelle, badge live | ✅ Bloquant |
+| M12 | **Territoire français** | Cartographie IRIS, croisement ComparIA × RTE IRIS, scénarios régionaux | ✅ Bloquant |
 
 ### 4.2 Indicateurs calculés
 
@@ -221,6 +230,18 @@ Pour chaque estimation, l'outil produit (avec intervalles d'incertitude propagé
 **EF-M11-05** : Communication avec l'app desktop via localhost (HTTPS + token) ou stockage local
 **EF-M11-06** : Bilan hebdomadaire automatique (notification)
 **EF-M11-07** : Pas de tracking : tout reste local sauf opt-in explicite
+
+### 5.12 Module M12 — Territoire français (NOUVEAU v1.2)
+
+**Données primaires** : ComparIA (5 GB Parquet) + RTE/NaTran/Teréga IRIS (90 MB CSV + GeoJSON).
+
+**EF-M12-01** : Carte choroplèthe IRIS de la consommation industrielle électrique (90 MB CSV ingéré, ~50 000 IRIS)
+**EF-M12-02** : Détection des IRIS candidats à héberger un datacenter (heuristique : élec ≫ gaz, > seuil MWh)
+**EF-M12-03** : Croisement ComparIA × IRIS : volume de requêtes LLMs estimé par bassin de population
+**EF-M12-04** : Scénarios régionaux (Île-de-France, AURA, Occitanie…) avec projection à 5 ans
+**EF-M12-05** : Comparaison régions FR vs benchmarks internationaux (Virginie, Oregon, Islande…)
+**EF-M12-06** : Export carte PNG/SVG haute résolution + GeoJSON enrichi
+**EF-M12-07** : Storytelling intégré : « top 10 IRIS qui pourraient absorber un déploiement national d'IA »
 
 ---
 
@@ -381,20 +402,38 @@ Sources externes (ADEME, RTE, HF, EcoLogits, papers…)
 
 ## 8. Sources de données
 
-Voir `docs/sources/CATALOGUE-SOURCES.md` pour la fiche détaillée de chaque source.
+Voir `docs/sources/CATALOGUE-SOURCES.md` pour la fiche détaillée de chaque source. **Stratégie en 3 tiers**, alignée sur les datasets officiels du défi data.gouv.fr.
 
-| Source | Données | Format | Licence | MAJ |
-|--------|---------|--------|---------|-----|
-| ADEME Base Empreinte | Facteurs d'émission | API + CSV | Etalab 2.0 | Trim. |
-| RTE eco2mix | Mix élec FR temps réel | API JSON | Etalab 2.0 | Live |
-| Electricity Maps | Mix mondial | API REST | CC-BY-SA | Hor. |
-| GenAI Impact / EcoLogits | Modèles LLM | Python + JSON | MIT | Ad hoc |
-| Hugging Face AI Energy Score | Score énergétique | API | Apache 2.0 | Ad hoc |
-| CodeCarbon | Mesures entraînement | GitHub JSON | MIT | Ad hoc |
-| ML.Energy Leaderboard | Bench inférence | Web | CC-BY | Mens. |
-| Papers académiques | Mesures référence | PDF | varies | Ad hoc |
-| Datasheets GPU | TDP, embodied | PDF | constr. | Ad hoc |
-| GeoLite2 | IP → géoloc | CSV | CC-BY-SA | Mens. |
+### 8.1 Tier 1 — Datasets officiels du défi 🎯
+
+| Source | Données | Format | Volume | Licence |
+|--------|---------|--------|--------|---------|
+| **ComparIA** (Beta.gouv) | Conversations + votes + réactions LLMs | Parquet | 5 GB | Etalab 2.0 |
+| **RTE/NaTran/Teréga IRIS** (ODRÉ) | Consommation industrielle élec + gaz par IRIS | CSV + GeoJSON | ~200 MB | Etalab 2.0 |
+
+### 8.2 Tier 2 — Complémentaires (sans authentification)
+
+| Source | Données | Format | Licence |
+|--------|---------|--------|---------|
+| ADEME Base Empreinte | Facteurs d'émission | API + CSV | Etalab 2.0 |
+| GenAI Impact / EcoLogits | Modèles + méthodologie officielle | Python + JSON | MIT |
+| Hugging Face AI Energy Score | Score énergétique | HF Hub | Apache 2.0 / CC-BY |
+| CodeCarbon | Mesures d'entraînement | GitHub | MIT |
+| ML.Energy Leaderboard | Benchmarks inférence | CSV | CC-BY |
+| Papers académiques | Validations croisées | PDF | varies |
+
+### 8.3 Tier 3 — Optionnelle (compte gratuit)
+
+| Source | Données | Format | Licence | Statut |
+|--------|---------|--------|---------|--------|
+| RTE eco2mix | Mix élec FR live | API OAuth2 | Etalab 2.0 | Optionnel v1.0, fallback CSV historiques |
+
+### 8.4 Supprimées du périmètre v1.0
+
+- ❌ Electricity Maps (plan gratuit limité, CC-BY-SA viral)
+- ❌ MaxMind GeoLite2 (compte requis, CC-BY-SA, redondant avec IRIS pour la France)
+
+**Bilan : 0 clé bloquante pour v1.0.**
 
 ---
 

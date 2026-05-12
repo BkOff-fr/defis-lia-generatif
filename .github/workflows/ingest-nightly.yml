@@ -1,0 +1,46 @@
+# Pipeline médaillon nocturne — voir ADR-0009.
+# Ré-ingère les sources qui ont changé et publie le nouveau Gold sur DVC.
+
+name: Pipeline médaillon (nightly)
+
+on:
+  schedule:
+    - cron: '15 3 * * *'   # tous les jours 03:15 UTC
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: setup DVC
+        uses: iterative/setup-dvc@v1
+
+      - name: configure remote DVC
+        env:
+          DVC_REMOTE_URL: ${{ secrets.DVC_REMOTE_URL }}
+          DVC_REMOTE_KEY: ${{ secrets.DVC_REMOTE_KEY }}
+        run: |
+          dvc remote modify --local origin url "$DVC_REMOTE_URL"
+          dvc remote modify --local origin secret_access_key "$DVC_REMOTE_KEY"
+
+      - name: dvc pull
+        run: dvc pull --quiet
+
+      - name: dvc repro (Copper → Silver → Gold)
+        env:
+          # Tier 1 : aucune clé requise.
+          # Tier 3 : RTE eco2mix optionnel (skip si non défini).
+          RTE_CLIENT_ID: ${{ secrets.RTE_CLIENT_ID }}
+          RTE_CLIENT_SECRET: ${{ secrets.RTE_CLIENT_SECRET }}
+        run: dvc repro
+
+      - name: dvc push
+        run: dvc push
+
+      - name: rapport intégrité
+        run: cargo run -p sobria-ingest --release -- validate

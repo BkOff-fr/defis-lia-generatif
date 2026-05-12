@@ -1,0 +1,152 @@
+# CI Sobr.ia — voir CLAUDE.md §5 (Definition of Done).
+# Tout doit passer en vert avant merge sur main / develop.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  RUST_BACKTRACE: 1
+  SOBRIA_SEED: 42
+
+jobs:
+  rust-fmt-clippy:
+    name: Rust — fmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  rust-test:
+    name: Rust — tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test
+        run: cargo test --workspace --all-features --no-fail-fast
+
+  rust-coverage:
+    name: Rust — couverture (≥ 80 %)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: install tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+      - name: cargo tarpaulin
+        run: cargo tarpaulin --workspace --out Xml --fail-under 80
+
+  rust-security:
+    name: Rust — audit (cargo audit + deny)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: install cargo-audit
+        run: cargo install cargo-audit cargo-deny --locked
+      - run: cargo audit
+      - run: cargo deny check
+
+  web-lint-build:
+    name: SvelteKit — lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run check
+      - run: npm run build
+
+  ext-lint-build:
+    name: Extension MV3 — lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: extension/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  a11y:
+    name: Frontend — accessibilité (axe-core)
+    runs-on: ubuntu-latest
+    needs: web-lint-build
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:a11y
+
+  size-budget:
+    name: Frugalité — taille des binaires
+    runs-on: ubuntu-latest
+    needs: [rust-test, web-lint-build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: build release
+        run: cargo build --release --workspace
+      - name: vérifier tailles (NF-03, NF-04)
+        run: |
+          set -e
+          # Cible NF-03 : binaire desktop < 20 Mo
+          for bin in target/release/sobria-*; do
+            if [ -f "$bin" ] && [ -x "$bin" ]; then
+              size=$(stat --printf="%s" "$bin")
+              echo "$bin : $size bytes"
+              if [ "$size" -gt 20971520 ]; then
+                echo "❌ $bin dépasse 20 Mo (NF-03)" && exit 1
+              fi
+            fi
+          done
+          echo "✅ Toutes les tailles respectent le budget."

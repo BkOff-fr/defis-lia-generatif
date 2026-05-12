@@ -7,7 +7,7 @@
 
 ## 1. Projet en une phrase
 
-**Sobr.ia** est une application native multi-plateforme (Rust + Tauri 2 + SvelteKit) qui mesure et visualise l'impact environnemental de l'usage des LLMs, accompagnée d'une extension navigateur, d'un dataset ouvert, et d'une méthodologie scientifique validée — candidature au défi data.gouv.fr « L'impact environnemental de l'IA générative ».
+**Sobr.ia** est une application native multi-plateforme (Rust + Tauri 2 + SvelteKit) qui mesure et visualise l'impact environnemental de l'usage des LLMs, exploite les datasets officiels du défi data.gouv.fr (**ComparIA** + **RTE IRIS** sites industriels), apporte un angle territorial français au niveau IRIS, et est accompagnée d'une extension navigateur, d'un dataset consolidé, et d'une méthodologie scientifique validée — candidature au défi data.gouv.fr « L'impact environnemental de l'IA générative ».
 
 ---
 
@@ -48,6 +48,13 @@
 - ❌ Pas de tracking / télémétrie sans opt-in explicite.
 - ❌ Pas d'envoi de prompts utilisateurs vers un serveur externe.
 - ❌ Pas de dépendances optionnelles non-justifiées dans un ADR.
+- ❌ Pas de clé API bloquante (v1.0 doit être installable et fonctionnelle sans aucune clé).
+- ❌ Pas de méthodologie environnementale parallèle à EcoLogits sans justification : **on aligne sur la méthodologie officielle ComparIA / Data for Good**.
+
+**Datasets prioritaires (Tier 1, défi)** :
+- 🎯 **ComparIA** (Beta.gouv / Ministère de la Culture) — 5 GB Parquet, Etalab 2.0, méthodologie EcoLogits intégrée
+- 🎯 **RTE/NaTran/Teréga IRIS** (ODRÉ) — consommation industrielle élec + gaz par maille IRIS, Etalab 2.0
+- Catalogue complet : `docs/sources/CATALOGUE-SOURCES.md`
 
 ---
 
@@ -217,7 +224,8 @@ cd web && npm run lint && npm run check
 # Pipeline médaillon (ADR-0009)
 cargo run -p sobria-ingest -- pipeline run                 # tout le pipeline Copper→Silver→Gold
 cargo run -p sobria-ingest -- pipeline run --incremental   # ne ré-ingère que ce qui a changé
-cargo run -p sobria-ingest -- pipeline run --source rte-eco2mix  # source unique
+cargo run -p sobria-ingest -- pipeline run --source comparia    # source unique : ComparIA
+cargo run -p sobria-ingest -- pipeline run --source rte-iris    # source unique : RTE IRIS
 cargo run -p sobria-ingest -- copper --all                 # juste la couche brute
 cargo run -p sobria-ingest -- silver --all                 # promotion Copper→Silver
 cargo run -p sobria-ingest -- gold                         # construction du Gold final

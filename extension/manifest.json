@@ -1,0 +1,94 @@
+{
+  "manifest_version": 3,
+  "name": "Sobr.ia",
+  "short_name": "Sobr.ia",
+  "version": "0.1.0",
+  "description": "Mesurez la sobriété de votre IA générative en vie réelle. 100 % local.",
+  "author": "Sobr.ia contributors",
+  "homepage_url": "https://sobr.ia",
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+
+  "permissions": [
+    "activeTab",
+    "storage",
+    "notifications"
+  ],
+
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://chat.mistral.ai/*",
+    "https://gemini.google.com/*",
+    "https://chat.lechat.ai/*"
+  ],
+
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": ["src/content/chatgpt.ts"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["src/content/claude.ts"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.mistral.ai/*"],
+      "js": ["src/content/mistral.ts"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["src/content/gemini.ts"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.lechat.ai/*"],
+      "js": ["src/content/lechat.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "Sobr.ia — bilan d'usage",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": false
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sobria@sobr.ia",
+      "strict_min_version": "120.0"
+    }
+  },
+
+  "minimum_chrome_version": "120",
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
+}

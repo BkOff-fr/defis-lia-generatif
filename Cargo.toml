@@ -1,0 +1,119 @@
+# Workspace Cargo — Sobr.ia
+# Voir ADR-0001 (Rust + Tauri 2) et ADR-0009 (architecture médaillon).
+# 9 crates suivant le découpage par responsabilité du CDC §7.1.
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/sobria-core",
+    "crates/sobria-referentiel",
+    "crates/sobria-estimator",
+    "crates/sobria-ingest",
+    "crates/sobria-geoloc",
+    "crates/sobria-import",
+    "crates/sobria-export",
+    "crates/sobria-audit",
+    "crates/sobria-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Sobr.ia contributors"]
+license = "MIT"
+repository = "https://github.com/<TBD>/sobria"
+homepage = "https://sobr.ia"
+readme = "README.md"
+rust-version = "1.79"
+keywords = ["llm", "carbon", "frugal-ai", "environnement", "ademe"]
+categories = ["science", "command-line-utilities", "visualization"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dépendances partagées (versionnées une seule fois, héritées par les crates)
+# ─────────────────────────────────────────────────────────────────────────────
+[workspace.dependencies]
+# Sérialisation
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_with = "3.9"
+
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Erreurs
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# DB
+rusqlite = { version = "0.32", features = ["bundled", "chrono", "blob"] }
+duckdb = { version = "1.1", features = ["bundled"] }
+
+# HTTP (rustls : pas d'OpenSSL — sécurité + portabilité)
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
+
+# Data engineering
+polars = { version = "0.43", features = ["lazy", "parquet", "csv", "json", "dtype-full"] }
+arrow = "53"
+arrow-schema = "53"
+
+# Dates / temps
+chrono = { version = "0.4", features = ["serde"] }
+
+# Schémas / validation
+schemars = "0.8"
+jsonschema = "0.26"
+
+# Randomisation (Monte-Carlo — ADR-0004)
+rand = "0.8"
+rand_distr = "0.4"
+rand_xoshiro = "0.6"
+
+# Cryptographie
+sha2 = "0.10"
+blake3 = "1.5"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Tests
+proptest = "1.5"
+insta = { version = "1.40", features = ["yaml"] }
+criterion = "0.5"
+
+# Tauri (côté app uniquement)
+tauri = { version = "2.0", features = [] }
+tauri-build = { version = "2.0", features = [] }
+
+# Géospatial (M9, M12)
+geo = "0.28"
+geojson = "0.24"
+
+# Parsing
+csv = "1.3"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Profils de compilation (frugalité par défaut — voir CDC §8)
+# ─────────────────────────────────────────────────────────────────────────────
+[profile.release]
+opt-level = "z"        # optimise la taille du binaire
+lto = true             # link-time optimization
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+incremental = true
+
+# Profil dédié benchmarks (criterion)
+[profile.bench]
+opt-level = 3
+lto = "thin"
+debug = false

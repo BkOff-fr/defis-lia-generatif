@@ -1,0 +1,8 @@
+# Fichiers ignorés par DVC lors du tracking
+.git/
+node_modules/
+target/
+.svelte-kit/
+*.log
+*.tmp
+.DS_Store

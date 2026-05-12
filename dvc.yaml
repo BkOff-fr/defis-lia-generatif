@@ -1,0 +1,80 @@
+# dvc.yaml — Pipeline médaillon Sobr.ia
+# Voir ADR-0009 (Copper / Silver / Gold).
+# Exécuter `dvc repro` pour rejouer les stages modifiés.
+
+stages:
+  # ─────────────────────────────────────────────────────────────────────────
+  # 🟫 COPPER — Récupération brute des sources, immutable, datée, hashée.
+  # ─────────────────────────────────────────────────────────────────────────
+  copper:
+    cmd: cargo run -p sobria-ingest --release -- copper --all
+    deps:
+      - crates/sobria-ingest/src
+      - crates/sobria-core/src
+      - schemas/copper
+    outs:
+      - data/copper:
+          cache: true
+          push: true
+    desc: |
+      Récupère toutes les sources Tier 1 (ComparIA, RTE IRIS) et Tier 2
+      (ADEME, EcoLogits, HF, CodeCarbon, ML.Energy, papers) en format d'origine.
+      Append-only, signé SHA-256, accompagné d'un manifest.json par snapshot.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 🥈 SILVER — Normalisation, validation, typage, lineage vers Copper.
+  # ─────────────────────────────────────────────────────────────────────────
+  silver:
+    cmd: cargo run -p sobria-ingest --release -- silver --all
+    deps:
+      - data/copper
+      - crates/sobria-ingest/src
+      - schemas/silver
+    outs:
+      - data/silver:
+          cache: true
+          push: true
+    desc: |
+      Promeut Copper → Silver : Parquet typé, dédupliqué, normalisé SI,
+      schémas versionnés (schemas/silver/<entity>-v<n>.json), lineage strict
+      vers les hashes Copper d'origine.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 🥇 GOLD — Jointures, agrégations, prêt à consommer par l'app.
+  # ─────────────────────────────────────────────────────────────────────────
+  gold:
+    cmd: cargo run -p sobria-ingest --release -- gold
+    deps:
+      - data/silver
+      - crates/sobria-ingest/src
+      - schemas/gold
+    outs:
+      - data/gold/referentiel.sqlite:
+          cache: true
+          push: true
+      - data/gold/analytics.parquet:
+          cache: true
+          push: true
+      - data/gold/datasheet.jsonld:
+          cache: true
+          push: true
+      - data/gold/MANIFEST.sha256:
+          cache: true
+          push: true
+    desc: |
+      Construit referentiel.sqlite (lecture rapide app, FTS5 indexé) et
+      analytics.parquet (lecture DuckDB scénarios), accompagnés d'une
+      Datasheet for Datasets (Gebru et al.) et d'un manifeste signé.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Validation — Vérifie l'intégrité de bout en bout.
+  # ─────────────────────────────────────────────────────────────────────────
+  validate:
+    cmd: cargo run -p sobria-ingest --release -- validate
+    deps:
+      - data/gold
+    always_changed: false
+    desc: |
+      Vérifie la chaîne de lineage Copper → Silver → Gold, signatures,
+      schémas, et statistiques d'intégrité (nombre de lignes attendues,
+      checksums croisés).

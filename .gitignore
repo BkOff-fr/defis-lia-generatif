@@ -1,0 +1,66 @@
+# Rust
+target/
+**/*.rs.bk
+
+# Node / SvelteKit / extension
+node_modules/
+.svelte-kit/
+.vite/
+dist/
+build/
+*.tsbuildinfo
+
+# Tauri build artifacts
+src-tauri/target/
+
+# DVC
+.dvc/cache
+.dvc/tmp
+.dvc/plots
+.dvc/.gitignore
+
+# Données (versionnées via DVC, voir ADR-0007 et ADR-0009)
+/data/copper/
+/data/silver/
+/data/gold/
+*.parquet
+*.duckdb
+!docs/**/*.parquet  # exception pour samples docs
+
+# Notebooks rendus (sources versionnées, sorties non)
+notebook/_freeze/
+notebook/_site/
+notebook/*.html
+notebook/*.pdf
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Variables d'environnement (NE JAMAIS COMMITER — voir CLAUDE.md §7)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Outputs locaux
+output/
+tmp/
+*.bak
+
+# Audits
+audit-report.json
+*.sbom.json

@@ -1,0 +1,23 @@
+# sobria-core — types et traits partagés
+# Aucune dépendance externe non absolument nécessaire (frugalité).
+
+[package]
+name = "sobria-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Types, traits, et erreurs partagés par les autres crates Sobr.ia"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+schemars = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+insta = { workspace = true }

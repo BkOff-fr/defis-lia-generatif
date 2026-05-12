@@ -13,9 +13,9 @@
 
 | Si vous êtes… | Commencez par… |
 |---------------|----------------|
-| Curieux du projet | Ce README + [CDC v1.1](docs/CAHIER-DES-CHARGES-v1.0.md) |
+| Curieux du projet | Ce README + [CDC v1.2](docs/CAHIER-DES-CHARGES-v1.0.md) |
 | Contributeur dev / Claude Code | [`CLAUDE.md`](CLAUDE.md) (impératif) puis [`ROADMAP.md`](docs/ROADMAP.md) |
-| Décideur / jury | [CDC v1.1](docs/CAHIER-DES-CHARGES-v1.0.md) §0-3 puis [Roadmap](docs/ROADMAP.md) |
+| Décideur / jury | [CDC v1.2](docs/CAHIER-DES-CHARGES-v1.0.md) §0-3 puis [Roadmap](docs/ROADMAP.md) |
 | Architecte / méthodologue | [ADR](docs/adr/) (9 décisions) + [Catalogue sources](docs/sources/CATALOGUE-SOURCES.md) |
 | Scientifique | [Brief S0](briefs/sprints/S0-revue-bibliographique.md) (à venir : synthèse biblio + méthodologie) |
 
@@ -66,7 +66,7 @@ defis-lia-generatif/
 
 ## En une phrase, qu'est-ce qu'on construit ?
 
-**Une stack open-source en 11 modules** (référentiel, estimateur, workbench, simulateur, comparateur, exports, audit ledger, aide, géolocalisation datacenter, import logs entreprise, extension navigateur), packagée en **app native multi-plateforme (Windows, macOS, Linux, Android, iOS, Web/Wasm) + extension Chrome/Firefox + dataset publié sur data.gouv.fr + notebook scientifique reproductible**, le tout sous licences ouvertes (MIT, Etalab 2.0, CC-BY).
+**Une stack open-source en 12 modules** (référentiel, estimateur, workbench, simulateur, comparateur, exports, audit ledger, aide, géolocalisation datacenter, import logs entreprise, extension navigateur, territoire français IRIS), exploitant les **datasets officiels du défi data.gouv.fr (ComparIA + RTE IRIS)**, packagée en **app native multi-plateforme (Windows, macOS, Linux, Android, iOS, Web/Wasm) + extension Chrome/Firefox + dataset publié sur data.gouv.fr + notebook scientifique reproductible**, le tout sous licences ouvertes (MIT, Etalab 2.0, CC-BY).
 
 ---
 

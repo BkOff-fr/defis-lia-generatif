@@ -1,0 +1,35 @@
+{
+  "name": "sobria-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Extension navigateur Sobr.ia — Manifest V3 cross-browser (ADR-0005)",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode development",
+    "build": "vite build && npm run package",
+    "package": "node scripts/package.js",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.30",
+    "@types/chrome": "^0.0.279",
+    "@types/firefox-webext-browser": "^120.0.4",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.10.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "web-ext": "^8.3.0"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  }
+}

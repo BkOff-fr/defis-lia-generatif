@@ -10,8 +10,8 @@
 |--------|-------|-------|-----------------|
 | S0 | 12-18 mai | Revue bibliographique + cadrage scientifique | Méthodologie défendable |
 | S1 | 19-25 mai | Bootstrap technique + schémas | Repo, CI, ADR figés |
-| S2 | 26 mai-1 juin | Pipeline médaillon — sources ADEME + RTE | Copper/Silver/Gold opérationnels |
-| S3 | 2-8 juin | Pipeline médaillon — sources HF + EcoLogits + papers | Référentiel complet en Gold |
+| S2 | 26 mai-1 juin | Pipeline médaillon — **ComparIA + RTE IRIS** (Tier 1 défi) | Copper/Silver/Gold opérationnels sur datasets officiels |
+| S3 | 2-8 juin | Pipeline médaillon — Tier 2 (ADEME, EcoLogits, HF, ML.Energy, CodeCarbon) | Référentiel complet en Gold |
 | S4 | 9-15 juin | Estimateur Rust pt.1 (formule + Monte-Carlo) | Cœur scientifique fonctionnel |
 | S5 | 16-22 juin | Estimateur Rust pt.2 + audit ledger | Validation croisée passée |
 | S6 | 23-29 juin | UI MVP pt.1 + module géolocalisation M9 | App lance + estime + géolocalise |
@@ -67,43 +67,47 @@
 
 ---
 
-## Sprint S2 — Pipeline médaillon : ADEME + RTE (semaine 3)
+## Sprint S2 — Pipeline médaillon : ComparIA + RTE IRIS (Tier 1 défi) (semaine 3)
 
-**Objectif** : valider le pattern médaillon sur les 2 premières sources les plus importantes.
+**Objectif** : valider le pattern médaillon sur les **2 datasets officiels du défi data.gouv.fr**. C'est notre socle.
 
 **Livrables** :
 - Crate `sobria-ingest` : trait `DataLayer`, registry, runner
-- Source 1 : ADEME Base Empreinte (facteurs d'émission électricité + hardware)
-- Source 2 : RTE eco2mix (mix électrique français)
+- Source S01 : **ComparIA** (3 fichiers Parquet, 5 GB) — conversations, votes, réactions
+- Source S02 : **RTE/NaTran/Teréga IRIS** (CSV + GeoJSON + Shapefile, ~200 MB) — consommation industrielle par maille IRIS
 - Couches Copper, Silver, Gold opérationnelles pour ces 2 sources
+- Schémas Silver versionnés (`comparia_*-v1.json`, `iris_*-v1.json`)
 - Tests : `proptest` + golden files
-- Première CI nocturne réussie
+- Première CI nocturne réussie + DVC remote configuré (5 GB)
 
 **Definition of Done** :
-- [ ] `cargo run -p sobria-ingest -- pipeline run` produit un Gold valide
+- [ ] `cargo run -p sobria-ingest -- pipeline run --source comparia` produit un Gold valide
+- [ ] `cargo run -p sobria-ingest -- pipeline run --source rte-iris` produit un Gold valide
 - [ ] Lineage complet (chaque ligne Silver pointe vers un hash Copper)
 - [ ] Schémas Silver v1 figés et versionnés
 - [ ] Couverture tests crate ingest ≥ 75 %
 - [ ] `dvc repro` reproduit à l'identique
+- [ ] Premier croisement ComparIA × IRIS visualisé (preuve de concept M12)
 
 ---
 
-## Sprint S3 — Pipeline médaillon : HF + EcoLogits + papers (semaine 4)
+## Sprint S3 — Pipeline médaillon : Tier 2 (semaine 4)
 
-**Objectif** : compléter le référentiel avec les sources LLM-spécifiques.
+**Objectif** : compléter le référentiel avec les sources complémentaires (toutes sans authentification).
 
 **Livrables** :
-- Source 3 : Hugging Face AI Energy Score
-- Source 4 : GenAI Impact / EcoLogits (modèles caractéristiques)
-- Source 5 : CodeCarbon (mesures d'entraînement)
-- Source 6 : ML.Energy Leaderboard (benchmarks inférence)
-- Source 7 : Papers académiques (extraction manuelle assistée)
-- Source 8 : GeoLite2 (IP → zone)
+- Source S03 : ADEME Base Empreinte (facteurs d'émission élec + hardware)
+- Source S04 : GenAI Impact / EcoLogits (méthodologie officielle + catalogue modèles)
+- Source S05 : Hugging Face AI Energy Score
+- Source S06 : CodeCarbon (mesures d'entraînement)
+- Source S07 : ML.Energy Leaderboard (benchmarks inférence)
+- Source S08 : Papers académiques (extraction manuelle assistée S0)
+- (Optionnel) Source S09 : RTE eco2mix live si clé obtenue
 - Gold final : `referentiel.sqlite` indexé FTS5 + `analytics.parquet`
 - Datasheet Gebru et al. complétée
 
 **Definition of Done** :
-- [ ] 8 sources intégrées et validées
+- [ ] 6+ sources Tier 2 intégrées et validées
 - [ ] Référentiel Gold contient ≥ 50 modèles LLM, ≥ 30 datacenters, ≥ 20 facteurs d'émission
 - [ ] Datasheet.jsonld signée GPG
 - [ ] Premier dataset publié en preview sur data.gouv.fr (privé)

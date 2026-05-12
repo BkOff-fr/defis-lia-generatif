@@ -1,0 +1,38 @@
+# sobria-ingest — pipeline médaillon (ADR-0009)
+# Trait DataLayer + orchestrateur + sources.
+
+[package]
+name = "sobria-ingest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Pipeline médaillon Copper/Silver/Gold pour Sobr.ia"
+
+[[bin]]
+name = "sobria-ingest"
+path = "src/main.rs"
+
+[dependencies]
+sobria-core = { path = "../sobria-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+reqwest = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+polars = { workspace = true }
+clap = { workspace = true }
+schemars = { workspace = true }
+jsonschema = { workspace = true }
+rusqlite = { workspace = true }
+duckdb = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+insta = { workspace = true }
