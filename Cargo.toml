@@ -85,6 +85,9 @@ clap = { version = "4.5", features = ["derive", "env"] }
 proptest = "1.5"
 insta = { version = "1.40", features = ["yaml"] }
 criterion = "0.5"
+tempfile = "3.13"
+wiremock = "0.6"
+hex-literal = "0.4"
 
 # Tauri (côté app uniquement)
 tauri = { version = "2.0", features = [] }

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sobr.ia/schemas/copper/manifest-v1.json",
+  "title": "Sobr.ia — Copper manifest v1",
+  "description": "Manifest immuable décrivant un snapshot de la couche Copper (ADR-0009). Un manifest accompagne chaque snapshot daté d'une source dans data/copper/<source>/<YYYY-MM-DD>/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_id",
+    "fetched_at",
+    "files",
+    "license"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1",
+      "description": "Version du schéma de manifest."
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant stable de la source (ex: 'comparia', 'rte-iris')."
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Horodatage UTC de la récupération."
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ManifestFileEntry" }
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Libellé humain de la licence (ex: 'Etalab 2.0')."
+    },
+    "license_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL canonique de la licence (optionnel)."
+    }
+  },
+  "$defs": {
+    "ManifestFileEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "url", "sha256", "size_bytes"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Nom relatif du fichier dans le snapshot."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://",
+          "description": "URL d'origine — doit être HTTPS."
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "description": "SHA-256 hexadécimal sur 64 caractères."
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Taille du fichier en octets."
+        },
+        "http_headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Headers HTTP utiles à la traçabilité (ETag, Last-Modified, etc.)."
+        }
+      }
+    }
+  }
+}

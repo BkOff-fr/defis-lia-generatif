@@ -36,3 +36,7 @@ duckdb = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 insta = { workspace = true }
+tempfile = { workspace = true }
+wiremock = { workspace = true }
+hex-literal = { workspace = true }
+tokio = { workspace = true, features = ["full", "test-util"] }
