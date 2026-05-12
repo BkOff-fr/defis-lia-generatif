@@ -16,13 +16,16 @@ const config = {
       strict: true
     }),
     alias: {
-      '$lib': './src/lib',
-      '$components': './src/lib/components',
-      '$stores': './src/lib/stores',
-      '$ipc': './src/lib/ipc'
+      $lib: './src/lib',
+      $components: './src/lib/components',
+      $stores: './src/lib/stores',
+      $ipc: './src/lib/ipc'
     },
     typescript: {
-      config: (config) => ({ ...config, compilerOptions: { ...config.compilerOptions, strict: true } })
+      config: (config) => ({
+        ...config,
+        compilerOptions: { ...config.compilerOptions, strict: true }
+      })
     }
   },
   compilerOptions: {

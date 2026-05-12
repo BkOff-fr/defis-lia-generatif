@@ -21,10 +21,5 @@
     "sourceMap": true,
     "target": "ES2022"
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.js",
-    "src/**/*.svelte",
-    "tests/**/*"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "tests/**/*"]
 }
