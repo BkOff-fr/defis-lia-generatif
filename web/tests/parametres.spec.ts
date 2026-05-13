@@ -49,12 +49,12 @@ test('Paramètres : sections persona + modules + runtime vide hors Tauri', async
 });
 
 /**
- * Smoke tests des stubs « coming soon ». Note : /simuler porte désormais
- * le moduleId M13 (et non M4 réservé, cf. ADR-0010 + brief C10).
+ * Smoke tests des stubs « coming soon ». /simuler (M13) a été livré en C11
+ * et n'est plus un stub — il a son propre contrat no-mock dans
+ * `tests/simuler.spec.ts`.
  */
-test.describe('Stubs (M13 / M9-M12 / M10 / M6)', () => {
+test.describe('Stubs (M9-M12 / M10 / M6)', () => {
   for (const r of [
-    { path: '/simuler', module: 'M13', titleMatch: /7 leviers/ },
     { path: '/importer', module: 'M10', titleMatch: /journal d.usage entreprise/i },
     { path: '/territoire', module: 'M9 / M12', titleMatch: /Cartographie IRIS/ },
     { path: '/exporter', module: 'M6', titleMatch: /rapport.*sourcé/i }

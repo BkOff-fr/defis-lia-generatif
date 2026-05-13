@@ -434,7 +434,7 @@
     </div>
   {/if}
 
-  {#if tauriAvailable && !bootstrapping}
+  {#if !bootstrapping}
     <div class="grid">
       <!-- ─── Col gauche : baseline + lever panel ─────────────────────── -->
       <div class="col-l">
@@ -451,6 +451,9 @@
             <label class="b-field">
               <span><Cpu size={11} strokeWidth={1.8} /> Modèle</span>
               <select bind:value={baselineModelId} class="b-select">
+                {#if models.length === 0}
+                  <option value="">(référentiel indisponible)</option>
+                {/if}
                 {#each models as m (m.id)}
                   <option value={m.id}>{m.display_name} · {m.provider}</option>
                 {/each}
@@ -504,6 +507,11 @@
           <div class="loading">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             Simulation en cours…
+          </div>
+        {:else if !tauriAvailable}
+          <div class="loading">
+            Lance <span class="mono">cargo run -p sobria-app</span> pour activer le moteur Monte-Carlo
+            et voir le verdict CO₂eq se calculer en temps réel.
           </div>
         {:else}
           <div class="loading">Préparation du baseline…</div>

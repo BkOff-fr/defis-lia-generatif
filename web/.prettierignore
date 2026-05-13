@@ -5,3 +5,6 @@ test-results/
 playwright-report/
 *.lock
 package-lock.json
+
+# Données fetched (JSON immutables des APIs ODRÉ/RTE/etc.) — ne pas reformatter.
+crates/
