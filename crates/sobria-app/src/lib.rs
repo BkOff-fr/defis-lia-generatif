@@ -16,8 +16,10 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::needless_pass_by_value)]
 
+pub mod dashboard;
 pub mod dto;
 pub mod error;
+pub mod goals_store;
 pub mod logic;
 pub mod preferences_store;
 pub mod state;

@@ -14,7 +14,9 @@ use sobria_audit::AuditLedger;
 use sobria_estimator::MonteCarloEngine;
 use tracing::info;
 
-use crate::{error::AppError, preferences_store::PreferencesStore};
+use crate::{
+    error::AppError, goals_store::PersonalGoalsStore, preferences_store::PreferencesStore,
+};
 
 /// State partagé de l'application.
 pub struct AppState {
@@ -28,6 +30,8 @@ pub struct AppState {
     pub ledger: Mutex<AuditLedger>,
     /// Store de préférences utilisateur — voir ADR-0010.
     pub preferences: Mutex<PreferencesStore>,
+    /// Store des objectifs eco-budget — voir brief C19 (M25).
+    pub goals: Mutex<PersonalGoalsStore>,
     /// Moteur Monte-Carlo (immuable, partageable).
     pub estimator: MonteCarloEngine,
 }
@@ -52,6 +56,7 @@ impl AppState {
         let referentiel_path = data_root.join("referentiel.sqlite");
         info!(path = %referentiel_path.display(), "préférences: ouverture du référentiel");
         let preferences = PreferencesStore::open(&referentiel_path)?;
+        let goals = PersonalGoalsStore::open(&referentiel_path)?;
 
         let estimator = MonteCarloEngine::default();
         Ok(Self {
@@ -60,6 +65,7 @@ impl AppState {
             referentiel_path,
             ledger: Mutex::new(ledger),
             preferences: Mutex::new(preferences),
+            goals: Mutex::new(goals),
             estimator,
         })
     }

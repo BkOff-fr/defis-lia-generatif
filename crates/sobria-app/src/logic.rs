@@ -19,15 +19,18 @@ use sobria_geoloc::{
 use tracing::{debug, info};
 
 use crate::{
+    dashboard,
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
-        BenchmarkResultDto, CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto,
-        DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto,
-        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto,
-        RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
-        TripletDto, YearlyForecastRequestDto, YearlyForecastResultDto,
+        BenchmarkResultDto, BudgetStatusDto, CountryAggregateDto, CsrdReportRequestDto,
+        CsrdReportResultDto, DashboardSummaryDto, DatacenterDetailDto, DatacenterSummaryDto,
+        EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto,
+        MetaInfo, ModelDetailDto, ModelPresetDto, PersonalGoalDto, RegionFrAggregateDto,
+        SankeyDataDto, SimulationRequestDto, SimulationResultDto, TripletDto,
+        YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     error::{AppError, IpcError, IpcResult},
+    goals_store::{GoalIndicator, GoalPeriod, PersonalGoal},
     preferences_store::StoredPreferences,
     state::AppState,
 };
@@ -465,6 +468,192 @@ pub fn export_csrd_report(
         total_energy_wh_p50: artifacts.summary.total_energy_wh_p50,
         total_water_l_p50: artifacts.summary.total_water_l_p50,
     })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// dashboard + eco-budget (C19 — M15 + M25)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Construit le résumé dashboard pour la période donnée.
+pub fn get_dashboard_summary(
+    period_str: &str,
+    state: &AppState,
+) -> IpcResult<DashboardSummaryDto> {
+    let period = dashboard::DashboardPeriod::parse(period_str).ok_or_else(|| {
+        IpcError::from(AppError::InvalidRequest(format!(
+            "period '{period_str}' inconnue (attendu: today | last_7_days | this_month | last_month | this_year)"
+        )))
+    })?;
+    let entries = read_all_audit_entries(state)?;
+    let summary = dashboard::aggregate(&entries, period, Utc::now());
+    Ok((&summary).into())
+}
+
+/// Liste tous les objectifs personnels (M25).
+pub fn list_personal_goals(state: &AppState) -> IpcResult<Vec<PersonalGoalDto>> {
+    let store = state
+        .goals
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("goals: {e}")))?;
+    let goals = store.list_all().map_err(IpcError::from)?;
+    Ok(goals.into_iter().map(goal_to_dto).collect())
+}
+
+/// UPSERT d'un objectif personnel.
+pub fn set_personal_goal(dto: PersonalGoalDto, state: &AppState) -> IpcResult<()> {
+    let goal = dto_to_goal(&dto)?;
+    goal.validate().map_err(IpcError::from)?;
+    let mut store = state
+        .goals
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("goals: {e}")))?;
+    store.upsert(&goal).map_err(IpcError::from)?;
+    info!(
+        indicator = goal.indicator.as_str(),
+        period = goal.period.as_str(),
+        value_max = goal.value_max,
+        "goals: set"
+    );
+    Ok(())
+}
+
+/// Supprime un objectif (idempotent).
+pub fn delete_personal_goal(
+    indicator: &str,
+    period: &str,
+    state: &AppState,
+) -> IpcResult<()> {
+    let i = GoalIndicator::parse(indicator).ok_or_else(|| {
+        IpcError::from(AppError::InvalidRequest(format!(
+            "indicator '{indicator}' inconnu"
+        )))
+    })?;
+    let p = GoalPeriod::parse(period).ok_or_else(|| {
+        IpcError::from(AppError::InvalidRequest(format!(
+            "period '{period}' inconnue"
+        )))
+    })?;
+    let mut store = state
+        .goals
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("goals: {e}")))?;
+    store.delete(i, p).map_err(IpcError::from)?;
+    Ok(())
+}
+
+/// Statut budget pour chaque objectif défini.
+pub fn get_budget_status(state: &AppState) -> IpcResult<Vec<BudgetStatusDto>> {
+    let goals = list_personal_goals(state)?;
+    if goals.is_empty() {
+        return Ok(vec![]);
+    }
+    let entries = read_all_audit_entries(state)?;
+    let now = Utc::now();
+    let mut out = Vec::with_capacity(goals.len());
+    for g in goals {
+        let (start, end) = match GoalPeriod::parse(&g.period).unwrap_or(GoalPeriod::Monthly) {
+            GoalPeriod::Daily => (
+                dashboard::DashboardPeriod::Today.window(now).0,
+                now,
+            ),
+            GoalPeriod::Weekly => (now - chrono::Duration::days(7), now),
+            GoalPeriod::Monthly => (
+                dashboard::DashboardPeriod::ThisMonth.window(now).0,
+                now,
+            ),
+        };
+        let agg = sum_indicator_in_window(&entries, &g.indicator, start, end);
+        let consumed_pct = if g.value_max > 0.0 {
+            (agg / g.value_max) * 100.0
+        } else {
+            0.0
+        };
+        let status = if consumed_pct > 100.0 {
+            "exceeded"
+        } else if consumed_pct >= 70.0 {
+            "warning"
+        } else {
+            "ok"
+        };
+        out.push(BudgetStatusDto {
+            goal: g,
+            current_value: agg,
+            period_start: start.to_rfc3339(),
+            period_end: end.to_rfc3339(),
+            consumed_pct,
+            status: status.into(),
+            remaining: 0.0, // remplace ligne suivante
+        });
+        // calcule remaining APRÈS push pour éviter le borrow ; on patche
+        let last = out.last_mut().unwrap();
+        last.remaining = last.goal.value_max - last.current_value;
+    }
+    Ok(out)
+}
+
+fn goal_to_dto(g: PersonalGoal) -> PersonalGoalDto {
+    PersonalGoalDto {
+        indicator: g.indicator.as_str().into(),
+        period: g.period.as_str().into(),
+        value_max: g.value_max,
+        unit: g.unit,
+    }
+}
+
+fn dto_to_goal(dto: &PersonalGoalDto) -> IpcResult<PersonalGoal> {
+    let indicator = GoalIndicator::parse(&dto.indicator).ok_or_else(|| {
+        IpcError::from(AppError::InvalidRequest(format!(
+            "indicator '{}' inconnu",
+            dto.indicator
+        )))
+    })?;
+    let period = GoalPeriod::parse(&dto.period).ok_or_else(|| {
+        IpcError::from(AppError::InvalidRequest(format!(
+            "period '{}' inconnue",
+            dto.period
+        )))
+    })?;
+    Ok(PersonalGoal {
+        indicator,
+        period,
+        value_max: dto.value_max,
+        unit: dto.unit.clone(),
+    })
+}
+
+/// Somme un indicateur sur une fenêtre donnée. Indicator = "co2eq" | "energy" | "water".
+fn sum_indicator_in_window(
+    entries: &[sobria_audit::AuditEntry],
+    indicator: &str,
+    start: chrono::DateTime<Utc>,
+    end: chrono::DateTime<Utc>,
+) -> f64 {
+    let mut sum = 0.0;
+    for entry in entries {
+        if entry.timestamp < start || entry.timestamp >= end {
+            continue;
+        }
+        if entry.is_purged() {
+            continue;
+        }
+        let Ok(result) = serde_json::from_str::<sobria_core::EstimationResult>(
+            &entry.estimation_result_json,
+        ) else {
+            continue;
+        };
+        let target = match indicator {
+            "co2eq" => Indicator::Co2Eq,
+            "energy" => Indicator::Energy,
+            "water" => Indicator::Water,
+            _ => continue,
+        };
+        sum += result
+            .indicators
+            .iter()
+            .find(|i| i.indicator == target)
+            .map_or(0.0, |i| i.interval.p50);
+    }
+    sum
 }
 
 /// Lit toutes les entrées du ledger en mémoire (export ndjson + parse).
@@ -1480,6 +1669,179 @@ mod tests {
         assert_eq!(sankey.year, 2023);
         assert!(!sankey.source_url.is_empty());
         assert!(!sankey.source_sha256.is_empty());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // dashboard + eco-budget — C19 / M15 + M25
+    // ─────────────────────────────────────────────────────────────────────
+
+    use crate::dto::PersonalGoalDto;
+
+    #[test]
+    fn dashboard_unknown_period_returns_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let err = get_dashboard_summary("yesterday", &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn dashboard_empty_ledger_returns_zero_totals() {
+        let (_tmp, state) = fresh_state();
+        let s = get_dashboard_summary("today", &state).unwrap();
+        assert_eq!(s.total_requests, 0);
+        assert!(s.top_models.is_empty());
+        assert!(s.vs_previous.is_none());
+    }
+
+    #[test]
+    fn dashboard_after_estimations_aggregates() {
+        let (_tmp, state) = fresh_state();
+        let est_req = EstimationRequestDto {
+            model_id: "gpt-4o-mini".into(),
+            tokens_in: 100,
+            tokens_out_estimated: 500,
+            datacenter_id: None,
+        };
+        for _ in 0..3 {
+            estimate_prompt(est_req.clone(), &state).unwrap();
+        }
+        let s = get_dashboard_summary("today", &state).unwrap();
+        assert_eq!(s.total_requests, 3);
+        assert_eq!(s.top_models.len(), 1);
+        assert_eq!(s.top_models[0].model_id, "gpt-4o-mini");
+    }
+
+    #[test]
+    fn list_personal_goals_empty_by_default() {
+        let (_tmp, state) = fresh_state();
+        let goals = list_personal_goals(&state).unwrap();
+        assert!(goals.is_empty());
+    }
+
+    #[test]
+    fn set_then_list_personal_goal() {
+        let (_tmp, state) = fresh_state();
+        let dto = PersonalGoalDto {
+            indicator: "co2eq".into(),
+            period: "monthly".into(),
+            value_max: 500.0,
+            unit: "gCO2eq".into(),
+        };
+        set_personal_goal(dto, &state).unwrap();
+        let goals = list_personal_goals(&state).unwrap();
+        assert_eq!(goals.len(), 1);
+        assert_eq!(goals[0].indicator, "co2eq");
+        assert_eq!(goals[0].period, "monthly");
+    }
+
+    #[test]
+    fn set_personal_goal_rejects_unknown_indicator() {
+        let (_tmp, state) = fresh_state();
+        let dto = PersonalGoalDto {
+            indicator: "bogus".into(),
+            period: "monthly".into(),
+            value_max: 100.0,
+            unit: "gCO2eq".into(),
+        };
+        let err = set_personal_goal(dto, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn set_personal_goal_rejects_negative_value() {
+        let (_tmp, state) = fresh_state();
+        let dto = PersonalGoalDto {
+            indicator: "energy".into(),
+            period: "daily".into(),
+            value_max: -10.0,
+            unit: "Wh".into(),
+        };
+        let err = set_personal_goal(dto, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn set_personal_goal_rejects_mismatched_unit() {
+        let (_tmp, state) = fresh_state();
+        let dto = PersonalGoalDto {
+            indicator: "water".into(),
+            period: "weekly".into(),
+            value_max: 10.0,
+            unit: "Wh".into(), // attendu: L
+        };
+        let err = set_personal_goal(dto, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn delete_personal_goal_is_idempotent() {
+        let (_tmp, state) = fresh_state();
+        // Suppression d'un goal absent ne plante pas.
+        delete_personal_goal("co2eq", "daily", &state).unwrap();
+        assert!(list_personal_goals(&state).unwrap().is_empty());
+    }
+
+    #[test]
+    fn budget_status_no_goals_returns_empty() {
+        let (_tmp, state) = fresh_state();
+        let st = get_budget_status(&state).unwrap();
+        assert!(st.is_empty());
+    }
+
+    #[test]
+    fn budget_status_with_goal_and_no_usage_is_ok() {
+        let (_tmp, state) = fresh_state();
+        set_personal_goal(
+            PersonalGoalDto {
+                indicator: "co2eq".into(),
+                period: "monthly".into(),
+                value_max: 1000.0,
+                unit: "gCO2eq".into(),
+            },
+            &state,
+        )
+        .unwrap();
+        let st = get_budget_status(&state).unwrap();
+        assert_eq!(st.len(), 1);
+        assert_eq!(st[0].status, "ok");
+        assert!((st[0].current_value).abs() < 1e-9);
+        assert!((st[0].consumed_pct).abs() < 1e-9);
+        assert!((st[0].remaining - 1000.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn budget_status_with_high_usage_warns_or_exceeds() {
+        let (_tmp, state) = fresh_state();
+        // Goal très bas (0.0001 gCO2eq) → vite dépassé.
+        set_personal_goal(
+            PersonalGoalDto {
+                indicator: "co2eq".into(),
+                period: "monthly".into(),
+                value_max: 0.0001,
+                unit: "gCO2eq".into(),
+            },
+            &state,
+        )
+        .unwrap();
+        // Quelques estimations
+        for _ in 0..3 {
+            estimate_prompt(
+                EstimationRequestDto {
+                    model_id: "gpt-4o-mini".into(),
+                    tokens_in: 100,
+                    tokens_out_estimated: 500,
+                    datacenter_id: None,
+                },
+                &state,
+            )
+            .unwrap();
+        }
+        let st = get_budget_status(&state).unwrap();
+        assert_eq!(st.len(), 1);
+        // 0.0001 g de budget vs ~0.006 g de conso → dépassé
+        assert_eq!(st[0].status, "exceeded");
+        assert!(st[0].consumed_pct > 100.0);
+        assert!(st[0].remaining < 0.0);
     }
 
     // ─────────────────────────────────────────────────────────────────────

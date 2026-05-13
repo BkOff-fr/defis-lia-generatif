@@ -14,11 +14,12 @@
 use sobria_app::{
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, BenchmarkRequestDto, BenchmarkResultDto,
-        CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto, DatacenterDetailDto,
-        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto,
-        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto,
-        RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
-        YearlyForecastRequestDto, YearlyForecastResultDto,
+        BudgetStatusDto, CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto,
+        DashboardSummaryDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
+        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
+        ModelDetailDto, ModelPresetDto, PersonalGoalDto, RegionFrAggregateDto, SankeyDataDto,
+        SimulationRequestDto, SimulationResultDto, YearlyForecastRequestDto,
+        YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -170,6 +171,45 @@ fn export_csrd_report(
     logic::export_csrd_report(req, std::path::Path::new(&output_dir), state.inner())
 }
 
+#[tauri::command]
+fn get_dashboard_summary(
+    period: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<DashboardSummaryDto> {
+    logic::get_dashboard_summary(&period, state.inner())
+}
+
+#[tauri::command]
+fn list_personal_goals(
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<PersonalGoalDto>> {
+    logic::list_personal_goals(state.inner())
+}
+
+#[tauri::command]
+fn set_personal_goal(
+    goal: PersonalGoalDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<()> {
+    logic::set_personal_goal(goal, state.inner())
+}
+
+#[tauri::command]
+fn delete_personal_goal(
+    indicator: String,
+    period: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<()> {
+    logic::delete_personal_goal(&indicator, &period, state.inner())
+}
+
+#[tauri::command]
+fn get_budget_status(
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<BudgetStatusDto>> {
+    logic::get_budget_status(state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,6 +254,11 @@ fn main() {
             aggregate_industrial_sites_by_region,
             sankey_fr_data,
             export_csrd_report,
+            get_dashboard_summary,
+            list_personal_goals,
+            set_personal_goal,
+            delete_personal_goal,
+            get_budget_status,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");

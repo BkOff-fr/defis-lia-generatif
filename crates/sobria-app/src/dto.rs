@@ -443,6 +443,115 @@ impl From<&SankeyData> for SankeyDataDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// dashboard + eco-budget (C19 — M15 + M25)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardComparisonDto {
+    pub previous_total_co2eq_g_p50: f64,
+    pub delta_co2eq_pct: f64,
+    pub previous_total_requests: u32,
+    pub delta_requests_pct: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TopModelDto {
+    pub model_id: String,
+    pub request_count: u32,
+    pub total_co2eq_g_p50: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DailySeriesPointDto {
+    pub date: String,
+    pub request_count: u32,
+    pub co2eq_g_p50: f64,
+    pub energy_wh_p50: f64,
+    pub water_l_p50: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardSummaryDto {
+    pub period_label: String,
+    pub period_start: String,
+    pub period_end: String,
+    pub total_requests: u32,
+    pub total_co2eq_g_p50: f64,
+    pub total_energy_wh_p50: f64,
+    pub total_water_l_p50: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vs_previous: Option<DashboardComparisonDto>,
+    pub top_models: Vec<TopModelDto>,
+    pub daily_series: Vec<DailySeriesPointDto>,
+}
+
+impl From<&crate::dashboard::DashboardSummary> for DashboardSummaryDto {
+    fn from(s: &crate::dashboard::DashboardSummary) -> Self {
+        Self {
+            period_label: s.period_label.clone(),
+            period_start: s.period_start.to_rfc3339(),
+            period_end: s.period_end.to_rfc3339(),
+            total_requests: s.total_requests,
+            total_co2eq_g_p50: s.total_co2eq_g_p50,
+            total_energy_wh_p50: s.total_energy_wh_p50,
+            total_water_l_p50: s.total_water_l_p50,
+            vs_previous: s.vs_previous.as_ref().map(|v| DashboardComparisonDto {
+                previous_total_co2eq_g_p50: v.previous_total_co2eq_g_p50,
+                delta_co2eq_pct: v.delta_co2eq_pct,
+                previous_total_requests: v.previous_total_requests,
+                delta_requests_pct: v.delta_requests_pct,
+            }),
+            top_models: s
+                .top_models
+                .iter()
+                .map(|m| TopModelDto {
+                    model_id: m.model_id.clone(),
+                    request_count: m.request_count,
+                    total_co2eq_g_p50: m.total_co2eq_g_p50,
+                })
+                .collect(),
+            daily_series: s
+                .daily_series
+                .iter()
+                .map(|p| DailySeriesPointDto {
+                    date: p.date.clone(),
+                    request_count: p.request_count,
+                    co2eq_g_p50: p.co2eq_g_p50,
+                    energy_wh_p50: p.energy_wh_p50,
+                    water_l_p50: p.water_l_p50,
+                })
+                .collect(),
+        }
+    }
+}
+
+/// Objectif personnel échangé avec le frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonalGoalDto {
+    /// "co2eq" | "energy" | "water"
+    pub indicator: String,
+    /// "daily" | "weekly" | "monthly"
+    pub period: String,
+    pub value_max: f64,
+    pub unit: String,
+}
+
+/// Statut de consommation d'un objectif.
+#[derive(Debug, Clone, Serialize)]
+pub struct BudgetStatusDto {
+    pub goal: PersonalGoalDto,
+    pub current_value: f64,
+    pub period_start: String,
+    pub period_end: String,
+    /// 0..100+ (peut dépasser).
+    pub consumed_pct: f64,
+    /// "ok" (<70%), "warning" (70-100%), "exceeded" (>100%)
+    pub status: String,
+    /// value_max - current_value (peut être < 0).
+    pub remaining: f64,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // model detail (C18 — M9 Référentiel modèles)
 // ─────────────────────────────────────────────────────────────────────────────
 
