@@ -611,6 +611,87 @@ export function getBudgetStatus(): Promise<BudgetStatusDto[]> {
   return call<BudgetStatusDto[]>('get_budget_status');
 }
 
+// ─── Empreinte projet / datasheet Gebru (C20 — M17) ──────────────────────
+//
+// Mirror 1-pour-1 de `crates/sobria-app/src/dto.rs` (bloc "projects +
+// datasheet"). Les dates sont en RFC 3339 UTC côté Rust ; côté UI on
+// utilise `<input type="date">` (YYYY-MM-DD) et on normalise en
+// `YYYY-MM-DDT00:00:00Z` / `T23:59:59Z` à l'envoi (idem M22). Les dates
+// ne sont PAS modifiables après création (cf. brief §1.1 — préserve la
+// reproductibilité du datasheet).
+
+export interface ProjectDto {
+  id: number;
+  name: string;
+  description: string;
+  /** RFC 3339. */
+  period_start: string;
+  /** RFC 3339. */
+  period_end: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateProjectDto {
+  name: string;
+  description: string;
+  period_start: string;
+  period_end: string;
+  tags: string[];
+}
+
+/** Update partiel — au moins un champ requis côté backend. Dates immutables. */
+export interface UpdateProjectDto {
+  name?: string;
+  description?: string;
+  tags?: string[];
+}
+
+export interface CompositionDto {
+  total_requests: number;
+  unique_models: string[];
+  total_co2eq_g_p50: number;
+  total_energy_wh_p50: number;
+  total_water_l_p50: number;
+  /** Absent si la période ne contient aucune entrée du ledger. */
+  date_first_entry?: string;
+  date_last_entry?: string;
+}
+
+export interface DatasheetDto {
+  project: ProjectDto;
+  /** Bloc JSON-LD complet (@context + @graph). À copier / sauvegarder tel quel. */
+  jsonld: Record<string, unknown>;
+  composition: CompositionDto;
+  /** SHA-256 du JSON-LD pretty-printed (64 chars hex). */
+  sha256: string;
+}
+
+export function listProjects(): Promise<ProjectDto[]> {
+  return call<ProjectDto[]>('list_projects');
+}
+
+export function getProject(id: number): Promise<ProjectDto> {
+  return call<ProjectDto>('get_project', { id });
+}
+
+export function createProject(req: CreateProjectDto): Promise<ProjectDto> {
+  return call<ProjectDto>('create_project', { req });
+}
+
+export function updateProject(id: number, req: UpdateProjectDto): Promise<ProjectDto> {
+  return call<ProjectDto>('update_project', { id, req });
+}
+
+export async function deleteProject(id: number): Promise<void> {
+  await call<null>('delete_project', { id });
+}
+
+export function generateProjectDatasheet(id: number): Promise<DatasheetDto> {
+  return call<DatasheetDto>('generate_project_datasheet', { id });
+}
+
 // ─── Préférences utilisateur (C10 — ADR-0010) ────────────────────────────
 
 export type Persona = 'student' | 'pro_tech' | 'enterprise' | 'public_sector' | 'researcher';

@@ -292,7 +292,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Empreinte projet',
     description: 'Bilan complet pour reproductibilité scientifique.',
     category: 'reporting',
-    href: null
+    href: '/m17'
   },
   m18: {
     id: 'm18',

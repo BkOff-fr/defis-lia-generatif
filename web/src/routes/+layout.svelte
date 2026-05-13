@@ -14,7 +14,9 @@
     BarChart3,
     Library,
     Target,
-    FileText
+    FileText,
+    Info,
+    FlaskConical
   } from '@lucide/svelte';
   import { get } from 'svelte/store';
   import { isTauriContext, SobriaIpcError } from '$lib/api';
@@ -99,10 +101,9 @@
   // Le rail référence les modules visibles selon `enabled_modules`. Tant que
   // le store n'est pas chargé (premier paint, hors Tauri), on montre tout.
   //
-  // **Périmètre v1.0** (cf. ADR-0011) : 13 modules retenus, dont 11 ont une
-  // route frontend livrée. M14 (À propos) et M17 (Empreinte projet)
-  // attendent leur route — ils sont commentés ici, à activer dès que la
-  // route `/m14`/`/m17` existe.
+  // **Périmètre v1.0** (cf. ADR-0011) : 13 modules retenus, tous routés
+  // frontend. M17 (Empreinte projet) a été câblé en C20 — voir
+  // `briefs/chantiers/C20-PROMPT-CLAUDE-CODE-M17.md`.
   //
   // Modules différés v1.1+ (M2/M5/M6/M10/M11/M16/M18/M19/M21/M23/M24) :
   // routes placeholder retirées du rail. Les backend Rust restent compilés
@@ -117,14 +118,14 @@
   const itemsIO: RailItem[] = [
     { label: 'Datacenters Europe', icon: Server, href: '/datacenters', moduleId: 'm12' },
     { label: 'Territoire FR', icon: Globe, href: '/territoire', moduleId: 'm20' },
+    { label: 'Empreinte projet', icon: FlaskConical, href: '/m17', moduleId: 'm17' },
     { label: 'Rapport CSRD/AGEC', icon: FileText, href: '/rapport-csrd', moduleId: 'm22' }
-    // M17 Empreinte projet : ajouter ici quand la route /m17 existe
   ];
   const itemsAudit: RailItem[] = [
     { label: "Journal d'audit", icon: ShieldCheck, href: '/journal', moduleId: 'm7' },
     { label: 'Référentiel modèles', icon: Library, href: '/m9', moduleId: 'm9' },
-    { label: 'Méthodologie', icon: BookOpen, href: '/methodo', moduleId: 'm8' }
-    // M14 À propos : ajouter ici quand la route /m14 (ou /a-propos) existe
+    { label: 'Méthodologie', icon: BookOpen, href: '/methodo', moduleId: 'm8' },
+    { label: 'À propos', icon: Info, href: '/a-propos', moduleId: 'm14' }
   ];
 
   function visible(item: RailItem, prefs: typeof $preferences): boolean {
