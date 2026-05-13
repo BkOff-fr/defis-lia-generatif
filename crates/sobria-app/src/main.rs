@@ -13,8 +13,8 @@
 
 use sobria_app::{
     dto::{
-        AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto, IntegrityReportDto,
-        MetaInfo, ModelPresetDto,
+        AppPreferencesDto, AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto,
+        IntegrityReportDto, MetaInfo, ModelPresetDto,
     },
     logic, AppState, IpcResult,
 };
@@ -65,6 +65,19 @@ fn export_audit_ndjson(
     logic::export_audit_ndjson(std::path::Path::new(&path), state.inner())
 }
 
+#[tauri::command]
+fn get_app_preferences(state: tauri::State<'_, AppState>) -> IpcResult<AppPreferencesDto> {
+    logic::get_app_preferences(state.inner())
+}
+
+#[tauri::command]
+fn set_app_preferences(
+    prefs: AppPreferencesDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<()> {
+    logic::set_app_preferences(prefs, state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,6 +108,8 @@ fn main() {
             verify_audit,
             list_audit_entries,
             export_audit_ndjson,
+            get_app_preferences,
+            set_app_preferences,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");

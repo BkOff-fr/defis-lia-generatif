@@ -19,6 +19,7 @@
 pub mod dto;
 pub mod error;
 pub mod logic;
+pub mod preferences_store;
 pub mod state;
 
 pub use error::{IpcError, IpcResult};

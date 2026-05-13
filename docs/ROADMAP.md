@@ -1,8 +1,14 @@
-# Roadmap Sobr.ia — 12 semaines
+# Roadmap Sobr.ia — 16 semaines (v2)
 
-> **Période cible** : S0 démarrage 12 mai 2026 → soumission S12 fin juillet 2026.
+> **Période cible** : S0 démarrage 12 mai 2026 → soumission S16 (début septembre 2026).
 > **Cadence** : 1 sprint = 1 semaine. Revue chaque vendredi.
 > **Format des sprints** : brief détaillé dans `briefs/sprints/Sx-*.md`.
+>
+> **Changelog v2 (13 mai 2026)** : extension de scope suite à la décision CDC v1.3 / ADR-0010.
+> - 25 modules à livrer en v1.0 (au lieu de 12) couvrant 5 personas.
+> - Calendrier étendu de 4 semaines (S12 → S16).
+> - Travail en parallèle Cowork (Rust + briefs) ↔ Claude Code (frontend) via les prompts C-Claude-Code.
+> - Plus aucune feature nouvelle après S14 (scope freeze).
 
 ## Vue calendaire
 
@@ -13,14 +19,18 @@
 | S2 | 26 mai-1 juin | Pipeline médaillon — **ComparIA** (Tier 1, C02) | 1ʳᵉ source officielle ingérée | ✅ |
 | S3 | 2-8 juin | Pipeline médaillon — **RTE IRIS** (Tier 1, C03) | 2ᵉ source officielle (territoriale) ingérée | ✅ |
 | S4 | 9-15 juin | Assemblage Gold (referentiel.sqlite + analytics.parquet, C04) | Pipeline complet Copper→Silver→Gold | ✅ |
-| S5 | 16-22 juin | Estimateur Rust (formule AFNOR + Monte-Carlo + validation Luccioni) | Cœur scientifique fonctionnel | 🔜 |
-| S6 | 23-29 juin | UI MVP pt.1 + module géolocalisation M9 | App lance + estime + géolocalise |
-| S7 | 30 juin-6 juillet | UI MVP pt.2 + import logs M10 | Workbench + comparateur + CSV |
-| S8 | 7-13 juillet | Simulateur scénarios M4 + extension navigateur M11 | Scénarios + badge live |
-| S9 | 14-20 juillet | Notebook Quarto + rapport méthodologique | Reproductibilité scientifique |
-| S10 | 21-27 juillet | Exports M6 + builds mobile/Wasm + a11y | Multi-cibles + a11y AA |
-| S11 | 28 juillet-3 août | Tests utilisateurs + itération UX | 5 entretiens conduits, retours intégrés |
-| S12 | 4-10 août | Soumission : vidéo + dépôt data.gouv.fr | Livré |
+| S5 | 16-22 juin | Estimateur Rust + presets + validation (C05-C07) + audit ledger (C08) | Cœur scientifique fonctionnel + traçabilité ACID | ✅ |
+| S6 | 23-29 juin | Tauri runtime + écran M1 Estimer + Journal d'audit M7 (C09) | App native lance, estime, journalise | 🔜 |
+| S7 | 30 juin-6 juillet | **C10 Onboarding personas + gating** + **C11 M13 Simulateur "Et si...?"** | Wizard 4 étapes + 7 leviers temps réel | |
+| S8 | 7-13 juillet | **C12 M12 Datacenters Europe** (Leaflet, drill-down) + **C13 M20 Territoire FR** (Sankey + IRIS) | Cartographie complète + dimension territoriale | |
+| S9 | 14-20 juillet | **C14 M16 Forecaster 12 mois** + **C15 M15 Dashboard personnel** + **M9 Référentiel modèles** | Visu temporelle + vue personnelle | |
+| S10 | 21-27 juillet | **C16 Reporting bundle** (M5 Rapports + M18 Batch + M22 Rapport CSRD) | PDF signé + JSON-LD PROV-O | |
+| S11 | 28 juillet-3 août | **C17 Workflow bundle** (M2 Workbench + M3 Comparer + M10 Import + M17 Empreinte projet + M19 Équipe + M21 Alertes) | Modules pros + chercheurs | |
+| S12 | 4-10 août | **C18 Pédagogie & spécifiques** (M6 Géoloc + M8 Méthodologie + M14 À propos + M23 Marchés publics + M24 Apprendre + M25 Objectifs) | Bundle pédagogique + collectivités | |
+| S13 | 11-17 août | **M11 Extension navigateur MV3** + tests Playwright e2e | Capture vie réelle Chrome/Firefox | |
+| S14 | 18-24 août | Notebook Quarto + rapport méthodologique + a11y RGAA AA | Reproductibilité scientifique | |
+| S15 | 25-31 août | Tests utilisateurs (5 entretiens) + correctifs P0/P1 + builds multi-cibles | Retours intégrés, builds signés | |
+| S16 | 1-7 septembre | Soumission : vidéo + dépôt data.gouv.fr + extension stores | Livré | |
 
 ---
 
@@ -301,4 +311,60 @@
 
 ## Politique de scope freeze
 
-À partir de **S9 inclus**, plus aucune feature nouvelle. Uniquement : bug fixes, polish, doc, a11y. Toute idée nouvelle va dans `BACKLOG-v2.md`.
+À partir de **S14 inclus**, plus aucune feature nouvelle. Uniquement : bug fixes, polish, doc, a11y. Toute idée nouvelle va dans `BACKLOG-v2.md`.
+
+---
+
+## Index des chantiers (C01 → C18)
+
+| Chantier | Brief | Modules livrés | Statut |
+|---|---|---|:--:|
+| C01 | Foundation pipeline médaillon | (trait DataLayer, registry) | ✅ |
+| C02 | Source ComparIA | (M9 partiel — référentiel modèles) | ✅ |
+| C03 | Source RTE IRIS | (M20 partiel — données territoire) | ✅ |
+| C04 | Gold assembly | (M1 référentiel SQLite + analytics.parquet) | ✅ |
+| C05 | Estimateur Monte-Carlo | (M1 cœur, M2 partiel) | ✅ |
+| C06 | Model presets calibration | (M9 fiches modèles) | ✅ |
+| C07 | Validation croisée | (M8 méthodologie partielle) | ✅ |
+| C08 | Audit ledger | (M7 Journal d'audit complet backend) | ✅ |
+| C09 | Tauri intégration + écran Estimer | (M1 UI + M7 UI Journal) | 🔜 |
+| **C10** | **Onboarding personas + gating** | (infrastructure pour tous) | |
+| **C11** | **M13 Simulateur « Et si...? »** | M13 complet | |
+| **C12** | **M12 Datacenters Europe** | M12 complet | |
+| **C13** | **M20 Territoire FR + Sankey** | M20 complet | |
+| **C14** | **M16 Forecaster 12 mois** | M16 complet | |
+| **C15** | **M15 Dashboard personnel** | M15 complet (+ M9 polish) | |
+| **C16** | **Reporting bundle** | M5 + M18 + M22 | |
+| **C17** | **Workflow bundle** | M2 + M3 + M10 + M17 + M19 + M21 | |
+| **C18** | **Pédagogie & spécifiques** | M6 + M8 + M14 + M23 + M24 + M25 | |
+
+---
+
+## Découpage de travail Cowork ↔ Claude Code
+
+Cowork pilote :
+- briefs (`briefs/chantiers/Cxx-*.md`), ADRs, CDC, ROADMAP, méthodologie,
+- chantiers Rust pure (sobria-core, estimator, ingest, audit),
+- types IPC et DTO (frontière contractuelle),
+- prompts `Cxx-PROMPT-CLAUDE-CODE.md` pour transmettre les missions frontend.
+
+Claude Code pilote :
+- frontend `web/` (SvelteKit + composants + dataviz),
+- intégration design depuis Claude Design,
+- tests Playwright,
+- extension navigateur (M11) au S13.
+
+À chaque chantier C-bundle (C16/C17/C18), 2 commits :
+- 1 commit Cowork : briefs + types Rust + tests Rust + DTO IPC,
+- 1 commit Claude Code : routes + composants + tests Playwright.
+
+---
+
+## Risques majeurs identifiés
+
+| Risque | Probabilité | Impact | Parade |
+|---|---|---|---|
+| Scope 25 modules ingérable en 11 sprints (S6-S16) | Élevé | Critique | Bundles thématiques C16-C18 (6 modules / sprint via factorisation composants) |
+| Tests utilisateurs S15 trop tard | Moyen | Élevé | Tests intermédiaires sur étudiants accessibles dès S10 |
+| Extension navigateur MV3 (M11) repoussée à S13 | Faible | Moyen | Possible de switcher S11/S13 si UI prête |
+| Deadline data.gouv.fr antérieure à début septembre | Inconnue | Critique | À confirmer côté Thibault — si oui, on cuts M17/M19/M23 vers v1.1 |

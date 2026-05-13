@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use sobria_audit::{AuditEntry, IntegrityReport};
 use sobria_core::{
     DistributionBins, EstimationRequest, EstimationResult, Equivalent, Hypothesis, Indicator,
-    IndicatorValue,
+    IndicatorValue, ModuleId, Persona,
 };
 use sobria_estimator::{CalibrationStatus, ModelPreset, Openness};
 
@@ -278,6 +278,42 @@ impl AuditEntrySummaryDto {
             co2eq_p50,
             sig_short,
             purged: e.is_purged(),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// preferences (C10 — ADR-0010)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Préférences utilisateur partagées entre Rust et le frontend SvelteKit.
+///
+/// Voir [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md) et
+/// `briefs/chantiers/C10-onboarding-personas.md` §2.2.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AppPreferencesDto {
+    /// Persona courant (`null` tant que l'utilisateur n'a pas validé l'onboarding).
+    #[serde(default)]
+    pub persona: Option<Persona>,
+    /// Modules visibles dans le rail UI. Set fermé v1.3 (24 IDs possibles, M4 réservé).
+    pub enabled_modules: Vec<ModuleId>,
+    /// `true` une fois l'onboarding complété au moins une fois.
+    pub onboarded: bool,
+    /// Langue UI : `"fr"` ou `"en"`.
+    pub lang: String,
+}
+
+impl AppPreferencesDto {
+    /// Valeurs par défaut renvoyées quand `app_preferences` est vide
+    /// (premier lancement). Utilise le bundle `pro_tech` qui est le plus
+    /// équilibré (cf. ADR-0010 §"Onboarding non-bloquant").
+    #[must_use]
+    pub fn defaults() -> Self {
+        Self {
+            persona: None,
+            enabled_modules: Persona::ProTech.default_modules(),
+            onboarded: false,
+            lang: "fr".into(),
         }
     }
 }

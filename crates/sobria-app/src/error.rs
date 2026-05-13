@@ -66,6 +66,9 @@ pub enum AppError {
     #[error("core : {0}")]
     Core(#[from] sobria_core::SobriaError),
 
+    #[error("sqlite : {0}")]
+    Sqlite(#[from] rusqlite::Error),
+
     #[error("io : {0}")]
     Io(#[from] std::io::Error),
 
@@ -87,6 +90,7 @@ impl From<AppError> for IpcError {
             AppError::Estimator(_) => ("estimator_error", e.to_string()),
             AppError::Audit(_) => ("audit_error", e.to_string()),
             AppError::Core(_) => ("core_error", e.to_string()),
+            AppError::Sqlite(_) => ("sqlite_error", e.to_string()),
             AppError::Io(_) => ("io_error", e.to_string()),
             AppError::Json(_) => ("json_error", e.to_string()),
             AppError::Poisoned(_) | AppError::Internal(_) => ("internal", e.to_string()),

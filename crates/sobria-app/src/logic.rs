@@ -7,15 +7,17 @@
 //! - une frontière propre `IpcError` ↔ logique interne.
 
 use chrono::Utc;
+use sobria_core::ModuleId;
 use sobria_estimator::{available_models, find_preset, EstimationParams};
 use tracing::{debug, info};
 
 use crate::{
     dto::{
-        AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto, IntegrityReportDto,
-        MetaInfo, ModelPresetDto,
+        AppPreferencesDto, AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto,
+        IntegrityReportDto, MetaInfo, ModelPresetDto,
     },
     error::{AppError, IpcError, IpcResult},
+    preferences_store::StoredPreferences,
     state::AppState,
 };
 
@@ -145,6 +147,90 @@ pub fn export_audit_ndjson(path: &std::path::Path, state: &AppState) -> IpcResul
     let n = ledger.export_ndjson(&mut file).map_err(AppError::from)?;
     info!(path = %path.display(), lines = n, "audit: export NDJSON");
     Ok(n)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// préférences utilisateur (C10 — ADR-0010)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Récupère les préférences utilisateur. Fusionne les valeurs persistées
+/// avec les défauts (`AppPreferencesDto::defaults()`).
+pub fn get_app_preferences(state: &AppState) -> IpcResult<AppPreferencesDto> {
+    let store = state
+        .preferences
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("preferences: {e}")))?;
+    let stored = store.read_all().map_err(IpcError::from)?;
+    drop(store);
+    let defaults = AppPreferencesDto::defaults();
+    Ok(AppPreferencesDto {
+        persona: stored.persona.or(defaults.persona),
+        enabled_modules: stored.enabled_modules.unwrap_or(defaults.enabled_modules),
+        onboarded: stored.onboarded.unwrap_or(defaults.onboarded),
+        lang: stored.lang.unwrap_or(defaults.lang),
+    })
+}
+
+/// Persiste les préférences utilisateur après validation stricte.
+///
+/// Erreurs retournées (toutes en `invalid_request`) :
+/// - `lang` n'est pas dans `{"fr", "en"}`,
+/// - `enabled_modules` contient des doublons,
+/// - `enabled_modules` est vide alors que `onboarded == true` (un utilisateur
+///   onboardé doit avoir au moins un module — M1 au strict minimum).
+///
+/// Note : les variantes invalides de `Persona` / `ModuleId` sont déjà
+/// rejetées à la désérialisation par serde — pas besoin de re-valider ici.
+pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcResult<()> {
+    validate_lang(&prefs.lang)?;
+    validate_modules(&prefs.enabled_modules, prefs.onboarded)?;
+
+    let stored = StoredPreferences {
+        persona: prefs.persona,
+        enabled_modules: Some(prefs.enabled_modules),
+        onboarded: Some(prefs.onboarded),
+        lang: Some(prefs.lang),
+    };
+
+    let mut store = state
+        .preferences
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("preferences: {e}")))?;
+    store.write_all(&stored).map_err(IpcError::from)?;
+    info!(
+        persona = ?stored.persona,
+        onboarded = ?stored.onboarded,
+        "préférences : mise à jour"
+    );
+    Ok(())
+}
+
+fn validate_lang(lang: &str) -> IpcResult<()> {
+    if lang == "fr" || lang == "en" {
+        Ok(())
+    } else {
+        Err(IpcError::from(AppError::InvalidRequest(format!(
+            "lang '{lang}' inconnue, attendu 'fr' ou 'en'"
+        ))))
+    }
+}
+
+fn validate_modules(modules: &[ModuleId], onboarded: bool) -> IpcResult<()> {
+    if onboarded && modules.is_empty() {
+        return Err(IpcError::from(AppError::InvalidRequest(
+            "un utilisateur onboardé doit conserver au moins un module".into(),
+        )));
+    }
+    // Doublons : un module ne peut apparaître qu'une fois.
+    let mut seen = std::collections::HashSet::new();
+    for m in modules {
+        if !seen.insert(*m) {
+            return Err(IpcError::from(AppError::InvalidRequest(format!(
+                "module {m:?} en doublon dans enabled_modules"
+            ))));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -280,5 +366,156 @@ mod tests {
         assert_eq!(n, 3);
         let content = std::fs::read_to_string(&out).unwrap();
         assert_eq!(content.lines().count(), 3);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // préférences utilisateur — C10 / ADR-0010
+    // ─────────────────────────────────────────────────────────────────────
+
+    use sobria_core::{ModuleId, Persona};
+
+    #[test]
+    fn get_preferences_returns_defaults_on_empty_db() {
+        let (_tmp, state) = fresh_state();
+        let prefs = get_app_preferences(&state).unwrap();
+        assert!(prefs.persona.is_none(), "persona doit être None par défaut");
+        assert!(!prefs.onboarded, "onboarded false par défaut");
+        assert_eq!(prefs.lang, "fr");
+        // Le bundle par défaut est celui de pro_tech (cf ADR-0010).
+        assert_eq!(
+            prefs.enabled_modules,
+            Persona::ProTech.default_modules(),
+            "bundle par défaut = pro_tech"
+        );
+    }
+
+    #[test]
+    fn set_then_get_preferences_round_trips() {
+        let (_tmp, state) = fresh_state();
+        let written = AppPreferencesDto {
+            persona: Some(Persona::Enterprise),
+            enabled_modules: vec![ModuleId::M1, ModuleId::M7, ModuleId::M22],
+            onboarded: true,
+            lang: "fr".into(),
+        };
+        set_app_preferences(written.clone(), &state).unwrap();
+        let read = get_app_preferences(&state).unwrap();
+        assert_eq!(read, written);
+    }
+
+    #[test]
+    fn set_preferences_rejects_unknown_lang() {
+        let (_tmp, state) = fresh_state();
+        let prefs = AppPreferencesDto {
+            persona: Some(Persona::Student),
+            enabled_modules: vec![ModuleId::M1],
+            onboarded: true,
+            lang: "es".into(), // espagnol pas supporté en v1.0
+        };
+        let err = set_app_preferences(prefs, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+        assert!(err.message.contains("lang"));
+    }
+
+    #[test]
+    fn set_preferences_rejects_empty_modules_when_onboarded() {
+        let (_tmp, state) = fresh_state();
+        let prefs = AppPreferencesDto {
+            persona: Some(Persona::Student),
+            enabled_modules: vec![],
+            onboarded: true,
+            lang: "fr".into(),
+        };
+        let err = set_app_preferences(prefs, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn set_preferences_allows_empty_modules_when_not_onboarded() {
+        // Au tout début de l'onboarding, l'utilisateur n'a encore rien coché.
+        let (_tmp, state) = fresh_state();
+        let prefs = AppPreferencesDto {
+            persona: None,
+            enabled_modules: vec![],
+            onboarded: false,
+            lang: "fr".into(),
+        };
+        assert!(set_app_preferences(prefs, &state).is_ok());
+    }
+
+    #[test]
+    fn set_preferences_rejects_duplicate_modules() {
+        let (_tmp, state) = fresh_state();
+        let prefs = AppPreferencesDto {
+            persona: Some(Persona::Student),
+            enabled_modules: vec![ModuleId::M1, ModuleId::M13, ModuleId::M1],
+            onboarded: true,
+            lang: "fr".into(),
+        };
+        let err = set_app_preferences(prefs, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+        assert!(err.message.contains("doublon"));
+    }
+
+    #[test]
+    fn set_preferences_overwrites_previous() {
+        let (_tmp, state) = fresh_state();
+        set_app_preferences(
+            AppPreferencesDto {
+                persona: Some(Persona::Student),
+                enabled_modules: vec![ModuleId::M1],
+                onboarded: true,
+                lang: "fr".into(),
+            },
+            &state,
+        )
+        .unwrap();
+        set_app_preferences(
+            AppPreferencesDto {
+                persona: Some(Persona::Researcher),
+                enabled_modules: vec![ModuleId::M1, ModuleId::M17, ModuleId::M18],
+                onboarded: true,
+                lang: "en".into(),
+            },
+            &state,
+        )
+        .unwrap();
+        let read = get_app_preferences(&state).unwrap();
+        assert_eq!(read.persona, Some(Persona::Researcher));
+        assert_eq!(read.enabled_modules.len(), 3);
+        assert_eq!(read.lang, "en");
+    }
+
+    #[test]
+    fn default_bundle_for_each_persona_includes_m1() {
+        for p in Persona::all() {
+            assert!(
+                p.default_modules().contains(&ModuleId::M1),
+                "M1 manquant dans le bundle {p:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn set_preferences_persists_across_state_reinit() {
+        let tmp = tempfile::tempdir().unwrap();
+        {
+            let state = AppState::init_in(tmp.path()).unwrap();
+            set_app_preferences(
+                AppPreferencesDto {
+                    persona: Some(Persona::Enterprise),
+                    enabled_modules: vec![ModuleId::M1, ModuleId::M22],
+                    onboarded: true,
+                    lang: "fr".into(),
+                },
+                &state,
+            )
+            .unwrap();
+        }
+        // Réouvre l'AppState : le store doit persister.
+        let state2 = AppState::init_in(tmp.path()).unwrap();
+        let prefs = get_app_preferences(&state2).unwrap();
+        assert_eq!(prefs.persona, Some(Persona::Enterprise));
+        assert!(prefs.onboarded);
     }
 }

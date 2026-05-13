@@ -25,6 +25,7 @@ pub mod error;
 pub mod estimation;
 pub mod indicators;
 pub mod model;
+pub mod preferences;
 pub mod validation;
 
 pub use datacenter::Datacenter;
@@ -35,6 +36,7 @@ pub use indicators::{
     DistributionBins, Equivalent, Indicator, IndicatorValue, UncertaintyInterval,
 };
 pub use model::{Modality, Model, ModelProvider};
+pub use preferences::{ModuleId, Persona};
 pub use validation::{validate_country_iso, validate_year};
 
 /// Version courante du schéma de référentiel.

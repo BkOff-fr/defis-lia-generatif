@@ -5241,6 +5241,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "dirs 5.0.1",
+ "rusqlite",
  "serde",
  "serde_json",
  "sobria-audit",

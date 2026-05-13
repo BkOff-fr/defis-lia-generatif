@@ -1,10 +1,17 @@
 # Cahier des charges — Sobr.ia
 
-> **Version** : 1.2 (figée)
-> **Date** : 12 mai 2026
+> **Version** : 1.3 (figée)
+> **Date** : 13 mai 2026
 > **Auteur** : Thibault (étudiant, candidat au défi data.gouv.fr)
 > **Défi** : « L'impact environnemental de l'IA générative » — defis.data.gouv.fr
 > **Statut** : Référence projet. Toute modification = bump version + ADR associé.
+>
+> **Changelog v1.3** : élargissement public + gating modulaire (ADR-0010).
+> - **5 personas v2** : Étudiant·e, Pro tech, Entreprise, Collectivité, Chercheur·se — chacun avec un bundle de modules par défaut.
+> - **+13 nouveaux modules** (M13 à M25) couvrant simulation, dataviz cartographique, forecast, reporting CSRD, pédagogie, équipes, alertes, marchés publics.
+> - **Onboarding** au premier lancement avec persona picker + bundle customizable, persistance dans SQLite référentiel.
+> - **Gating frontend** : un même binaire sert tous les publics, l'expérience est composée par préférences utilisateur (cf. ADR-0010).
+> - **25 modules au total** (M1-M25). Les 12 modules v1.2 sont conservés.
 >
 > **Changelog v1.2** : pivot sur les datasets officiels du défi data.gouv.fr.
 > - **ComparIA** (Beta.gouv / Ministère de la Culture) devient le dataset central : 5 GB de conversations + votes + réactions sur LLMs, méthodologie EcoLogits intégrée.
@@ -70,56 +77,180 @@ Produire **une stack complète et open-source** (dataset + application + extensi
 
 ## 3. Personas et cas d'usage
 
-### 3.1 P1 — Claire, chargée RSE en entreprise (35 ans)
+> Voir [ADR-0010](adr/ADR-0010-personas-and-module-gating.md) pour la décision
+> architecturale qui ancre cette segmentation dans l'app (onboarding + module
+> gating). Les 5 personas P1-P5 v1.2 ont été refondus en 5 personas v2 :
+> Étudiant·e, Pro tech, Entreprise, Collectivité, Chercheur·se. Chaque persona
+> est associé à un **bundle de modules par défaut** que l'utilisateur peut
+> ensuite ajuster librement.
 
-> « Je dois justifier au comex pourquoi notre usage de Copilot augmente notre bilan carbone scope 3. J'ai besoin de chiffres défendables, vite. »
+### 3.1 P1 — Étudiant·e / Curieux·se (`student`)
 
-**Parcours type** : Importe un journal d'usage anonymisé (CSV exporté du SI, via M10) → obtient un rapport PDF avec CO₂eq / eau / énergie, comparaisons sectorielles, et recommandations d'arbitrage modèle.
+> *Léa, 21 ans, en M1 sciences sociales* : « J'ai vu un article sur l'empreinte
+> de ChatGPT, je veux comprendre l'impact de mes propres prompts et savoir
+> comment prompter plus efficacement. »
 
-### 3.2 P2 — Marc, agent de l'Ecolab / ADEME (42 ans)
+**Bundle par défaut** : M1 Estimer · M8 Méthodologie · M11 Extension navigateur ·
+M13 Simulateur « Et si…? » · M14 À propos · M15 Dashboard personnel ·
+M24 Apprendre · M25 Objectifs & habitudes.
 
-> « Je veux pouvoir simuler des scénarios à l'échelle nationale : que se passe-t-il si 30 % des fonctionnaires utilisent un LLM 10 fois par jour ? »
+**Parcours type** : Onboarding → premier prompt sur M1 → installe l'extension
+M11 → vérifie son dashboard hebdomadaire M15 → ajuste un levier dans
+M13 pour comprendre l'impact d'un changement de modèle → suit un mini-cours
+M24 sur le prompting frugal.
 
-**Parcours type** : Configure un scénario macro (taux d'adoption, fréquence, modèle utilisé, mix électrique régional, M9), visualise la projection 2026-2030 avec bandes d'incertitude, exporte les hypothèses au format JSON-LD.
+### 3.2 P2 — Professionnel·le tech (`pro_tech`)
 
-### 3.3 P3 — Léa, étudiante en data journalisme (24 ans)
+> *Thomas, 29 ans, dev backend SaaS* : « Je dois choisir entre intégrer Mistral
+> Large ou GPT-4o-mini pour notre feature de résumé. Je veux comparer les
+> coûts carbone, faire tourner mes prompts réels et exporter pour mon
+> tech lead. »
 
-> « Je prépare un article. J'ai besoin de visualisations claires et de chiffres sourcés que je puisse citer. »
+**Bundle par défaut** : M1 Estimer · M2 Workbench · M3 Comparer modèles ·
+M5 Rapports & exports · M7 Journal d'audit · M9 Géolocalisation datacenter ·
+M11 Extension navigateur · M18 Batch CSV → rapport · M21 Alertes & seuils.
 
-**Parcours type** : Explore le dataset via le workbench, génère des graphiques exportables (PNG/SVG/Observable), récupère les sources et hypothèses associées.
+**Parcours type** : Onboarding → workbench M2 sur 200 prompts internes →
+comparateur M3 sur 4 modèles candidats → export PDF M5 pour revue tech →
+seuil d'alerte M21 si usage hebdo dépasse X g CO₂eq.
 
-### 3.4 P4 — Thomas, dev intégrant un LLM dans son SaaS (29 ans)
+### 3.3 P3 — Entreprise (`enterprise`)
 
-> « Je veux estimer avant déploiement le coût environnemental annuel d'intégrer Mistral Large dans mon produit, et le comparer à GPT-4o-mini. »
+> *Claire, 35 ans, directrice RSE d'un groupe industriel 8 000 personnes* :
+> « Notre comex me demande comment intégrer l'IA générative dans notre rapport
+> CSRD. J'ai besoin de chiffres défendables, d'un export PDF signé, et d'un
+> forecast à 12 mois sur l'adoption interne. »
 
-**Parcours type** : Saisit un trafic estimé, un panel de modèles candidats, obtient une matrice comparative et une recommandation argumentée.
+**Bundle par défaut** : M1 Estimer · M2 Workbench · M5 Rapports & exports ·
+M6 Géolocalisation datacenter · M7 Journal d'audit · M10 Import logs ·
+M12 Datacenters Europe · M16 Forecaster 12 mois · M19 Équipe ·
+M21 Alertes & seuils · M22 Rapport CSRD/AGEC.
 
-### 3.5 P5 — Sami, utilisateur quotidien curieux (28 ans)
+**Parcours type** : Onboarding → import CSV M10 du SI → forecast M16 sur
+l'adoption interne → carte M12 pour repérer les datacenters utilisés →
+rapport CSRD signé M22 → suivi annuel via M19 multi-utilisateurs.
 
-> « Je veux juste voir, en vrai, l'impact de mes prompts ChatGPT. »
+### 3.4 P4 — Collectivité / Service public (`public_sector`)
 
-**Parcours type** : Installe l'extension Sobr.ia (M11) → badge live à côté du champ de prompt → bilan hebdo automatique → comparaison personnelle vs moyenne nationale.
+> *Marc, 42 ans, agent à la direction du numérique d'une métropole* :
+> « Je dois orienter notre achat IA vers du frugal, suivre l'empreinte sur
+> notre territoire et préparer un marché public exemplaire. »
+
+**Bundle par défaut** : M1 Estimer · M5 Rapports & exports · M6 Géolocalisation
+datacenter · M7 Journal d'audit · M8 Méthodologie · M12 Datacenters Europe ·
+M16 Forecaster 12 mois · M20 Territoire FR · M22 Rapport CSRD/AGEC ·
+M23 Marchés publics IA frugale.
+
+**Parcours type** : Onboarding → M20 Territoire FR pour cartographier
+l'empreinte régionale → M12 Datacenters Europe pour sourcer hors-territoire →
+M16 forecast 12 mois sur la consommation projetée → M23 export d'un
+cahier des charges type pour appel d'offres IA frugale.
+
+### 3.5 P5 — Chercheur·se / Journaliste (`researcher`)
+
+> *Sami, 33 ans, doctorant en sciences de l'information* : « Je publie un
+> papier sur l'empreinte des LLMs francophones. Il me faut reproduire
+> Luccioni 2023, comparer 8 modèles sur mes propres prompts, et publier
+> mes datasets bruts pour reproductibilité. »
+
+**Bundle par défaut** : M1 Estimer · M3 Comparer modèles · M5 Rapports
+& exports · M8 Méthodologie · M14 À propos · M17 Empreinte projet ·
+M18 Batch CSV → rapport.
+
+**Parcours type** : Onboarding → M18 batch sur 1 000 prompts annotés →
+M3 comparaison de 8 modèles → M17 page projet publique avec datasheet
+Gebru et hash référentiel utilisé → M5 export Parquet + JSON-LD pour
+référencement dans le papier.
 
 ---
 
-## 4. Périmètre fonctionnel — 12 modules
+## 4. Périmètre fonctionnel — 25 modules
+
+> Nomenclature : `Mxx` = identifiant stable du module. Les IDs sont gelés
+> à compter de la v1.3 (cf. ADR-0010). Les bundles persona (§3) s'appuient
+> sur ces IDs. La cible v1.0 cherche à livrer les 25 modules avant la
+> soumission défi data.gouv.fr. Voir ROADMAP pour le séquencement et les
+> arbitrages possibles.
+
+### 4.1 Tableau des 25 modules
 
 | ID | Module | Description | Cible v1.0 |
 |----|--------|-------------|------------|
-| M1 | **Référentiel** | Base SQLite versionnée (modèles, hardware, datacenters, facteurs d'émission) | ✅ Bloquant |
-| M2 | **Estimateur** | Moteur de calcul Rust pour un prompt unitaire | ✅ Bloquant |
-| M3 | **Workbench** | Exploration interactive du référentiel | ✅ Bloquant |
-| M4 | **Simulateur de scénarios** | Construction de scénarios, projections temporelles | ✅ Bloquant |
-| M5 | **Comparateur** | Matrice modèles × indicateurs | ✅ Bloquant |
-| M6 | **Rapports & exports** | PDF, CSV/Parquet, JSON-LD, Quarto | ✅ Bloquant |
-| M7 | **Audit ledger** | Journal ACID immuable des estimations | ✅ Bloquant |
-| M8 | **Aide & méthodologie** | Documentation embarquée, glossaire, références | ✅ Bloquant |
-| M9 | **Géolocalisation datacenter** | Détection IP/zone → datacenter probable, mix élec local | ✅ Bloquant |
-| M10 | **Import logs entreprise** | Import CSV/JSONL/Parquet, profil RSE complet | ✅ Bloquant |
-| M11 | **Extension navigateur** | Chrome/Firefox MV3, capture vie réelle, badge live | ✅ Bloquant |
-| M12 | **Territoire français** | Cartographie IRIS, croisement ComparIA × RTE IRIS, scénarios régionaux | ✅ Bloquant |
+| **M1** | **Estimer un prompt** | Moteur Monte-Carlo + UI d'entrée unitaire | ✅ Bloquant |
+| **M2** | **Workbench** | Exploration interactive multi-prompts | ✅ Bloquant |
+| **M3** | **Comparer modèles** | Matrice N modèles × indicateurs, benchmark frugalité | ✅ Bloquant |
+| **M4** | *(réservé — ancien Simulateur, remplacé par M13)* | — | retiré |
+| **M5** | **Rapports & exports** | PDF, CSV/Parquet, JSON-LD, Quarto | ✅ Bloquant |
+| **M6** | **Géolocalisation datacenter** | Détection IP/zone → datacenter probable, mix élec local | ✅ Bloquant |
+| **M7** | **Journal d'audit** | Ledger ACID immuable des estimations (chaîne SHA-256) | ✅ Bloquant |
+| **M8** | **Méthodologie interactive** | Documentation embarquée, glossaire, références cliquables | ✅ Bloquant |
+| **M9** | **Référentiel modèles** | Catalogue + fiches modèles avec calibration & sources | ✅ Bloquant |
+| **M10** | **Import logs / Paramètres** | Import CSV/JSONL/Parquet d'historiques + paramètres app | ✅ Bloquant |
+| **M11** | **Extension navigateur** | Chrome/Firefox MV3, capture vie réelle, badge live | ✅ Bloquant |
+| **M12** | **Datacenters Europe** | Carte Leaflet + tuiles CARTO sombres, 28+ datacenters, drill-down donut + barres + 24h | ✅ Bloquant |
+| **M13** | **Simulateur « Et si…? »** | 7 leviers temps réel + verdict CO₂, waterfall contribution, before/after, projection 12 mois | ✅ Bloquant |
+| **M14** | **À propos / Crédits** | Mentions, licences, contributeurs, sources de financement | ✅ Bloquant |
+| **M15** | **Dashboard personnel** | Vue jour/semaine/mois de ses propres prompts (ledger + extension) | ✅ Bloquant |
+| **M16** | **Forecaster 12 mois** | Projection budget carbone IA avec bande d'incertitude + 3 sliders live (population, adoption, croissance) | ✅ Bloquant |
+| **M17** | **Empreinte projet** | Page projet publique avec datasheet Gebru, hash référentiel, datasets bruts | ✅ Bloquant |
+| **M18** | **Batch CSV → rapport** | Upload N prompts, rapport agrégé exportable | ✅ Bloquant |
+| **M19** | **Équipe / multi-utilisateurs** | Rollup, rôles (manager/IC), exports par cost-center | ✅ Bloquant |
+| **M20** | **Territoire FR (IRIS)** | Cartographie IRIS + Sankey énergétique, croisement ComparIA × RTE IRIS, scénarios régionaux | ✅ Bloquant |
+| **M21** | **Alertes & seuils** | Notifications locales si dépassement de seuils (jour/sem/mois) | ✅ Bloquant |
+| **M22** | **Rapport CSRD/AGEC** | Export PDF signé + JSON-LD PROV-O, conforme SPEC 2314 | ✅ Bloquant |
+| **M23** | **Marchés publics IA frugale** | Cahier des charges type + critères d'évaluation pour AO | ✅ Bloquant |
+| **M24** | **Apprendre** | Mini-cours markdown sur prompting frugal, méthodologie, lecture critique | ✅ Bloquant |
+| **M25** | **Objectifs & habitudes** | Eco-budget personnel, suivi mensuel, récompenses non-gamifiées | ✅ Bloquant |
 
-### 4.2 Indicateurs calculés
+> *Note historique* : `M4` était le « Simulateur de scénarios » en v1.2 ; il
+> est remplacé par `M13 Simulateur « Et si…? »` dans la v1.3 (refonte UX +
+> dataviz). L'ID `M4` est laissé réservé pour ne pas casser les références
+> antérieures.
+
+### 4.2 Grille persona × module (par défaut)
+
+| Module | Étudiant | Pro tech | Entreprise | Collectivité | Chercheur |
+|--------|:-:|:-:|:-:|:-:|:-:|
+| M1 Estimer | **★** | **★** | **★** | **★** | **★** |
+| M2 Workbench | | **★** | **★** | | |
+| M3 Comparer modèles | | **★** | | | **★** |
+| M5 Rapports & exports | | **★** | **★** | **★** | **★** |
+| M6 Géoloc datacenter | | | **★** | **★** | |
+| M7 Journal d'audit | | **★** | **★** | **★** | |
+| M8 Méthodologie | **★** | | | **★** | **★** |
+| M9 Référentiel modèles | | **★** | | | |
+| M10 Import logs / Paramètres | | | **★** | | |
+| M11 Extension navigateur | **★** | **★** | | | |
+| M12 Datacenters Europe | | | **★** | **★** | |
+| M13 Simulateur « Et si…? » | **★** | | | | |
+| M14 À propos | **★** | | | | **★** |
+| M15 Dashboard personnel | **★** | | | | |
+| M16 Forecaster 12 mois | | | **★** | **★** | |
+| M17 Empreinte projet | | | | | **★** |
+| M18 Batch CSV → rapport | | **★** | | | **★** |
+| M19 Équipe | | | **★** | | |
+| M20 Territoire FR | | | | **★** | |
+| M21 Alertes & seuils | | **★** | **★** | | |
+| M22 Rapport CSRD/AGEC | | | **★** | **★** | |
+| M23 Marchés publics | | | | **★** | |
+| M24 Apprendre | **★** | | | | |
+| M25 Objectifs & habitudes | **★** | | | | |
+
+(Tout module non coché reste **activable à la carte** par l'utilisateur après
+l'onboarding via Paramètres.)
+
+### 4.3 Composants dataviz transverses
+
+Trois composants techniques réutilisés à travers plusieurs modules :
+
+- **Bande d'incertitude** (P5-P50-P95 + sliders live) → utilisée dans M13, M16, M22.
+- **Sankey énergétique** (flux par datacenter ou par modèle) → utilisée dans M12, M20, M3.
+- **Histogramme distributionnel** (50 bins Monte-Carlo) → utilisé dans M1, M3, M13.
+
+Ces composants Svelte vivent dans `web/src/lib/components/dataviz/` et sont
+versionnés avec les écrans qui les consomment.
+
+### 4.4 Indicateurs calculés
 
 Pour chaque estimation, l'outil produit (avec intervalles d'incertitude propagés par Monte-Carlo) :
 
