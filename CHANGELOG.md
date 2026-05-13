@@ -7,6 +7,62 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+### Added — Chantier C09 : Intégration Tauri + UI desktop v0.2 (S6) — `v0.2.0-estimer`
+
+#### Wrapper IPC + design system v2
+
+- `web/src/lib/api.ts` : 6 fonctions typées mirrorant `crates/sobria-app/src/dto.rs` (`metaInfo`, `listModels`, `estimatePrompt`, `verifyAudit`, `listAuditEntries`, `exportAuditNdjson`). `SobriaIpcError extends Error` + `isTauriContext()` strict — aucun mock, aucun fallback (CLAUDE.md §13).
+- Adoption du design system v2 (`sobr-ia-design-system/` Claude Design) : palette `ink #0a0d0b` / `lime #c5f04a` / `ivory #f0ece3`, **Instrument Serif italic** (display) + **Geist** (UI) + **JetBrains Mono** (chiffres), grille 4 px, animations 150-300 ms ease-out.
+- 8 WOFF2 self-host dans `web/static/fonts/` (latin + latin-ext seulement, ~155 ko total), CSP `default-src 'self'` respectée.
+- Licences fontes documentées dans `docs/LICENSES-FONTS.md` (SIL OFL 1.1 + SHA-256 par fichier).
+- Tokens design dans `web/src/app.css`, composants atomiques (Composer, ResultBlock, HypothesisBlock, ComingSoon).
+
+#### Écrans livrés
+
+- **Estimer (M2)** route `/` : hero éditorial, composer (sélecteur modèle custom + textarea prompt + tokens auto + datacenter + mix), résultat avec hero metric CO₂eq P50 + **distribution Monte-Carlo SVG depuis `bins`** (option A1, fallback gaussien), 3 indicateurs side (énergie + eau + métaux), équivalents parlants, drawer hypothèses, signature ledger cliquable, CTA cross-screen → Comparer.
+- **Journal d'audit (M7)** route `/journal` : table paginée (limit 50), drawer détail entrée, verdict d'intégrité, export NDJSON via `@tauri-apps/plugin-dialog`, query param `?focus=N` depuis Signature.
+- **Workbench (M3)** route `/workbench` : filtres multi-select (provider / calibration / ouverture) + recherche full-text client + tri 5 colonnes (`aria-sort`), drawer fiche modèle avec sources cliquables, CTA « Estimer avec ce modèle » (`?model=<id>`).
+- **Comparer (M5)** route `/comparer` : sélection 2-8 modèles, fan-out `estimatePrompt` parallèle (Promise.allSettled), **verdict éditorial style M15** (« X est Y× plus sobre que Z » + delta `−N %`), cards par modèle avec barres normalisées CO₂eq / énergie / eau + intervalle P5-P95, drawer hypothèses + sources + lien ledger. Accepte `?prompt=...&tokensOut=...&model=...` depuis Estimer.
+- **Méthodologie (M8)** route `/methodo` : formule de référence, validation croisée (3 cartes), glossaire FR/EN 15 termes, références normatives (AFNOR SPEC 2314, ISO 21031, ITU-T L.1410, GHG Protocol, ADEME), bibliographie sélective. TOC sticky desktop / horizontal mobile.
+- **Paramètres** route `/parametres` : runtime via `meta_info` IPC (version app, seed, N, audit path, data root) + boutons copie clipboard, section « Préférences à venir » (Thème, Langue, Seed perso, Télémétrie) avec leur chantier.
+
+#### Stubs documentés (4 routes)
+
+- `/simuler` (M4 · C10), `/importer` (M10 · C11), `/territoire` (M9+M12 · C12), `/exporter` (M6 · C10).
+- Composant partagé `<ComingSoon>` : eyebrow amber « Module Mx · en chantier » + carte status dashed avec liste explicite des **IPC Rust attendus** + EF couvertes du CDC + chantier prévu.
+
+#### Méthodologie
+
+- Distribution Monte-Carlo journalisée : **option A1 actée** — `IndicatorValue.bins: Option<DistributionBins>` dans `sobria-core`, 50 bins équi-width sur les 10⁴ tirages, présents dans le payload audit (~600 B / entrée). Front rend la queue droite log-normale réelle ; fallback gaussien si bins absentes.
+- Tokenizer FR : `prompt.length / 3.3` (médiane FR 3,0-3,5) avec tooltip pointant vers le tokenizer BPE de v0.3.
+- Auto-rescale d'unité : `pickScale(p50, baseUnit)` choisit kg/g/mg/µg/ng selon le P50 — cohérence inter-percentile garantie, plus de `0,00 g` pour les petits modèles.
+- Format numérique partout en `maximumSignificantDigits: 3` (Intl FR).
+- Verdict comparateur basé sur le ratio worst/best CO₂eq P50 (pas de score composite à poids, mathématiquement faux tant que les indicateurs sont colinéaires en v0.2 du moteur).
+
+#### Tooling
+
+- ESLint : `typescript-eslint` méta-package (remplace les splits `@typescript-eslint/eslint-plugin` + `parser`).
+- Prettier : `.prettierignore` + `.svelte-kit` / `build` / `node_modules` / `test-results` / `playwright-report` ignorés.
+- `npm run clean` : nettoie `.vite`, `.svelte-kit`, `build`, `test-results`, `playwright-report` (rimraf cross-OS) — palliatif au cache Vite sale après changement de deps (cf. migration lucide).
+- `npm run clean:full` : idem + supprime `node_modules` + relance `npm install`.
+- `lucide-svelte` (Svelte 3/4 legacy) → `@lucide/svelte` (officiel Svelte 5 runes).
+- Playwright : 12 tests « no-mock contract », `workers: 1` pour éviter les courses sur le dev Vite partagé.
+
+#### Tauri (côté Rust, par Cowork)
+
+- Runtime Tauri activé (`tauri::Builder` + `generate_context!()` + icônes via `npx tauri icon` + `tauri-plugin-dialog`).
+- 6 commandes IPC enregistrées (`meta_info`, `list_models`, `estimate_prompt`, `verify_audit`, `list_audit_entries`, `export_audit_ndjson`).
+- `IndicatorValue.bins` (option A1) + `bin_samples()` helper avec garde `N >= 10` & `min < max`.
+- Capabilities `dialog:default`, `dialog:allow-save`, `dialog:allow-open` dans `crates/sobria-app/capabilities/default.json`.
+
+#### Vérifications
+
+- `npm run check` : 0 erreurs / 3 784 fichiers.
+- `npm run lint` : OK (prettier + eslint).
+- `npx playwright test` : **12 passed (5 s)** — contrat « no-mock » verrouillé sur les 6 écrans fonctionnels + 4 smoke tests sur les stubs.
+
+Voir `briefs/chantiers/C09-RETROSPECTIVE.md` pour le détail des décisions méthodologiques et la feuille de route C10+.
+
 ### Added — Cadrage et bootstrap (S0-S1)
 - Pack de cadrage initial : CDC v1.2, 9 ADR, roadmap 12 semaines, brief S0, catalogue sources, maquette UI textuelle.
 - Architecture médaillon Copper / Silver / Gold (ADR-0009).
