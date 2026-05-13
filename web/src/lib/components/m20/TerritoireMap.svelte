@@ -20,14 +20,8 @@
     onSelectRegion: (r: RegionFrAggregateDto) => void;
   };
 
-  let {
-    sites,
-    regions,
-    selectedSite,
-    selectedRegion,
-    onSelectSite,
-    onSelectRegion
-  }: Props = $props();
+  let { sites, regions, selectedSite, selectedRegion, onSelectSite, onSelectRegion }: Props =
+    $props();
 
   let mapDiv: HTMLDivElement | undefined = $state();
   let map: LMap | null = null;
@@ -107,14 +101,15 @@
   }
 
   onMount(() => {
-    if (!mapDiv) return;
+    const container = mapDiv;
+    if (!container) return;
 
     let cleanup: () => void = () => {};
 
     void (async () => {
       const L = (await import('leaflet')).default;
       const initialView: [number, number] = [46.5, 2.5]; // Centre approximatif de la France métropolitaine.
-      map = L.map(mapDiv!, {
+      map = L.map(container, {
         zoomControl: true,
         attributionControl: true,
         keyboard: true,

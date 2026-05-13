@@ -7,9 +7,23 @@
   //   - Chaque link = path cubic Bezier entre layer i et layer i+k.
   //   - Couleurs sémantiques selon l'id du node (renouv / nucléaire / fossile / autre).
 
-  export type SemanticTone = 'renewable' | 'nuclear' | 'fossil' | 'transfer' | 'consumer' | 'neutral';
+  export type SemanticTone =
+    | 'renewable'
+    | 'nuclear'
+    | 'fossil'
+    | 'transfer'
+    | 'consumer'
+    | 'neutral';
 
-  const RENEWABLE_KEYS = ['hydro', 'eolien', 'solaire', 'bioenergies', 'wind', 'solar', 'hydraulique'];
+  const RENEWABLE_KEYS = [
+    'hydro',
+    'eolien',
+    'solaire',
+    'bioenergies',
+    'wind',
+    'solar',
+    'hydraulique'
+  ];
   const NUCLEAR_KEYS = ['nucle', 'nuclear'];
   const FOSSIL_KEYS = ['gaz', 'charbon', 'fioul', 'coal', 'gas', 'oil'];
   const TRANSFER_KEYS = ['import', 'export', 'pompage', 'echanges', 'echange'];
@@ -26,7 +40,7 @@
 
 <script lang="ts">
   import { Activity, ExternalLink } from '@lucide/svelte';
-  import type { SankeyDataDto, SankeyNodeDto, SankeyLinkDto } from '$lib/api';
+  import type { SankeyDataDto, SankeyNodeDto } from '$lib/api';
 
   type Props = {
     data: SankeyDataDto;
@@ -203,7 +217,12 @@
   </header>
 
   <div class="svg-wrap">
-    <svg viewBox="0 0 {SVG_W} {SVG_H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sankey énergétique national">
+    <svg
+      viewBox="0 0 {SVG_W} {SVG_H}"
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label="Sankey énergétique national"
+    >
       <!-- Links (sous les nodes) -->
       {#each layout.links as lk (lk.source.id + '→' + lk.target.id)}
         <path
@@ -212,6 +231,8 @@
           stroke-width={lk.thickness}
           fill="none"
           opacity={hoveredLink && hoveredLink !== lk ? 0.18 : 0.5}
+          role="img"
+          aria-label="{lk.source.label} vers {lk.target.label} : {fmtTwh(lk.value_twh, 2)} TWh"
           onmouseenter={() => (hoveredLink = lk)}
           onmouseleave={() => (hoveredLink = null)}
           style="transition: opacity 200ms"
@@ -308,7 +329,8 @@
   <footer class="sfoot mono">
     Source :
     <a href={data.source_url} target="_blank" rel="noopener noreferrer">
-      RTE eco2mix {data.year} <ExternalLink size={9} strokeWidth={2} />
+      RTE eco2mix {data.year}
+      <ExternalLink size={9} strokeWidth={2} />
     </a>
     <span class="sha">SHA-256 {data.source_sha256.slice(0, 16)}…</span>
     {#if fetchedAt}

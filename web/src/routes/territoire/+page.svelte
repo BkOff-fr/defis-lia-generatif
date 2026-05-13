@@ -105,10 +105,7 @@
   // ─── Dérivés : filtrage côté front ──────────────────────────────────────
   const filteredSites = $derived.by(() => {
     return sites.filter((s) => {
-      if (
-        filters.enabledRegions.size > 0 &&
-        !filters.enabledRegions.has(s.region_iso)
-      ) {
+      if (filters.enabledRegions.size > 0 && !filters.enabledRegions.has(s.region_iso)) {
         return false;
       }
       if (s.consumption_total_mwh / 1000 < filters.minConsumptionGwh) return false;
@@ -197,8 +194,8 @@
       L'angle <em>territorial</em> français de l'impact IA.
     </h1>
     <p class="hero-sub">
-      200 sites industriels FR top-consommateurs (RTE IRIS / ODRÉ), agrégés par région avec leur
-      mix énergétique. Sankey national en bas de page pour situer l'usage IA dans la production
+      200 sites industriels FR top-consommateurs (RTE IRIS / ODRÉ), agrégés par région avec leur mix
+      énergétique. Sankey national en bas de page pour situer l'usage IA dans la production
       électrique réelle 2023.
     </p>
   </section>
@@ -232,8 +229,8 @@
       <p>
         Le backend n'a pas trouvé <span class="mono">territoire_fr.json</span> ni
         <span class="mono">rte_mix_fr.json</span>. Lance la commande ci-dessous pour fetcher les
-        datasets RTE IRIS (sites industriels) et RTE eco2mix (mix électrique) depuis l'API ODRÉ
-        — environ 12 MB, Etalab 2.0.
+        datasets RTE IRIS (sites industriels) et RTE eco2mix (mix électrique) depuis l'API ODRÉ —
+        environ 12 MB, Etalab 2.0.
       </p>
       <div class="cli mono">
         <Terminal size={11} strokeWidth={1.8} />
@@ -291,8 +288,8 @@
       <MapPin size={20} strokeWidth={1.6} />
       <h4>Carte et Sankey indisponibles</h4>
       <p>
-        Lance <span class="mono">cargo run -p sobria-app</span> après avoir ingéré les datasets
-        territoire-fr et rte-mix pour activer la cartographie.
+        Lance <span class="mono">cargo run -p sobria-app</span> après avoir ingéré les datasets territoire-fr
+        et rte-mix pour activer la cartographie.
       </p>
     </div>
   {/if}

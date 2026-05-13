@@ -20,9 +20,7 @@ test('Territoire FR : refuse de servir une carte mockée hors contexte Tauri', a
   await page.goto('/territoire');
 
   await expect(page).toHaveTitle(/Territoire France/);
-  await expect(
-    page.getByRole('heading', { name: /angle.*territorial.*français/i })
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /angle.*territorial.*français/i })).toBeVisible();
 
   // Bannière tauri_unavailable
   const banner = page.getByRole('alert');
