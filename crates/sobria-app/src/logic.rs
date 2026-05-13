@@ -19,9 +19,11 @@ use sobria_geoloc::{
 use tracing::{debug, info};
 
 use crate::{
+    batch,
     dashboard,
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
+        AppPreferencesDto, AuditEntrySummaryDto, BatchAggregateDto, BatchModelAggregateDto,
+        BatchRequestDto, BatchResultDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
         BenchmarkResultDto, BudgetStatusDto, CompositionDto, CountryAggregateDto,
         CreateProjectDto, CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto,
         DatacenterDetailDto, DatacenterSummaryDto, DatasheetDto, EstimationRequestDto,
@@ -656,6 +658,187 @@ fn sum_indicator_in_window(
             .map_or(0.0, |i| i.interval.p50);
     }
     sum
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// batch CSV (C21 — M18)
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
+    match e {
+        batch::BatchError::FileNotFound(p) => {
+            IpcError::new("invalid_request", format!("fichier introuvable : {}", p.display()))
+        },
+        batch::BatchError::Format(m) => IpcError::new("invalid_request", m),
+        batch::BatchError::TooManyRows { got, max } => IpcError::new(
+            "invalid_request",
+            format!("trop de lignes : {got} (max {max})"),
+        ),
+        batch::BatchError::TooManyRejections {
+            rejected,
+            total,
+            limit_pct,
+        } => IpcError::new(
+            "invalid_request",
+            format!(
+                "{rejected}/{total} lignes rejetées (> {limit_pct}%) — vérifiez le format"
+            ),
+        ),
+        batch::BatchError::EmptyBatch => {
+            IpcError::new("invalid_request", "le CSV ne contient aucune ligne de données".into())
+        },
+        batch::BatchError::Csv(e) => IpcError::new("invalid_request", format!("csv : {e}")),
+        batch::BatchError::Io(e) => IpcError::new("io_error", e.to_string()),
+    }
+}
+
+/// Lance un batch CSV : parse → estimate par ligne → agrégat + export optionnel.
+pub fn run_batch_from_csv(
+    req: BatchRequestDto,
+    state: &AppState,
+) -> IpcResult<BatchResultDto> {
+    let input_path = std::path::PathBuf::from(&req.input_csv_path);
+    let rows = batch::parse_csv(&input_path).map_err(batch_error_to_ipc)?;
+    let total_input = rows.len();
+
+    let mut output_rows: Vec<batch::BatchOutputRow> = Vec::with_capacity(total_input);
+    let mut rejected: u32 = 0;
+    let mut first_audit_id: i64 = i64::MAX;
+    let mut last_audit_id: i64 = 0;
+
+    for (idx, row) in rows.into_iter().enumerate() {
+        let est_req = EstimationRequestDto {
+            model_id: row.model_id.clone(),
+            tokens_in: row.tokens_in,
+            tokens_out_estimated: row.tokens_out,
+            datacenter_id: row.datacenter_id.clone(),
+        };
+        match estimate_prompt(est_req, state) {
+            Ok(dto) => {
+                let co2 = pick_indicator_dto(&dto, "co2eq");
+                let energy = pick_indicator_dto(&dto, "energy");
+                let water = pick_indicator_dto(&dto, "water");
+                let row_idx = u32::try_from(idx + 1).unwrap_or(u32::MAX);
+                first_audit_id = first_audit_id.min(dto.audit_id);
+                last_audit_id = last_audit_id.max(dto.audit_id);
+                output_rows.push(batch::BatchOutputRow {
+                    row_index: row_idx,
+                    model_id: row.model_id,
+                    tokens_in: row.tokens_in,
+                    tokens_out: row.tokens_out,
+                    datacenter_id: row.datacenter_id,
+                    co2eq_p5_g: co2.0,
+                    co2eq_p50_g: co2.1,
+                    co2eq_p95_g: co2.2,
+                    energy_wh_p50: energy.1,
+                    water_l_p50: water.1,
+                    audit_id: dto.audit_id,
+                });
+            },
+            Err(e) => {
+                rejected = rejected.saturating_add(1);
+                debug!(idx, error = %e.message, "batch: row rejected");
+            },
+        }
+    }
+
+    batch::check_rejection_ratio(rejected as usize, total_input)
+        .map_err(batch_error_to_ipc)?;
+
+    // Agrégation
+    let aggregate = if output_rows.is_empty() {
+        BatchAggregateDto {
+            total_co2eq_g_p50: 0.0,
+            total_energy_wh_p50: 0.0,
+            total_water_l_p50: 0.0,
+            avg_co2eq_g_p50: 0.0,
+            min_co2eq_g_p50: 0.0,
+            max_co2eq_g_p50: 0.0,
+        }
+    } else {
+        let total_co2: f64 = output_rows.iter().map(|r| r.co2eq_p50_g).sum();
+        let total_energy: f64 = output_rows.iter().map(|r| r.energy_wh_p50).sum();
+        let total_water: f64 = output_rows.iter().map(|r| r.water_l_p50).sum();
+        let n = output_rows.len() as f64;
+        let min_co2 = output_rows
+            .iter()
+            .map(|r| r.co2eq_p50_g)
+            .fold(f64::INFINITY, f64::min);
+        let max_co2 = output_rows
+            .iter()
+            .map(|r| r.co2eq_p50_g)
+            .fold(f64::NEG_INFINITY, f64::max);
+        BatchAggregateDto {
+            total_co2eq_g_p50: total_co2,
+            total_energy_wh_p50: total_energy,
+            total_water_l_p50: total_water,
+            avg_co2eq_g_p50: total_co2 / n,
+            min_co2eq_g_p50: min_co2,
+            max_co2eq_g_p50: max_co2,
+        }
+    };
+
+    let by_model = aggregate_by_model(&output_rows);
+
+    // Export optionnel
+    let output_path = if let Some(out) = req.output_csv_path.as_ref() {
+        let path = std::path::PathBuf::from(out);
+        batch::export_results_csv(&path, &output_rows).map_err(batch_error_to_ipc)?;
+        Some(out.clone())
+    } else {
+        None
+    };
+
+    let rows_processed = u32::try_from(output_rows.len()).unwrap_or(u32::MAX);
+    info!(
+        rows_processed,
+        rejected,
+        total_input,
+        "batch CSV terminé"
+    );
+
+    Ok(BatchResultDto {
+        rows_processed,
+        rows_rejected: rejected,
+        aggregate,
+        by_model,
+        output_csv_path: output_path,
+        first_audit_id: if first_audit_id == i64::MAX { 0 } else { first_audit_id },
+        last_audit_id,
+    })
+}
+
+/// Extrait (P5, P50, P95) d'un indicateur du DTO (par son id string).
+fn pick_indicator_dto(dto: &EstimationResultDto, id: &str) -> (f64, f64, f64) {
+    dto.indicators
+        .iter()
+        .find(|i| i.indicator == id)
+        .map_or((0.0, 0.0, 0.0), |i| (i.p5, i.p50, i.p95))
+}
+
+fn aggregate_by_model(rows: &[batch::BatchOutputRow]) -> Vec<BatchModelAggregateDto> {
+    use std::collections::HashMap;
+    let mut grouped: HashMap<String, (u32, f64)> = HashMap::new();
+    for r in rows {
+        let entry = grouped.entry(r.model_id.clone()).or_insert((0, 0.0));
+        entry.0 = entry.0.saturating_add(1);
+        entry.1 += r.co2eq_p50_g;
+    }
+    let mut out: Vec<BatchModelAggregateDto> = grouped
+        .into_iter()
+        .map(|(model_id, (count, total))| BatchModelAggregateDto {
+            model_id,
+            count,
+            total_co2eq_g_p50: total,
+            avg_co2eq_g_p50: total / f64::from(count.max(1)),
+        })
+        .collect();
+    out.sort_by(|a, b| {
+        b.total_co2eq_g_p50
+            .partial_cmp(&a.total_co2eq_g_p50)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    out
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1824,6 +2007,199 @@ mod tests {
         assert_eq!(sankey.year, 2023);
         assert!(!sankey.source_url.is_empty());
         assert!(!sankey.source_sha256.is_empty());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // batch CSV — C21 / M18
+    // ─────────────────────────────────────────────────────────────────────
+
+    use crate::dto::BatchRequestDto;
+    use std::io::Write as _;
+
+    fn write_csv_file(dir: &tempfile::TempDir, content: &str) -> std::path::PathBuf {
+        let path = dir.path().join("input.csv");
+        let mut f = std::fs::File::create(&path).unwrap();
+        f.write_all(content.as_bytes()).unwrap();
+        path
+    }
+
+    #[test]
+    fn batch_file_not_found_returns_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let err = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: "/nonexistent.csv".into(),
+                output_csv_path: None,
+            },
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn batch_happy_path_journalises_n_entries() {
+        let (tmp, state) = fresh_state();
+        let csv = "\
+model_id,tokens_in,tokens_out,datacenter_id
+gpt-4o-mini,100,500,
+claude-3-5-sonnet,200,1000,
+mistral-medium-3,80,300,
+";
+        let path = write_csv_file(&tmp, csv);
+        let res = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: path.display().to_string(),
+                output_csv_path: None,
+            },
+            &state,
+        )
+        .unwrap();
+        assert_eq!(res.rows_processed, 3);
+        assert_eq!(res.rows_rejected, 0);
+        // Ledger doit contenir 3 entrées
+        let ledger_len = {
+            let l = state.ledger.lock().unwrap();
+            l.len().unwrap()
+        };
+        assert_eq!(ledger_len, 3);
+        // Agrégat cohérent
+        assert!(res.aggregate.total_co2eq_g_p50 > 0.0);
+        assert!(res.aggregate.avg_co2eq_g_p50 > 0.0);
+        assert!(res.aggregate.min_co2eq_g_p50 <= res.aggregate.max_co2eq_g_p50);
+    }
+
+    #[test]
+    fn batch_invalid_model_rejected_but_others_processed() {
+        let (tmp, state) = fresh_state();
+        // 1 ligne valide + 1 ligne avec modèle inconnu = 50% rejected → OK
+        let csv = "\
+model_id,tokens_in,tokens_out,datacenter_id
+gpt-4o-mini,100,500,
+modele-bidon,50,200,
+";
+        let path = write_csv_file(&tmp, csv);
+        let res = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: path.display().to_string(),
+                output_csv_path: None,
+            },
+            &state,
+        )
+        .unwrap();
+        assert_eq!(res.rows_processed, 1);
+        assert_eq!(res.rows_rejected, 1);
+    }
+
+    #[test]
+    fn batch_too_many_rejections_returns_invalid_request() {
+        let (tmp, state) = fresh_state();
+        // 1 valide + 3 invalides = 75% rejected → erreur
+        let csv = "\
+model_id,tokens_in,tokens_out,datacenter_id
+gpt-4o-mini,100,500,
+bidon-1,50,200,
+bidon-2,50,200,
+bidon-3,50,200,
+";
+        let path = write_csv_file(&tmp, csv);
+        let err = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: path.display().to_string(),
+                output_csv_path: None,
+            },
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+        assert!(err.message.contains("rejet"));
+    }
+
+    #[test]
+    fn batch_groupby_model_returns_sorted_aggregates() {
+        let (tmp, state) = fresh_state();
+        let csv = "\
+model_id,tokens_in,tokens_out,datacenter_id
+gpt-4o-mini,100,500,
+claude-3-5-sonnet,200,1000,
+gpt-4o-mini,150,600,
+";
+        let path = write_csv_file(&tmp, csv);
+        let res = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: path.display().to_string(),
+                output_csv_path: None,
+            },
+            &state,
+        )
+        .unwrap();
+        // 2 modèles distincts dans by_model
+        assert_eq!(res.by_model.len(), 2);
+        // Tri par total_co2eq_p50 desc — le plus gros premier
+        for w in res.by_model.windows(2) {
+            assert!(w[0].total_co2eq_g_p50 >= w[1].total_co2eq_g_p50);
+        }
+        // gpt-4o-mini a 2 entrées
+        let mini = res
+            .by_model
+            .iter()
+            .find(|m| m.model_id == "gpt-4o-mini")
+            .unwrap();
+        assert_eq!(mini.count, 2);
+    }
+
+    #[test]
+    fn batch_with_output_csv_writes_file() {
+        let (tmp, state) = fresh_state();
+        let csv = "\
+model_id,tokens_in,tokens_out,datacenter_id
+gpt-4o-mini,100,500,
+";
+        let path = write_csv_file(&tmp, csv);
+        let out_path = tmp.path().join("results.csv");
+        let res = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: path.display().to_string(),
+                output_csv_path: Some(out_path.display().to_string()),
+            },
+            &state,
+        )
+        .unwrap();
+        assert!(out_path.exists());
+        let content = std::fs::read_to_string(&out_path).unwrap();
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines.len(), 2); // header + 1 row
+        assert!(lines[0].starts_with("row_index"));
+        assert!(lines[1].starts_with("1,"));
+        assert!(res.output_csv_path.is_some());
+    }
+
+    #[test]
+    fn batch_audit_ids_consistent_with_journalisation() {
+        let (tmp, state) = fresh_state();
+        let csv = "\
+model_id,tokens_in,tokens_out,datacenter_id
+gpt-4o-mini,100,500,
+gpt-4o-mini,150,600,
+gpt-4o-mini,200,700,
+";
+        let path = write_csv_file(&tmp, csv);
+        let res = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: path.display().to_string(),
+                output_csv_path: None,
+            },
+            &state,
+        )
+        .unwrap();
+        // first_audit_id < last_audit_id, et écart = N-1
+        assert!(res.first_audit_id >= 1);
+        assert!(res.last_audit_id >= res.first_audit_id);
+        assert_eq!(
+            res.last_audit_id - res.first_audit_id,
+            2,
+            "3 entries → audit_id consécutifs"
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────

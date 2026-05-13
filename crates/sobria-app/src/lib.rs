@@ -16,6 +16,7 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::needless_pass_by_value)]
 
+pub mod batch;
 pub mod dashboard;
 pub mod dto;
 pub mod error;

@@ -38,6 +38,7 @@ tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 dirs = { workspace = true }
 rusqlite = { workspace = true }
+csv = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

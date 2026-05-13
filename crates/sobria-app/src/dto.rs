@@ -443,6 +443,50 @@ impl From<&SankeyData> for SankeyDataDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// batch CSV (C21 — M18)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Requête de traitement batch CSV.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchRequestDto {
+    /// Chemin absolu vers le CSV d'entrée.
+    pub input_csv_path: String,
+    /// Si fourni : écrit un CSV de résultats à ce chemin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_csv_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BatchAggregateDto {
+    pub total_co2eq_g_p50: f64,
+    pub total_energy_wh_p50: f64,
+    pub total_water_l_p50: f64,
+    pub avg_co2eq_g_p50: f64,
+    pub min_co2eq_g_p50: f64,
+    pub max_co2eq_g_p50: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BatchModelAggregateDto {
+    pub model_id: String,
+    pub count: u32,
+    pub total_co2eq_g_p50: f64,
+    pub avg_co2eq_g_p50: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BatchResultDto {
+    pub rows_processed: u32,
+    pub rows_rejected: u32,
+    pub aggregate: BatchAggregateDto,
+    pub by_model: Vec<BatchModelAggregateDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_csv_path: Option<String>,
+    pub first_audit_id: i64,
+    pub last_audit_id: i64,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // projects + datasheet (C20 — M17 Empreinte projet)
 // ─────────────────────────────────────────────────────────────────────────────
 

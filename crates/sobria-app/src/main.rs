@@ -13,14 +13,14 @@
 
 use sobria_app::{
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, BenchmarkRequestDto, BenchmarkResultDto,
-        BudgetStatusDto, CountryAggregateDto, CreateProjectDto, CsrdReportRequestDto,
-        CsrdReportResultDto, DashboardSummaryDto, DatacenterDetailDto, DatacenterSummaryDto,
-        DatasheetDto, EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto,
-        IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto, PersonalGoalDto,
-        ProjectDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
-        SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto,
-        YearlyForecastResultDto,
+        AppPreferencesDto, AuditEntrySummaryDto, BatchRequestDto, BatchResultDto,
+        BenchmarkRequestDto, BenchmarkResultDto, BudgetStatusDto, CountryAggregateDto,
+        CreateProjectDto, CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto,
+        DatacenterDetailDto, DatacenterSummaryDto, DatasheetDto, EstimationRequestDto,
+        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
+        ModelDetailDto, ModelPresetDto, PersonalGoalDto, ProjectDto, RegionFrAggregateDto,
+        SankeyDataDto, SimulationRequestDto, SimulationResultDto, UpdateProjectDto,
+        YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -251,6 +251,14 @@ fn generate_project_datasheet(
     logic::generate_project_datasheet(id, state.inner())
 }
 
+#[tauri::command]
+fn run_batch_from_csv(
+    req: BatchRequestDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<BatchResultDto> {
+    logic::run_batch_from_csv(req, state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -306,6 +314,7 @@ fn main() {
             update_project,
             delete_project,
             generate_project_datasheet,
+            run_batch_from_csv,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");
