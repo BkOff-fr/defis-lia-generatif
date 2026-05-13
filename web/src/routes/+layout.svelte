@@ -45,7 +45,7 @@
     { label: 'Exporter', icon: Download, href: '/exporter' }
   ];
   const itemsAudit: RailItem[] = [
-    { label: "Journal d'audit", icon: ShieldCheck, href: '/audit' },
+    { label: "Journal d'audit", icon: ShieldCheck, href: '/journal' },
     { label: 'Méthodologie', icon: BookOpen, href: '/methodo' }
   ];
 

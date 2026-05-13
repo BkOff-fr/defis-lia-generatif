@@ -280,7 +280,7 @@
     <div class="signature">
       <span class="ico" aria-hidden="true"><Fingerprint size={14} strokeWidth={1.6} /></span>
       <span>Estimation journalisée dans le ledger d'audit · entrée</span>
-      <a class="hash" href={`/audit#${result.audit_id}`}>
+      <a class="hash" href={`/journal?focus=${result.audit_id}`}>
         #{result.audit_id} · seed {result.seed}
       </a>
       <div class="spacer"></div>

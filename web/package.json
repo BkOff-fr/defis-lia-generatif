@@ -42,6 +42,7 @@
     "@lucide/svelte": "^1.14.0",
     "@observablehq/plot": "^0.6.16",
     "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-shell": "^2.0.0",
     "d3": "^7.9.0",
     "svelte-i18n": "^4.0.1"
