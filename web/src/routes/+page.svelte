@@ -65,7 +65,15 @@
             ? a.display_name.localeCompare(b.display_name)
             : a.provider.localeCompare(b.provider)
         );
-        selectedModelId = list.find((m) => m.id === 'gpt-4o-mini')?.id ?? list[0]?.id ?? '';
+        // Préselection : ?model=<id> depuis le Workbench, sinon gpt-4o-mini,
+        // sinon premier modèle disponible.
+        const urlModel =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('model')
+            : null;
+        const fromUrl = urlModel ? list.find((m) => m.id === urlModel)?.id : undefined;
+        selectedModelId =
+          fromUrl ?? list.find((m) => m.id === 'gpt-4o-mini')?.id ?? list[0]?.id ?? '';
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           error = { code: err.code, message: err.message };
