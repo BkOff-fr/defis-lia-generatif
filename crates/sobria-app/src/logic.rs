@@ -23,9 +23,9 @@ use crate::{
         AppPreferencesDto, AuditEntrySummaryDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
         BenchmarkResultDto, CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto,
         DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto,
-        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelPresetDto,
+        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto,
         RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
-        YearlyForecastRequestDto, YearlyForecastResultDto,
+        TripletDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     preferences_store::StoredPreferences,
@@ -49,6 +49,84 @@ pub fn meta_info(state: &AppState) -> IpcResult<MetaInfo> {
 /// Liste les presets de modèles disponibles (≥ 8 — voir C06).
 pub fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
     Ok(available_models().into_iter().map(Into::into).collect())
+}
+
+/// Détaille un modèle (M9 / C18) avec ses params distributionnels et un
+/// baseline contextuel calculé sur prompt référence 100/500 tokens.
+///
+/// **Pas journalisé** dans l'audit ledger — c'est une fiche statique
+/// pédagogique, pas un acte d'estimation utilisateur.
+pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDetailDto> {
+    let preset = find_preset(model_id).ok_or_else(|| {
+        IpcError::new("not_found", format!("modèle '{model_id}' inconnu"))
+    })?;
+    let openness = match preset.openness {
+        sobria_estimator::Openness::Open => "open",
+        sobria_estimator::Openness::OpenWeights => "open_weights",
+        sobria_estimator::Openness::Closed => "closed",
+    };
+    let calibration = match preset.calibration {
+        sobria_estimator::CalibrationStatus::Validated => "validated",
+        sobria_estimator::CalibrationStatus::Indicative => "indicative",
+        sobria_estimator::CalibrationStatus::Extrapolated => "extrapolated",
+    };
+
+    // Baseline pour contexte (sans journalisation).
+    let params = EstimationParams::for_model(model_id).map_err(AppError::from)?;
+    let req = sobria_core::EstimationRequest {
+        model_id: model_id.to_string(),
+        tokens_in: 100,
+        tokens_out_estimated: 500,
+        datacenter_id: None,
+        timestamp: Utc::now(),
+    };
+    let result = state.estimator.estimate(&req, &params).map_err(AppError::from)?;
+    let co2 = result
+        .indicators
+        .iter()
+        .find(|i| matches!(i.indicator, Indicator::Co2Eq))
+        .ok_or_else(|| AppError::Internal("CO2eq indicator manquant".into()))?;
+    let energy_p50 = result
+        .indicators
+        .iter()
+        .find(|i| matches!(i.indicator, Indicator::Energy))
+        .map_or(0.0, |i| i.interval.p50);
+    let water_p50 = result
+        .indicators
+        .iter()
+        .find(|i| matches!(i.indicator, Indicator::Water))
+        .map_or(0.0, |i| i.interval.p50);
+
+    Ok(ModelDetailDto {
+        id: preset.id.into(),
+        display_name: preset.display_name.into(),
+        provider: preset.provider.into(),
+        family: preset.family.into(),
+        approx_params_billions: preset.approx_params_billions,
+        openness: openness.into(),
+        calibration: calibration.into(),
+        sources: preset.sources.iter().map(|s| (*s).to_string()).collect(),
+        epsilon_prefill_mj_per_token: TripletDto {
+            p5: preset.epsilon_prefill_mj.0,
+            p50: preset.epsilon_prefill_mj.1,
+            p95: preset.epsilon_prefill_mj.2,
+        },
+        epsilon_decode_mj_per_token: TripletDto {
+            p5: preset.epsilon_decode_mj.0,
+            p50: preset.epsilon_decode_mj.1,
+            p95: preset.epsilon_decode_mj.2,
+        },
+        embodied_g_per_request: TripletDto {
+            p5: preset.embodied_g_per_req.0,
+            p50: preset.embodied_g_per_req.1,
+            p95: preset.embodied_g_per_req.2,
+        },
+        baseline_co2eq_p5_g: co2.interval.p5,
+        baseline_co2eq_p50_g: co2.interval.p50,
+        baseline_co2eq_p95_g: co2.interval.p95,
+        baseline_energy_wh_p50: energy_p50,
+        baseline_water_l_p50: water_p50,
+    })
 }
 
 /// Estime un prompt + journalise dans le ledger.
@@ -1402,6 +1480,71 @@ mod tests {
         assert_eq!(sankey.year, 2023);
         assert!(!sankey.source_url.is_empty());
         assert!(!sankey.source_sha256.is_empty());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // model detail — C18 / M9
+    // ─────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn get_model_detail_unknown_returns_not_found() {
+        let (_tmp, state) = fresh_state();
+        let err = get_model_detail("ce-modele-existe-pas", &state).unwrap_err();
+        assert_eq!(err.code, "not_found");
+    }
+
+    #[test]
+    fn get_model_detail_known_returns_full_dto() {
+        let (_tmp, state) = fresh_state();
+        let d = get_model_detail("gpt-4o-mini", &state).unwrap();
+        assert_eq!(d.id, "gpt-4o-mini");
+        assert!(!d.display_name.is_empty());
+        assert!(!d.provider.is_empty());
+        assert!(!d.sources.is_empty(), "sources non vides");
+        // Triplets ordonnés (P5 ≤ P50 ≤ P95)
+        let t = &d.epsilon_prefill_mj_per_token;
+        assert!(
+            t.p5 <= t.p50 && t.p50 <= t.p95,
+            "epsilon_prefill triplet désordonné : {} ≤ {} ≤ {}",
+            t.p5,
+            t.p50,
+            t.p95
+        );
+        let t = &d.epsilon_decode_mj_per_token;
+        assert!(t.p5 <= t.p50 && t.p50 <= t.p95);
+        let t = &d.embodied_g_per_request;
+        assert!(t.p5 <= t.p50 && t.p50 <= t.p95);
+        // Baseline cohérent
+        assert!(d.baseline_co2eq_p50_g > 0.0 && d.baseline_co2eq_p50_g.is_finite());
+        assert!(d.baseline_co2eq_p5_g <= d.baseline_co2eq_p50_g);
+        assert!(d.baseline_co2eq_p50_g <= d.baseline_co2eq_p95_g);
+    }
+
+    #[test]
+    fn get_model_detail_all_8_models_queryable() {
+        let (_tmp, state) = fresh_state();
+        let models = list_models().unwrap();
+        assert!(models.len() >= 8);
+        for m in &models {
+            let d = get_model_detail(&m.id, &state).unwrap();
+            assert_eq!(d.id, m.id);
+        }
+    }
+
+    #[test]
+    fn get_model_detail_does_not_journal() {
+        let (_tmp, state) = fresh_state();
+        let before = {
+            let l = state.ledger.lock().unwrap();
+            l.len().unwrap()
+        };
+        let _ = get_model_detail("gpt-4o-mini", &state).unwrap();
+        let _ = get_model_detail("claude-3-5-sonnet", &state).unwrap();
+        let after = {
+            let l = state.ledger.lock().unwrap();
+            l.len().unwrap()
+        };
+        assert_eq!(before, after, "get_model_detail ne doit pas journaliser");
     }
 
     // ─────────────────────────────────────────────────────────────────────

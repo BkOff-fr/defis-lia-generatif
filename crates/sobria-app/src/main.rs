@@ -16,7 +16,7 @@ use sobria_app::{
         AppPreferencesDto, AuditEntrySummaryDto, BenchmarkRequestDto, BenchmarkResultDto,
         CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto, DatacenterDetailDto,
         DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto,
-        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelPresetDto,
+        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto,
         RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
         YearlyForecastRequestDto, YearlyForecastResultDto,
     },
@@ -37,6 +37,14 @@ fn meta_info(state: tauri::State<'_, AppState>) -> IpcResult<MetaInfo> {
 #[tauri::command]
 fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
     logic::list_models()
+}
+
+#[tauri::command]
+fn get_model_detail(
+    id: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<ModelDetailDto> {
+    logic::get_model_detail(&id, state.inner())
 }
 
 #[tauri::command]
@@ -188,6 +196,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             meta_info,
             list_models,
+            get_model_detail,
             estimate_prompt,
             verify_audit,
             list_audit_entries,

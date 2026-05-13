@@ -170,6 +170,68 @@ export interface SimulationResultDto {
   forecast?: ForecastResultDto;
 }
 
+// ─── Territoire FR (C13 — M20) ───────────────────────────────────────────
+//
+// Mirror 1-pour-1 de `crates/sobria-app/src/dto.rs` (bloc "territoire_fr").
+
+export interface IndustrialSiteSummaryDto {
+  code_iris: string;
+  commune: string;
+  department_code: string;
+  region_iso: string;
+  lat: number;
+  lon: number;
+  consumption_mwh_elec: number;
+  consumption_mwh_gas: number;
+  consumption_total_mwh: number;
+  pdl_total: number;
+  year: number;
+}
+
+export interface TopSiteDto {
+  code_iris: string;
+  commune: string;
+  consumption_total_mwh: number;
+}
+
+export interface RegionFrAggregateDto {
+  region_iso: string;
+  region_name: string;
+  insee_code: string;
+  site_count: number;
+  total_consumption_mwh_elec: number;
+  total_consumption_mwh_gas: number;
+  total_consumption_mwh: number;
+  centroid_lat: number;
+  centroid_lon: number;
+  nuclear_share_pct: number;
+  top_sites: TopSiteDto[];
+}
+
+// ─── Sankey FR (C13) ─────────────────────────────────────────────────────
+
+export interface SankeyNodeDto {
+  id: string;
+  label: string;
+  layer: number;
+  value_twh: number;
+}
+
+export interface SankeyLinkDto {
+  source: string;
+  target: string;
+  value_twh: number;
+}
+
+export interface SankeyDataDto {
+  nodes: SankeyNodeDto[];
+  links: SankeyLinkDto[];
+  total_production_twh: number;
+  year: number;
+  source_url: string;
+  source_sha256: string;
+}
+
 // ─── Erreurs typées ──────────────────────────────────────────────────────
 
 // Codes alignés sur `crates/sobria-app/src/error.rs::AppError -> IpcError`.
@@ -184,7 +246,9 @@ export type IpcErrorCode =
   | 'io_error'
   | 'json_error'
   | 'internal'
-  | 'tauri_unavailable';
+  | 'tauri_unavailable'
+  | 'data_not_ingested'
+  | 'not_found';
 
 export class SobriaIpcError extends Error {
   readonly code: IpcErrorCode;
@@ -281,6 +345,28 @@ export function exportAuditNdjson(path: string): Promise<number> {
 
 export function simulateScenarios(req: SimulationRequestDto): Promise<SimulationResultDto> {
   return call<SimulationResultDto>('simulate_scenarios', { req });
+}
+
+// ─── Territoire FR + Sankey (C13 — M20) ──────────────────────────────────
+
+export function listIndustrialSitesFr(
+  limit: number,
+  offset: number
+): Promise<IndustrialSiteSummaryDto[]> {
+  return call<IndustrialSiteSummaryDto[]>('list_industrial_sites_fr', { limit, offset });
+}
+
+export function getIndustrialSiteFr(codeIris: string): Promise<IndustrialSiteSummaryDto> {
+  // Tauri reçoit l'argument tel quel — snake_case côté Rust = code_iris.
+  return call<IndustrialSiteSummaryDto>('get_industrial_site_fr', { codeIris });
+}
+
+export function aggregateIndustrialSitesByRegion(): Promise<RegionFrAggregateDto[]> {
+  return call<RegionFrAggregateDto[]>('aggregate_industrial_sites_by_region');
+}
+
+export function sankeyFrData(): Promise<SankeyDataDto> {
+  return call<SankeyDataDto>('sankey_fr_data');
 }
 
 // ─── Préférences utilisateur (C10 — ADR-0010) ────────────────────────────

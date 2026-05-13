@@ -443,6 +443,46 @@ impl From<&SankeyData> for SankeyDataDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// model detail (C18 — M9 Référentiel modèles)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Triplet P5/P50/P95 (équivalent à `UncertaintyInterval` sans la
+/// validation côté DTO).
+#[derive(Debug, Clone, Serialize)]
+pub struct TripletDto {
+    pub p5: f64,
+    pub p50: f64,
+    pub p95: f64,
+}
+
+/// Fiche détaillée d'un modèle exposant ses params distributionnels et
+/// un baseline contextuel (gpt-4o-mini 100/500 tokens, paramètres par
+/// défaut). **Pas journalisée** dans l'audit ledger.
+#[derive(Debug, Clone, Serialize)]
+pub struct ModelDetailDto {
+    pub id: String,
+    pub display_name: String,
+    pub provider: String,
+    pub family: String,
+    pub approx_params_billions: f64,
+    pub openness: String,
+    pub calibration: String,
+    pub sources: Vec<String>,
+    /// Plage P5/P50/P95 de l'énergie prefill (mJ par token d'entrée).
+    pub epsilon_prefill_mj_per_token: TripletDto,
+    /// Plage P5/P50/P95 de l'énergie decode (mJ par token de sortie).
+    pub epsilon_decode_mj_per_token: TripletDto,
+    /// Plage P5/P50/P95 de l'embodied carbon amorti (gCO₂eq par requête).
+    pub embodied_g_per_request: TripletDto,
+    /// CO₂eq P5/P50/P95 pour le prompt de référence (100 in / 500 out).
+    pub baseline_co2eq_p5_g: f64,
+    pub baseline_co2eq_p50_g: f64,
+    pub baseline_co2eq_p95_g: f64,
+    pub baseline_energy_wh_p50: f64,
+    pub baseline_water_l_p50: f64,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // benchmark (C17 — M3 Comparer modèles)
 // ─────────────────────────────────────────────────────────────────────────────
 
