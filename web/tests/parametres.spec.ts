@@ -49,14 +49,14 @@ test('Paramètres : sections persona + modules + runtime vide hors Tauri', async
 });
 
 /**
- * Smoke tests des stubs « coming soon ». /simuler (M13) a été livré en C11
- * et n'est plus un stub — il a son propre contrat no-mock dans
- * `tests/simuler.spec.ts`.
+ * Smoke tests des stubs « coming soon ». /simuler (M13) et /territoire (M20)
+ * ont été livrés en C11 / C13 et ne sont plus des stubs — ils ont leurs
+ * propres contrats no-mock dans `tests/simuler.spec.ts` et
+ * `tests/territoire.spec.ts`.
  */
-test.describe('Stubs (M9-M12 / M10 / M6)', () => {
+test.describe('Stubs (M10 / M6)', () => {
   for (const r of [
     { path: '/importer', module: 'M10', titleMatch: /journal d.usage entreprise/i },
-    { path: '/territoire', module: 'M9 / M12', titleMatch: /Cartographie IRIS/ },
     { path: '/exporter', module: 'M6', titleMatch: /rapport.*sourcé/i }
   ]) {
     test(`${r.path} — coque + IPC attendus`, async ({ page }) => {
