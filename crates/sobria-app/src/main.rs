@@ -13,11 +13,12 @@
 
 use sobria_app::{
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, CsrdReportRequestDto,
-        CsrdReportResultDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
-        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
-        ModelPresetDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
-        SimulationResultDto, YearlyForecastRequestDto, YearlyForecastResultDto,
+        AppPreferencesDto, AuditEntrySummaryDto, BenchmarkRequestDto, BenchmarkResultDto,
+        CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto, DatacenterDetailDto,
+        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto,
+        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelPresetDto,
+        RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
+        YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -95,6 +96,14 @@ fn forecast_yearly_budget(
     state: tauri::State<'_, AppState>,
 ) -> IpcResult<YearlyForecastResultDto> {
     logic::forecast_yearly_budget(req, state.inner())
+}
+
+#[tauri::command]
+fn benchmark_models(
+    req: BenchmarkRequestDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<BenchmarkResultDto> {
+    logic::benchmark_models(req, state.inner())
 }
 
 #[tauri::command]
@@ -187,6 +196,7 @@ fn main() {
             set_app_preferences,
             simulate_scenarios,
             forecast_yearly_budget,
+            benchmark_models,
             list_datacenters,
             get_datacenter_detail,
             aggregate_datacenters_by_country,

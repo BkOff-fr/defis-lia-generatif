@@ -257,7 +257,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Datacenters Europe',
     description: 'Carte interactive des sites avec drill-down énergie.',
     category: 'visualisation',
-    href: '/territoire'
+    href: null
   },
   m13: {
     id: 'm13',
@@ -313,7 +313,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Territoire France',
     description: 'Cartographie RTE IRIS + Sankey énergétique territorial.',
     category: 'visualisation',
-    href: null
+    href: '/territoire'
   },
   m21: {
     id: 'm21',

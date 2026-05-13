@@ -20,11 +20,12 @@ use tracing::{debug, info};
 
 use crate::{
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, CsrdReportRequestDto,
-        CsrdReportResultDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
-        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
-        ModelPresetDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
-        SimulationResultDto, YearlyForecastRequestDto, YearlyForecastResultDto,
+        AppPreferencesDto, AuditEntrySummaryDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
+        BenchmarkResultDto, CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto,
+        DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto,
+        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelPresetDto,
+        RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
+        YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     preferences_store::StoredPreferences,
@@ -464,6 +465,169 @@ fn pick_p50(result: &sobria_core::EstimationResult, ind: Indicator) -> f64 {
         .iter()
         .find(|i| i.indicator == ind)
         .map_or(0.0, |i| i.interval.p50)
+}
+
+/// Borne haute du nombre de modèles autorisés dans un benchmark.
+pub const MAX_BENCHMARK_MODELS: usize = 20;
+
+/// Compare N modèles (1..=`MAX_BENCHMARK_MODELS`) sur un même prompt (M3 / C17).
+///
+/// Boucle simplement sur `estimate_prompt` puis calcule des classements
+/// par P50 ascendant pour CO₂eq / énergie / eau. Chaque appel journalise
+/// dans l'audit ledger (1 entrée par modèle).
+#[allow(clippy::too_many_lines)] // flow linéaire : validations + N estimations + 3 rankings
+pub fn benchmark_models(
+    req: BenchmarkRequestDto,
+    state: &AppState,
+) -> IpcResult<BenchmarkResultDto> {
+    // 1. Validations.
+    if req.model_ids.is_empty() {
+        return Err(IpcError::from(AppError::InvalidRequest(
+            "model_ids vide".into(),
+        )));
+    }
+    if req.model_ids.len() > MAX_BENCHMARK_MODELS {
+        return Err(IpcError::from(AppError::InvalidRequest(format!(
+            "trop de modèles : {} (max {MAX_BENCHMARK_MODELS})",
+            req.model_ids.len()
+        ))));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for m in &req.model_ids {
+        if !seen.insert(m.clone()) {
+            return Err(IpcError::from(AppError::InvalidRequest(format!(
+                "model_id '{m}' en doublon"
+            ))));
+        }
+    }
+    let mut unknown: Vec<&str> = Vec::new();
+    for m in &req.model_ids {
+        if find_preset(m).is_none() {
+            unknown.push(m.as_str());
+        }
+    }
+    if !unknown.is_empty() {
+        return Err(IpcError::from(AppError::UnknownModel(unknown.join(", "))));
+    }
+
+    // 2. Estimation + journalisation de chaque modèle.
+    let mut tmp: Vec<(BenchmarkOutcomeDto, f64, f64, f64)> = Vec::with_capacity(req.model_ids.len());
+    for model_id in &req.model_ids {
+        let est_req = EstimationRequestDto {
+            model_id: model_id.clone(),
+            tokens_in: req.tokens_in,
+            tokens_out_estimated: req.tokens_out_estimated,
+            datacenter_id: req.datacenter_id.clone(),
+        };
+        let result_dto = estimate_prompt(est_req, state)?;
+        let preset = find_preset(model_id)
+            .ok_or_else(|| IpcError::from(AppError::UnknownModel(model_id.clone())))?;
+        let co2_p50 = pick_p50_from_dto(&result_dto, "co2eq");
+        let energy_p50 = pick_p50_from_dto(&result_dto, "energy");
+        let water_p50 = pick_p50_from_dto(&result_dto, "water");
+        let outcome = BenchmarkOutcomeDto {
+            model_id: preset.id.into(),
+            display_name: preset.display_name.into(),
+            provider: preset.provider.into(),
+            family: preset.family.into(),
+            openness: match preset.openness {
+                sobria_estimator::Openness::Open => "open",
+                sobria_estimator::Openness::OpenWeights => "open_weights",
+                sobria_estimator::Openness::Closed => "closed",
+            }
+            .into(),
+            calibration: match preset.calibration {
+                sobria_estimator::CalibrationStatus::Validated => "validated",
+                sobria_estimator::CalibrationStatus::Indicative => "indicative",
+                sobria_estimator::CalibrationStatus::Extrapolated => "extrapolated",
+            }
+            .into(),
+            result: result_dto,
+            rank_co2eq: 0, // assigné ci-dessous
+            rank_energy: 0,
+            rank_water: 0,
+        };
+        tmp.push((outcome, co2_p50, energy_p50, water_p50));
+    }
+
+    // 3. Classements ascendant (rang 1 = meilleur = plus bas P50).
+    let ranking_co2 = rank_ascending(&tmp, |v| v.1);
+    let ranking_energy = rank_ascending(&tmp, |v| v.2);
+    let ranking_water = rank_ascending(&tmp, |v| v.3);
+    let rank_map_co2 = build_rank_map(&ranking_co2);
+    let rank_map_energy = build_rank_map(&ranking_energy);
+    let rank_map_water = build_rank_map(&ranking_water);
+
+    let mut outcomes: Vec<BenchmarkOutcomeDto> = tmp
+        .into_iter()
+        .map(|(mut o, _, _, _)| {
+            o.rank_co2eq = rank_map_co2.get(o.model_id.as_str()).copied().unwrap_or(0);
+            o.rank_energy = rank_map_energy.get(o.model_id.as_str()).copied().unwrap_or(0);
+            o.rank_water = rank_map_water.get(o.model_id.as_str()).copied().unwrap_or(0);
+            o
+        })
+        .collect();
+    // Garde l'ordre demandé par l'utilisateur dans `outcomes` (utile pour l'UI).
+    let order: Vec<String> = req.model_ids.clone();
+    outcomes.sort_by_key(|o| {
+        order
+            .iter()
+            .position(|m| m == &o.model_id)
+            .unwrap_or(usize::MAX)
+    });
+
+    info!(
+        models = req.model_ids.len(),
+        winner_co2 = %ranking_co2.first().map_or("", String::as_str),
+        "benchmark_models: ok"
+    );
+
+    Ok(BenchmarkResultDto {
+        outcomes,
+        ranking_by_co2eq_p50: ranking_co2,
+        ranking_by_energy_p50: ranking_energy,
+        ranking_by_water_p50: ranking_water,
+        tokens_in: req.tokens_in,
+        tokens_out_estimated: req.tokens_out_estimated,
+    })
+}
+
+fn pick_p50_from_dto(dto: &EstimationResultDto, indicator_id: &str) -> f64 {
+    dto.indicators
+        .iter()
+        .find(|i| i.indicator == indicator_id)
+        .map_or(f64::NAN, |i| i.p50)
+}
+
+fn rank_ascending<F>(
+    items: &[(BenchmarkOutcomeDto, f64, f64, f64)],
+    key: F,
+) -> Vec<String>
+where
+    F: Fn(&(BenchmarkOutcomeDto, f64, f64, f64)) -> f64,
+{
+    let mut indices: Vec<usize> = (0..items.len()).collect();
+    indices.sort_by(|a, b| {
+        key(&items[*a])
+            .partial_cmp(&key(&items[*b]))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    indices
+        .into_iter()
+        .map(|i| items[i].0.model_id.clone())
+        .collect()
+}
+
+fn build_rank_map(ranking: &[String]) -> std::collections::HashMap<String, u32> {
+    ranking
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            // Borné par MAX_BENCHMARK_MODELS (= 20) → cast safe.
+            let rank = u32::try_from(i).unwrap_or(u32::MAX).saturating_add(1);
+            (m.clone(), rank)
+        })
+        .collect()
 }
 
 /// Lance un forecast 12 mois (M16 / C15) avec bande d'incertitude
@@ -1238,6 +1402,116 @@ mod tests {
         assert_eq!(sankey.year, 2023);
         assert!(!sankey.source_url.is_empty());
         assert!(!sankey.source_sha256.is_empty());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // benchmark modèles — C17 / M3
+    // ─────────────────────────────────────────────────────────────────────
+
+    use crate::dto::BenchmarkRequestDto;
+
+    fn bench_req(models: &[&str]) -> BenchmarkRequestDto {
+        BenchmarkRequestDto {
+            model_ids: models.iter().map(|s| (*s).to_string()).collect(),
+            tokens_in: 100,
+            tokens_out_estimated: 500,
+            datacenter_id: None,
+        }
+    }
+
+    #[test]
+    fn benchmark_empty_list_returns_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let err = benchmark_models(bench_req(&[]), &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn benchmark_too_many_models_returns_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let mut models = Vec::new();
+        for _ in 0..21 {
+            models.push("gpt-4o-mini");
+        }
+        let req = bench_req(&models);
+        let err = benchmark_models(req, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn benchmark_duplicate_models_rejected() {
+        let (_tmp, state) = fresh_state();
+        let req = bench_req(&["gpt-4o-mini", "gpt-4o-mini"]);
+        let err = benchmark_models(req, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+        assert!(err.message.contains("doublon"));
+    }
+
+    #[test]
+    fn benchmark_unknown_model_returns_unknown_model() {
+        let (_tmp, state) = fresh_state();
+        let req = bench_req(&["gpt-4o-mini", "modele-inexistant"]);
+        let err = benchmark_models(req, &state).unwrap_err();
+        assert_eq!(err.code, "unknown_model");
+        assert!(err.message.contains("modele-inexistant"));
+    }
+
+    #[test]
+    fn benchmark_happy_path_ranks_co2() {
+        let (_tmp, state) = fresh_state();
+        let req = bench_req(&["gpt-4o-mini", "claude-3-5-sonnet"]);
+        let res = benchmark_models(req, &state).unwrap();
+        assert_eq!(res.outcomes.len(), 2);
+        assert_eq!(res.ranking_by_co2eq_p50.len(), 2);
+        // Le ranking #1 doit avoir rank_co2eq = 1
+        let winner_id = &res.ranking_by_co2eq_p50[0];
+        let winner = res
+            .outcomes
+            .iter()
+            .find(|o| &o.model_id == winner_id)
+            .unwrap();
+        assert_eq!(winner.rank_co2eq, 1);
+        // L'ordre dans `outcomes` suit l'ordre de la requête.
+        assert_eq!(res.outcomes[0].model_id, "gpt-4o-mini");
+        assert_eq!(res.outcomes[1].model_id, "claude-3-5-sonnet");
+    }
+
+    #[test]
+    fn benchmark_creates_one_audit_entry_per_model() {
+        let (_tmp, state) = fresh_state();
+        // Avant : ledger vide.
+        let before = {
+            let l = state.ledger.lock().unwrap();
+            l.len().unwrap()
+        };
+        assert_eq!(before, 0);
+        // 3 modèles → 3 entrées attendues.
+        let req = bench_req(&["gpt-4o-mini", "claude-3-5-sonnet", "mistral-medium-3"]);
+        let _ = benchmark_models(req, &state).unwrap();
+        let after = {
+            let l = state.ledger.lock().unwrap();
+            l.len().unwrap()
+        };
+        assert_eq!(after, 3);
+    }
+
+    #[test]
+    fn benchmark_outcomes_include_calibration_metadata() {
+        let (_tmp, state) = fresh_state();
+        let req = bench_req(&["gpt-4o-mini", "claude-3-5-sonnet"]);
+        let res = benchmark_models(req, &state).unwrap();
+        for o in &res.outcomes {
+            assert!(!o.display_name.is_empty());
+            assert!(!o.provider.is_empty());
+            assert!(matches!(
+                o.calibration.as_str(),
+                "validated" | "indicative" | "extrapolated"
+            ));
+            assert!(matches!(
+                o.openness.as_str(),
+                "open" | "open_weights" | "closed"
+            ));
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────

@@ -443,6 +443,47 @@ impl From<&SankeyData> for SankeyDataDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// benchmark (C17 — M3 Comparer modèles)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Requête de benchmark N modèles sur un même prompt.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchmarkRequestDto {
+    /// 1..=20 model_ids à comparer.
+    pub model_ids: Vec<String>,
+    pub tokens_in: u32,
+    pub tokens_out_estimated: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub datacenter_id: Option<String>,
+}
+
+/// Outcome d'un modèle benchmarké.
+#[derive(Debug, Clone, Serialize)]
+pub struct BenchmarkOutcomeDto {
+    pub model_id: String,
+    pub display_name: String,
+    pub provider: String,
+    pub family: String,
+    pub openness: String,
+    pub calibration: String,
+    pub result: EstimationResultDto,
+    pub rank_co2eq: u32,
+    pub rank_energy: u32,
+    pub rank_water: u32,
+}
+
+/// Résultat global d'un benchmark.
+#[derive(Debug, Clone, Serialize)]
+pub struct BenchmarkResultDto {
+    pub outcomes: Vec<BenchmarkOutcomeDto>,
+    pub ranking_by_co2eq_p50: Vec<String>,
+    pub ranking_by_energy_p50: Vec<String>,
+    pub ranking_by_water_p50: Vec<String>,
+    pub tokens_in: u32,
+    pub tokens_out_estimated: u32,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // yearly forecast (C15 — M16 Forecaster 12 mois)
 // ─────────────────────────────────────────────────────────────────────────────
 
