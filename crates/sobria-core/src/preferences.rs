@@ -48,24 +48,44 @@ impl Persona {
     /// ce persona dans l'onboarding. L'utilisateur peut ensuite ajouter
     /// ou retirer librement n'importe quel module.
     ///
+    /// **Périmètre v1.0 figé** (cf. ADR-0011 — réduction périmètre) :
+    /// seuls **13 modules** sont en cible v1.0 — M1, M3, M7, M8, M9, M12,
+    /// M13, M14, M15, M17, M20, M22, M25. Les autres `ModuleId` restent
+    /// dans l'enum (forward compat, activables manuellement) mais ne
+    /// figurent dans aucun bundle par défaut.
+    ///
     /// **Invariants garantis par les tests** :
     /// - le bundle est non vide,
     /// - `ModuleId::M1` (Estimer) est présent dans tous les bundles,
     /// - aucun doublon,
-    /// - aucune référence à un identifiant `M4` (réservé en v1.3).
+    /// - aucune référence à un identifiant `M4` (réservé en v1.3),
+    /// - tous les modules d'un bundle sont dans le set v1.0 (13 IDs).
     #[must_use]
     pub fn default_modules(self) -> Vec<ModuleId> {
         use ModuleId::{
-            M1, M10, M11, M12, M13, M14, M15, M16, M17, M18, M19, M2, M20, M21, M22, M23, M24,
-            M25, M3, M5, M6, M7, M8, M9,
+            M1, M12, M13, M14, M15, M17, M20, M22, M25, M3, M7, M8, M9,
         };
         match self {
-            Persona::Student => vec![M1, M8, M11, M13, M14, M15, M24, M25],
-            Persona::ProTech => vec![M1, M2, M3, M5, M7, M9, M11, M18, M21],
-            Persona::Enterprise => vec![M1, M2, M5, M6, M7, M10, M12, M16, M19, M21, M22],
-            Persona::PublicSector => vec![M1, M5, M6, M7, M8, M12, M16, M20, M22, M23],
-            Persona::Researcher => vec![M1, M3, M5, M8, M14, M17, M18],
+            // Étudiant / Curieux : apprendre, comprendre, suivre, fixer.
+            Persona::Student => vec![M1, M8, M13, M14, M15, M25],
+            // Pro tech : estimer, comparer, journal, refs, méthodo.
+            Persona::ProTech => vec![M1, M3, M7, M8, M9, M13, M14],
+            // Entreprise : toute la chaîne compliance + dashboard + budget.
+            Persona::Enterprise => {
+                vec![M1, M7, M12, M14, M15, M17, M20, M22, M25]
+            },
+            // Collectivité : focus territoire FR + reporting.
+            Persona::PublicSector => vec![M1, M8, M12, M14, M17, M20, M22],
+            // Chercheur / Journaliste : méthodologie + reproductibilité.
+            Persona::Researcher => vec![M1, M3, M7, M8, M9, M14, M17],
         }
+    }
+
+    /// Liste des modules en cible v1.0 (13 IDs). Voir ADR-0011.
+    #[must_use]
+    pub fn v1_0_modules() -> &'static [ModuleId] {
+        use ModuleId::{M1, M12, M13, M14, M15, M17, M20, M22, M25, M3, M7, M8, M9};
+        &[M1, M3, M7, M8, M9, M12, M13, M14, M15, M17, M20, M22, M25]
     }
 }
 
@@ -260,6 +280,67 @@ mod tests {
                 assert!(
                     all.contains(&m),
                     "module {m:?} du bundle {p:?} pas dans ModuleId::all()"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn v1_0_modules_returns_13() {
+        // ADR-0011 : périmètre v1.0 figé à 13 modules essentiels.
+        assert_eq!(Persona::v1_0_modules().len(), 13);
+    }
+
+    #[test]
+    fn v1_0_modules_includes_pivot_modules() {
+        let v1 = Persona::v1_0_modules();
+        // Modules clés du pitch
+        for required in [
+            ModuleId::M1,  // Estimer
+            ModuleId::M7,  // Journal d'audit
+            ModuleId::M20, // Territoire FR (différenciateur)
+            ModuleId::M22, // Rapport CSRD
+            ModuleId::M17, // Empreinte projet (datasheet Gebru)
+        ] {
+            assert!(
+                v1.contains(&required),
+                "module pivot {required:?} absent du périmètre v1.0"
+            );
+        }
+    }
+
+    #[test]
+    fn v1_0_modules_excludes_deferred_modules() {
+        let v1: HashSet<ModuleId> = Persona::v1_0_modules().iter().copied().collect();
+        // Modules différés v1.1+ (cf. ADR-0011)
+        for deferred in [
+            ModuleId::M2,  // Workbench
+            ModuleId::M5,  // Rapports génériques
+            ModuleId::M6,  // Géoloc unitaire
+            ModuleId::M10, // Import logs
+            ModuleId::M11, // Extension navigateur
+            ModuleId::M16, // Forecaster (backend prêt mais UI v1.1)
+            ModuleId::M18, // Batch CSV (idem)
+            ModuleId::M19, // Équipe
+            ModuleId::M21, // Alertes
+            ModuleId::M23, // Marchés publics
+            ModuleId::M24, // Apprendre
+        ] {
+            assert!(
+                !v1.contains(&deferred),
+                "module {deferred:?} ne doit pas être dans le périmètre v1.0"
+            );
+        }
+    }
+
+    #[test]
+    fn all_persona_bundles_only_reference_v1_0_modules() {
+        let v1: HashSet<ModuleId> = Persona::v1_0_modules().iter().copied().collect();
+        for p in Persona::all() {
+            for m in p.default_modules() {
+                assert!(
+                    v1.contains(&m),
+                    "persona {p:?} référence {m:?} hors périmètre v1.0"
                 );
             }
         }

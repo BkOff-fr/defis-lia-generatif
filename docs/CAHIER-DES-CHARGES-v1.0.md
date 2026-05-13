@@ -1,10 +1,17 @@
 # Cahier des charges — Sobr.ia
 
-> **Version** : 1.3 (figée)
+> **Version** : 1.4 (figée)
 > **Date** : 13 mai 2026
 > **Auteur** : Thibault (étudiant, candidat au défi data.gouv.fr)
 > **Défi** : « L'impact environnemental de l'IA générative » — defis.data.gouv.fr
 > **Statut** : Référence projet. Toute modification = bump version + ADR associé.
+>
+> **Changelog v1.4** : réduction du périmètre v1.0 à 13 modules essentiels (ADR-0011).
+> - **13 modules en cible v1.0** : M1, M3, M7, M8, M9, M12, M13, M14, M15, M17, M20, M22, M25.
+> - **11 modules différés v1.1+** : M2, M5, M6, M10, M11, M16, M18, M19, M21, M23, M24.
+> - **Bundles persona recomposés** sur les 13 modules retenus (M1 reste dans tous).
+> - **Justification** : focus sur la rigueur méthodologique et l'angle territorial FR, suppression de modules redondants (M2 ⊂ M3+M18, M5 ⊂ M22+M17+M18, M6 ⊂ M12, M10 ⊂ M18) et hors-scope app (M11/M19/M21/M23).
+> - Le code backend des modules différés **reste compilé et testé** dans la crate, activable en v1.1 sans refonte.
 >
 > **Changelog v1.3** : élargissement public + gating modulaire (ADR-0010).
 > - **5 personas v2** : Étudiant·e, Pro tech, Entreprise, Collectivité, Chercheur·se — chacun avec un bundle de modules par défaut.
@@ -164,77 +171,77 @@ référencement dans le papier.
 
 ---
 
-## 4. Périmètre fonctionnel — 25 modules
+## 4. Périmètre fonctionnel — 13 modules v1.0 + 11 différés v1.1+
 
 > Nomenclature : `Mxx` = identifiant stable du module. Les IDs sont gelés
-> à compter de la v1.3 (cf. ADR-0010). Les bundles persona (§3) s'appuient
-> sur ces IDs. La cible v1.0 cherche à livrer les 25 modules avant la
-> soumission défi data.gouv.fr. Voir ROADMAP pour le séquencement et les
-> arbitrages possibles.
+> à compter de la v1.3 (cf. ADR-0010). La v1.4 (cf. ADR-0011) **réduit le
+> périmètre v1.0 à 13 modules essentiels** et **différe 11 modules en
+> v1.1+**. Le backend Rust des modules différés reste compilé et
+> testé — leur activation v1.1 ne nécessite qu'un ajout dans le rail
+> frontend + un toggle dans Paramètres.
 
-### 4.1 Tableau des 25 modules
+### 4.1 Tableau des 24 modules (v1.0 + v1.1+)
 
-| ID | Module | Description | Cible v1.0 |
-|----|--------|-------------|------------|
-| **M1** | **Estimer un prompt** | Moteur Monte-Carlo + UI d'entrée unitaire | ✅ Bloquant |
-| **M2** | **Workbench** | Exploration interactive multi-prompts | ✅ Bloquant |
-| **M3** | **Comparer modèles** | Matrice N modèles × indicateurs, benchmark frugalité | ✅ Bloquant |
-| **M4** | *(réservé — ancien Simulateur, remplacé par M13)* | — | retiré |
-| **M5** | **Rapports & exports** | PDF, CSV/Parquet, JSON-LD, Quarto | ✅ Bloquant |
-| **M6** | **Géolocalisation datacenter** | Détection IP/zone → datacenter probable, mix élec local | ✅ Bloquant |
-| **M7** | **Journal d'audit** | Ledger ACID immuable des estimations (chaîne SHA-256) | ✅ Bloquant |
-| **M8** | **Méthodologie interactive** | Documentation embarquée, glossaire, références cliquables | ✅ Bloquant |
-| **M9** | **Référentiel modèles** | Catalogue + fiches modèles avec calibration & sources | ✅ Bloquant |
-| **M10** | **Import logs / Paramètres** | Import CSV/JSONL/Parquet d'historiques + paramètres app | ✅ Bloquant |
-| **M11** | **Extension navigateur** | Chrome/Firefox MV3, capture vie réelle, badge live | ✅ Bloquant |
-| **M12** | **Datacenters Europe** | Carte Leaflet + tuiles CARTO sombres, 28+ datacenters, drill-down donut + barres + 24h | ✅ Bloquant |
-| **M13** | **Simulateur « Et si…? »** | 7 leviers temps réel + verdict CO₂, waterfall contribution, before/after, projection 12 mois | ✅ Bloquant |
-| **M14** | **À propos / Crédits** | Mentions, licences, contributeurs, sources de financement | ✅ Bloquant |
-| **M15** | **Dashboard personnel** | Vue jour/semaine/mois de ses propres prompts (ledger + extension) | ✅ Bloquant |
-| **M16** | **Forecaster 12 mois** | Projection budget carbone IA avec bande d'incertitude + 3 sliders live (population, adoption, croissance) | ✅ Bloquant |
-| **M17** | **Empreinte projet** | Page projet publique avec datasheet Gebru, hash référentiel, datasets bruts | ✅ Bloquant |
-| **M18** | **Batch CSV → rapport** | Upload N prompts, rapport agrégé exportable | ✅ Bloquant |
-| **M19** | **Équipe / multi-utilisateurs** | Rollup, rôles (manager/IC), exports par cost-center | ✅ Bloquant |
-| **M20** | **Territoire FR (IRIS)** | Cartographie IRIS + Sankey énergétique, croisement ComparIA × RTE IRIS, scénarios régionaux | ✅ Bloquant |
-| **M21** | **Alertes & seuils** | Notifications locales si dépassement de seuils (jour/sem/mois) | ✅ Bloquant |
-| **M22** | **Rapport CSRD/AGEC** | Export PDF signé + JSON-LD PROV-O, conforme SPEC 2314 | ✅ Bloquant |
-| **M23** | **Marchés publics IA frugale** | Cahier des charges type + critères d'évaluation pour AO | ✅ Bloquant |
-| **M24** | **Apprendre** | Mini-cours markdown sur prompting frugal, méthodologie, lecture critique | ✅ Bloquant |
-| **M25** | **Objectifs & habitudes** | Eco-budget personnel, suivi mensuel, récompenses non-gamifiées | ✅ Bloquant |
+| ID | Module | Description | Cible |
+|----|--------|-------------|-------|
+| **M1** | **Estimer un prompt** | Moteur Monte-Carlo + UI d'entrée unitaire | 🏆 v1.0 |
+| **M2** | Workbench | Exploration interactive multi-prompts | 🪦 v1.1+ (chevauche M3+M18) |
+| **M3** | **Comparer modèles** | Matrice N modèles × indicateurs, benchmark frugalité | 🏆 v1.0 |
+| **M4** | *(réservé — retiré v1.3)* | — | retiré |
+| **M5** | Rapports & exports génériques | PDF, CSV/Parquet, JSON-LD, Quarto | 🪦 v1.1+ (chevauche M22+M17+M18) |
+| **M6** | Géolocalisation datacenter unitaire | Détection IP/zone → datacenter probable | 🪦 v1.1+ (chevauche M12) |
+| **M7** | **Journal d'audit** | Ledger ACID immuable des estimations (chaîne SHA-256) | 🏆 v1.0 |
+| **M8** | **Méthodologie interactive** | Documentation embarquée, glossaire, références | 🏆 v1.0 |
+| **M9** | **Référentiel modèles** | Catalogue + fiches modèles avec calibration & sources | 🏆 v1.0 |
+| **M10** | Import logs | Import CSV/JSONL/Parquet d'historiques | 🪦 v1.1+ (chevauche M18) |
+| **M11** | Extension navigateur | Chrome/Firefox MV3, capture vie réelle | 🪦 v1.1+ (chantier MV3 séparé) |
+| **M12** | **Datacenters Europe** | Carte Leaflet + 28 datacenters, drill-down donut + barres + 24h | 🏆 v1.0 |
+| **M13** | **Simulateur « Et si...? »** | 7 leviers temps réel + verdict CO₂, waterfall, projection 12 mois | 🏆 v1.0 |
+| **M14** | **À propos / Crédits** | Mentions, licences, contributeurs, sources de financement | 🏆 v1.0 |
+| **M15** | **Dashboard personnel** | Vue jour/semaine/mois de ses propres prompts | 🏆 v1.0 |
+| **M16** | Forecaster 12 mois | Projection budget carbone IA avec bande d'incertitude | 🪦 v1.1+ (backend prêt, UI v1.1) |
+| **M17** | **Empreinte projet** | Page projet publique avec datasheet Gebru | 🏆 v1.0 |
+| **M18** | Batch CSV → rapport | Upload N prompts, rapport agrégé exportable | 🪦 v1.1+ (backend prêt, UI v1.1) |
+| **M19** | Équipe / multi-utilisateurs | Rollup, rôles (manager/IC), exports par cost-center | 🪦 v1.1+ (auth back-end) |
+| **M20** | **Territoire FR (IRIS)** | Cartographie IRIS + Sankey énergétique, croisement ComparIA × RTE IRIS | 🏆 v1.0 (différenciateur) |
+| **M21** | Alertes & seuils | Notifications locales si dépassement de seuils | 🪦 v1.1+ (notifications OS) |
+| **M22** | **Rapport CSRD/AGEC** | Export PDF signé + JSON-LD PROV-O, conforme SPEC 2314 | 🏆 v1.0 |
+| **M23** | Marchés publics IA frugale | Cahier des charges type + critères d'évaluation pour AO | 🪦 v1.1+ (partenariat institutionnel) |
+| **M24** | Apprendre | Mini-cours markdown sur prompting frugal | 🪦 v1.1+ (volume sans différenciateur) |
+| **M25** | **Objectifs & habitudes** | Eco-budget personnel, suivi mensuel | 🏆 v1.0 |
+
+> **🏆 v1.0 (13 modules)** : M1, M3, M7, M8, M9, M12, M13, M14, M15, M17, M20, M22, M25.
+> **🪦 v1.1+ (11 modules)** : M2, M5, M6, M10, M11, M16, M18, M19, M21, M23, M24.
 
 > *Note historique* : `M4` était le « Simulateur de scénarios » en v1.2 ; il
 > est remplacé par `M13 Simulateur « Et si…? »` dans la v1.3 (refonte UX +
 > dataviz). L'ID `M4` est laissé réservé pour ne pas casser les références
 > antérieures.
 
-### 4.2 Grille persona × module (par défaut)
+### 4.2 Grille persona × module (par défaut) — v1.4
 
-| Module | Étudiant | Pro tech | Entreprise | Collectivité | Chercheur |
-|--------|:-:|:-:|:-:|:-:|:-:|
+Recomposée sur les **13 modules v1.0** (cf. ADR-0011). Les modules différés
+v1.1+ ne sont dans aucun bundle par défaut, mais leur backend est testé
+et activable manuellement dans Paramètres si le frontend devient
+disponible.
+
+| Module v1.0 | Étudiant | Pro tech | Entreprise | Collectivité | Chercheur |
+|-------------|:-:|:-:|:-:|:-:|:-:|
 | M1 Estimer | **★** | **★** | **★** | **★** | **★** |
-| M2 Workbench | | **★** | **★** | | |
 | M3 Comparer modèles | | **★** | | | **★** |
-| M5 Rapports & exports | | **★** | **★** | **★** | **★** |
-| M6 Géoloc datacenter | | | **★** | **★** | |
-| M7 Journal d'audit | | **★** | **★** | **★** | |
-| M8 Méthodologie | **★** | | | **★** | **★** |
-| M9 Référentiel modèles | | **★** | | | |
-| M10 Import logs / Paramètres | | | **★** | | |
-| M11 Extension navigateur | **★** | **★** | | | |
+| M7 Journal d'audit | | **★** | **★** | | **★** |
+| M8 Méthodologie | **★** | **★** | | **★** | **★** |
+| M9 Référentiel modèles | | **★** | | | **★** |
 | M12 Datacenters Europe | | | **★** | **★** | |
-| M13 Simulateur « Et si…? » | **★** | | | | |
-| M14 À propos | **★** | | | | **★** |
-| M15 Dashboard personnel | **★** | | | | |
-| M16 Forecaster 12 mois | | | **★** | **★** | |
-| M17 Empreinte projet | | | | | **★** |
-| M18 Batch CSV → rapport | | **★** | | | **★** |
-| M19 Équipe | | | **★** | | |
-| M20 Territoire FR | | | | **★** | |
-| M21 Alertes & seuils | | **★** | **★** | | |
+| M13 Simulateur « Et si...? » | **★** | **★** | | | |
+| M14 À propos | **★** | **★** | **★** | **★** | **★** |
+| M15 Dashboard personnel | **★** | | **★** | | |
+| M17 Empreinte projet | | | **★** | **★** | **★** |
+| M20 Territoire FR | | | **★** | **★** | |
 | M22 Rapport CSRD/AGEC | | | **★** | **★** | |
-| M23 Marchés publics | | | | **★** | |
-| M24 Apprendre | **★** | | | | |
-| M25 Objectifs & habitudes | **★** | | | | |
+| M25 Eco-budget | **★** | | **★** | | |
+
+**Tailles de bundle** : Étudiant 6 · Pro tech 7 · Entreprise 9 · Collectivité 7 · Chercheur 7.
 
 (Tout module non coché reste **activable à la carte** par l'utilisateur après
 l'onboarding via Paramètres.)

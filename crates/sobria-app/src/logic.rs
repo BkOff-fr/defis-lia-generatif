@@ -685,7 +685,7 @@ fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
             ),
         ),
         batch::BatchError::EmptyBatch => {
-            IpcError::new("invalid_request", "le CSV ne contient aucune ligne de données".into())
+            IpcError::new("invalid_request", "le CSV ne contient aucune ligne de données")
         },
         batch::BatchError::Csv(e) => IpcError::new("invalid_request", format!("csv : {e}")),
         batch::BatchError::Io(e) => IpcError::new("io_error", e.to_string()),
@@ -693,6 +693,7 @@ fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
 }
 
 /// Lance un batch CSV : parse → estimate par ligne → agrégat + export optionnel.
+#[allow(clippy::cast_precision_loss)] // batch ≤ 1000 lignes, OK pour f64
 pub fn run_batch_from_csv(
     req: BatchRequestDto,
     state: &AppState,

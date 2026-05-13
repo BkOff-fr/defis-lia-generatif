@@ -3,16 +3,18 @@
   import { onMount } from 'svelte';
   import {
     Zap,
-    Layers,
     Scale,
     TrendingUp,
-    Upload,
     Globe,
-    Download,
     ShieldCheck,
     BookOpen,
     Settings2,
-    Plus
+    Plus,
+    Server,
+    BarChart3,
+    Library,
+    Target,
+    FileText
   } from '@lucide/svelte';
   import { get } from 'svelte/store';
   import { isTauriContext, SobriaIpcError } from '$lib/api';
@@ -96,20 +98,33 @@
 
   // Le rail référence les modules visibles selon `enabled_modules`. Tant que
   // le store n'est pas chargé (premier paint, hors Tauri), on montre tout.
+  //
+  // **Périmètre v1.0** (cf. ADR-0011) : 13 modules retenus, dont 11 ont une
+  // route frontend livrée. M14 (À propos) et M17 (Empreinte projet)
+  // attendent leur route — ils sont commentés ici, à activer dès que la
+  // route `/m14`/`/m17` existe.
+  //
+  // Modules différés v1.1+ (M2/M5/M6/M10/M11/M16/M18/M19/M21/M23/M24) :
+  // routes placeholder retirées du rail. Les backend Rust restent compilés
+  // et activables manuellement via Paramètres.
   const itemsCore: RailItem[] = [
     { label: 'Estimer', icon: Zap, href: '/', moduleId: 'm1' },
-    { label: 'Workbench', icon: Layers, href: '/workbench', moduleId: 'm2' },
-    { label: 'Comparer', icon: Scale, href: '/comparer', moduleId: 'm3' },
-    { label: 'Simuler', icon: TrendingUp, href: '/simuler', moduleId: 'm13' }
+    { label: 'Comparer modèles', icon: Scale, href: '/comparer', moduleId: 'm3' },
+    { label: 'Simuler « Et si...? »', icon: TrendingUp, href: '/simuler', moduleId: 'm13' },
+    { label: 'Tableau de bord', icon: BarChart3, href: '/m15', moduleId: 'm15' },
+    { label: 'Eco-budget', icon: Target, href: '/m25', moduleId: 'm25' }
   ];
   const itemsIO: RailItem[] = [
-    { label: 'Importer', icon: Upload, href: '/importer', moduleId: 'm10' },
-    { label: 'Géolocaliser', icon: Globe, href: '/territoire', moduleId: 'm12' },
-    { label: 'Exporter', icon: Download, href: '/exporter', moduleId: 'm5' }
+    { label: 'Datacenters Europe', icon: Server, href: '/datacenters', moduleId: 'm12' },
+    { label: 'Territoire FR', icon: Globe, href: '/territoire', moduleId: 'm20' },
+    { label: 'Rapport CSRD/AGEC', icon: FileText, href: '/rapport-csrd', moduleId: 'm22' }
+    // M17 Empreinte projet : ajouter ici quand la route /m17 existe
   ];
   const itemsAudit: RailItem[] = [
     { label: "Journal d'audit", icon: ShieldCheck, href: '/journal', moduleId: 'm7' },
+    { label: 'Référentiel modèles', icon: Library, href: '/m9', moduleId: 'm9' },
     { label: 'Méthodologie', icon: BookOpen, href: '/methodo', moduleId: 'm8' }
+    // M14 À propos : ajouter ici quand la route /m14 (ou /a-propos) existe
   ];
 
   function visible(item: RailItem, prefs: typeof $preferences): boolean {
@@ -302,6 +317,42 @@
     align-items: center;
     padding: 22px 0 18px;
     gap: 4px;
+    /* Scroll vertical autonome quand trop d'entrées (rail haut > viewport). */
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+  }
+  .rail::-webkit-scrollbar {
+    width: 6px;
+  }
+  .rail::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .rail::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+  }
+  .rail::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+  /* Cache la scrollbar quand inactive, montre au hover du rail. */
+  @media (hover: hover) {
+    .rail {
+      scrollbar-color: transparent transparent;
+    }
+    .rail:hover {
+      scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+    }
+    .rail::-webkit-scrollbar-thumb {
+      background: transparent;
+      transition: background 200ms var(--ease, ease);
+    }
+    .rail:hover::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+    }
   }
 
   .brand-mark {

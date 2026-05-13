@@ -22,6 +22,8 @@ pub const MAX_BATCH_ROWS: usize = 1000;
 
 /// Tolérance maximale de lignes rejetées avant erreur globale (50%).
 const REJECTION_RATIO_LIMIT: f64 = 0.5;
+/// Même seuil exposé en pourcentage entier (pour les messages d'erreur).
+const REJECTION_RATIO_LIMIT_PCT: u8 = 50;
 
 #[derive(Debug, Error)]
 pub enum BatchError {
@@ -223,6 +225,10 @@ fn csv_escape(s: &str) -> String {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Lève une erreur si trop de lignes rejetées (>50%).
+///
+/// `usize as f64` ne perd pas de précision tant que la valeur tient sur
+/// 52 bits — borné ici par `MAX_BATCH_ROWS = 1000`.
+#[allow(clippy::cast_precision_loss)]
 pub fn check_rejection_ratio(rejected: usize, total: usize) -> BatchResult<()> {
     if total == 0 {
         return Ok(());
@@ -232,7 +238,7 @@ pub fn check_rejection_ratio(rejected: usize, total: usize) -> BatchResult<()> {
         return Err(BatchError::TooManyRejections {
             rejected,
             total,
-            limit_pct: (REJECTION_RATIO_LIMIT * 100.0) as u8,
+            limit_pct: REJECTION_RATIO_LIMIT_PCT,
         });
     }
     Ok(())
@@ -241,7 +247,8 @@ pub fn check_rejection_ratio(rejected: usize, total: usize) -> BatchResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write as _;
+    // `Write` est déjà importé via le `use` du module parent (BufReader,
+    // BufWriter, Write), donc inutile de le ré-importer ici.
 
     fn write_csv(content: &str) -> (tempfile::TempDir, std::path::PathBuf) {
         let tmp = tempfile::tempdir().unwrap();

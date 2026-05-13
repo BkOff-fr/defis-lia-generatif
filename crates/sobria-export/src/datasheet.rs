@@ -170,12 +170,10 @@ fn build_jsonld(
         "sobria:totalWaterLitersP50": composition.total_water_l_p50,
         "sobria:firstEntryAt": composition
             .date_first_entry
-            .map(|d| Value::String(d.to_rfc3339()))
-            .unwrap_or(Value::Null),
+            .map_or(Value::Null, |d| Value::String(d.to_rfc3339())),
         "sobria:lastEntryAt": composition
             .date_last_entry
-            .map(|d| Value::String(d.to_rfc3339()))
-            .unwrap_or(Value::Null),
+            .map_or(Value::Null, |d| Value::String(d.to_rfc3339())),
     });
 
     let datasheet_node = json!({
