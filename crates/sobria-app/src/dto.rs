@@ -443,6 +443,84 @@ impl From<&SankeyData> for SankeyDataDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// projects + datasheet (C20 — M17 Empreinte projet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Représentation d'un projet vers le frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectDto {
+    pub id: i64,
+    pub name: String,
+    pub description: String,
+    /// RFC 3339 UTC.
+    pub period_start: String,
+    pub period_end: String,
+    pub tags: Vec<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Payload de création.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateProjectDto {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    pub period_start: String,
+    pub period_end: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+/// Payload de mise à jour partielle (dates non modifiables — cf. brief §1.1).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UpdateProjectDto {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+}
+
+/// Composition agrégée renvoyée avec le datasheet.
+#[derive(Debug, Clone, Serialize)]
+pub struct CompositionDto {
+    pub total_requests: u32,
+    pub unique_models: Vec<String>,
+    pub total_co2eq_g_p50: f64,
+    pub total_energy_wh_p50: f64,
+    pub total_water_l_p50: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_first_entry: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_last_entry: Option<String>,
+}
+
+impl From<&sobria_export::Composition> for CompositionDto {
+    fn from(c: &sobria_export::Composition) -> Self {
+        Self {
+            total_requests: c.total_requests,
+            unique_models: c.unique_models.clone(),
+            total_co2eq_g_p50: c.total_co2eq_g_p50,
+            total_energy_wh_p50: c.total_energy_wh_p50,
+            total_water_l_p50: c.total_water_l_p50,
+            date_first_entry: c.date_first_entry.map(|d| d.to_rfc3339()),
+            date_last_entry: c.date_last_entry.map(|d| d.to_rfc3339()),
+        }
+    }
+}
+
+/// Datasheet Gebru produit pour un projet.
+#[derive(Debug, Clone, Serialize)]
+pub struct DatasheetDto {
+    pub project: ProjectDto,
+    pub jsonld: serde_json::Value,
+    pub composition: CompositionDto,
+    pub sha256: String,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // dashboard + eco-budget (C19 — M15 + M25)
 // ─────────────────────────────────────────────────────────────────────────────
 

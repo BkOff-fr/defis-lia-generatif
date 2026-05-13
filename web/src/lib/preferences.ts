@@ -236,7 +236,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Référentiel modèles',
     description: 'Catalogue des 25+ modèles couverts et leurs sources.',
     category: 'pedagogie',
-    href: null
+    href: '/m9'
   },
   m10: {
     id: 'm10',
@@ -278,7 +278,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Tableau de bord personnel',
     description: 'Vos usages agrégés (jour, semaine, mois).',
     category: 'visualisation',
-    href: null
+    href: '/m15'
   },
   m16: {
     id: 'm16',

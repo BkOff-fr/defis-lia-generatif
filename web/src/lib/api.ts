@@ -40,6 +40,37 @@ export interface ModelPresetDto {
   sources: string[];
 }
 
+// ─── Référentiel modèles (C18 — M9) ──────────────────────────────────────
+//
+// Triplet P5/P50/P95 — mirroir de `crates/sobria-app/src/dto.rs::TripletDto`.
+export interface TripletDto {
+  p5: number;
+  p50: number;
+  p95: number;
+}
+
+// Fiche détaillée d'un modèle (paramètres distributionnels + baseline
+// contextuel calculé sans journalisation). Cf. brief
+// `briefs/chantiers/C18-referentiel-modeles.md`.
+export interface ModelDetailDto {
+  id: string;
+  display_name: string;
+  provider: string;
+  family: string;
+  approx_params_billions: number;
+  openness: Openness;
+  calibration: Calibration;
+  sources: string[];
+  epsilon_prefill_mj_per_token: TripletDto;
+  epsilon_decode_mj_per_token: TripletDto;
+  embodied_g_per_request: TripletDto;
+  baseline_co2eq_p5_g: number;
+  baseline_co2eq_p50_g: number;
+  baseline_co2eq_p95_g: number;
+  baseline_energy_wh_p50: number;
+  baseline_water_l_p50: number;
+}
+
 export interface EstimationRequestDto {
   model_id: string;
   tokens_in: number;
@@ -266,6 +297,54 @@ export interface CountryAggregateDto {
   centroid_lon: number;
 }
 
+// ─── Dashboard personnel (C19 — M15) ─────────────────────────────────────
+//
+// Mirror 1-pour-1 de `crates/sobria-app/src/dto.rs` (bloc "dashboard +
+// eco-budget"). Les agrégats sont calculés à la volée depuis le ledger
+// d'audit (cf. `crates/sobria-app/src/dashboard.rs`).
+
+/** Période supportée par `get_dashboard_summary`. */
+export type DashboardPeriod = 'today' | 'last_7_days' | 'this_month' | 'last_month' | 'this_year';
+
+export interface DashboardComparisonDto {
+  previous_total_co2eq_g_p50: number;
+  /** +12.0 ou -23.0 (en pourcent). */
+  delta_co2eq_pct: number;
+  previous_total_requests: number;
+  delta_requests_pct: number;
+}
+
+export interface TopModelDto {
+  model_id: string;
+  request_count: number;
+  total_co2eq_g_p50: number;
+}
+
+export interface DailySeriesPointDto {
+  /** Format `YYYY-MM-DD`. */
+  date: string;
+  request_count: number;
+  co2eq_g_p50: number;
+  energy_wh_p50: number;
+  water_l_p50: number;
+}
+
+export interface DashboardSummaryDto {
+  period_label: string;
+  /** RFC 3339. */
+  period_start: string;
+  /** RFC 3339. */
+  period_end: string;
+  total_requests: number;
+  total_co2eq_g_p50: number;
+  total_energy_wh_p50: number;
+  total_water_l_p50: number;
+  /** `undefined` si la période précédente est vide. */
+  vs_previous?: DashboardComparisonDto;
+  top_models: TopModelDto[];
+  daily_series: DailySeriesPointDto[];
+}
+
 // ─── Eco-budget personnel (C19 — M25) ────────────────────────────────────
 //
 // Mirror 1-pour-1 de `crates/sobria-app/src/dto.rs` (bloc "dashboard +
@@ -425,6 +504,10 @@ export function listModels(): Promise<ModelPresetDto[]> {
   return call<ModelPresetDto[]>('list_models');
 }
 
+export function getModelDetail(id: string): Promise<ModelDetailDto> {
+  return call<ModelDetailDto>('get_model_detail', { id });
+}
+
 export function estimatePrompt(req: EstimationRequestDto): Promise<EstimationResultDto> {
   return call<EstimationResultDto>('estimate_prompt', { req });
 }
@@ -490,6 +573,17 @@ export function exportCsrdReport(
   // Argument Rust = `output_dir` (snake_case) — Tauri 2 convertit
   // automatiquement depuis camelCase JS.
   return call<CsrdReportResultDto>('export_csrd_report', { req, outputDir });
+}
+
+// ─── Dashboard personnel (C19 — M15) ─────────────────────────────────────
+//
+// Lecture seule sur le ledger d'audit ; renvoie un résumé pour la période
+// demandée + (optionnel) la comparaison à la période précédente. Le backend
+// rejette toute valeur `period` non listée dans `DashboardPeriod` via
+// `invalid_request` (cf. `crates/sobria-app/src/logic.rs::get_dashboard_summary`).
+
+export function getDashboardSummary(period: DashboardPeriod): Promise<DashboardSummaryDto> {
+  return call<DashboardSummaryDto>('get_dashboard_summary', { period });
 }
 
 // ─── Eco-budget personnel (C19 — M25) ────────────────────────────────────

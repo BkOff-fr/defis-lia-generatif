@@ -22,16 +22,18 @@ use crate::{
     dashboard,
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
-        BenchmarkResultDto, BudgetStatusDto, CountryAggregateDto, CsrdReportRequestDto,
-        CsrdReportResultDto, DashboardSummaryDto, DatacenterDetailDto, DatacenterSummaryDto,
-        EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto,
-        MetaInfo, ModelDetailDto, ModelPresetDto, PersonalGoalDto, RegionFrAggregateDto,
-        SankeyDataDto, SimulationRequestDto, SimulationResultDto, TripletDto,
+        BenchmarkResultDto, BudgetStatusDto, CompositionDto, CountryAggregateDto,
+        CreateProjectDto, CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto,
+        DatacenterDetailDto, DatacenterSummaryDto, DatasheetDto, EstimationRequestDto,
+        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
+        ModelDetailDto, ModelPresetDto, PersonalGoalDto, ProjectDto, RegionFrAggregateDto,
+        SankeyDataDto, SimulationRequestDto, SimulationResultDto, TripletDto, UpdateProjectDto,
         YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     goals_store::{GoalIndicator, GoalPeriod, PersonalGoal},
     preferences_store::StoredPreferences,
+    project_store::{NewProject, Project, ProjectUpdate},
     state::AppState,
 };
 
@@ -654,6 +656,159 @@ fn sum_indicator_in_window(
             .map_or(0.0, |i| i.interval.p50);
     }
     sum
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// projects + datasheet (C20 — M17 Empreinte projet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Liste tous les projets enregistrés (ordre ID décroissant).
+pub fn list_projects(state: &AppState) -> IpcResult<Vec<ProjectDto>> {
+    let store = state
+        .projects
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
+    let projects = store.list_all().map_err(IpcError::from)?;
+    Ok(projects.into_iter().map(project_to_dto).collect())
+}
+
+/// Récupère un projet par son ID.
+pub fn get_project(id: i64, state: &AppState) -> IpcResult<ProjectDto> {
+    let store = state
+        .projects
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
+    let p = store
+        .get(id)
+        .map_err(IpcError::from)?
+        .ok_or_else(|| IpcError::new("not_found", format!("projet {id} inconnu")))?;
+    Ok(project_to_dto(p))
+}
+
+/// Crée un nouveau projet et retourne sa version persistée.
+pub fn create_project(req: CreateProjectDto, state: &AppState) -> IpcResult<ProjectDto> {
+    let period_start = parse_rfc3339(&req.period_start, "period_start")?;
+    let period_end = parse_rfc3339(&req.period_end, "period_end")?;
+    let mut store = state
+        .projects
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
+    let p = store
+        .create(NewProject {
+            name: req.name,
+            description: req.description,
+            period_start,
+            period_end,
+            tags: req.tags,
+        })
+        .map_err(IpcError::from)?;
+    info!(id = p.id, name = %p.name, "project: created");
+    Ok(project_to_dto(p))
+}
+
+/// Met à jour un projet existant (champs optionnels, dates non modifiables).
+pub fn update_project(
+    id: i64,
+    req: UpdateProjectDto,
+    state: &AppState,
+) -> IpcResult<ProjectDto> {
+    let mut store = state
+        .projects
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
+    let p = store
+        .update(
+            id,
+            ProjectUpdate {
+                name: req.name,
+                description: req.description,
+                tags: req.tags,
+            },
+        )
+        .map_err(IpcError::from)?;
+    Ok(project_to_dto(p))
+}
+
+/// Supprime un projet (idempotent).
+pub fn delete_project(id: i64, state: &AppState) -> IpcResult<()> {
+    let mut store = state
+        .projects
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
+    store.delete(id).map_err(IpcError::from)?;
+    Ok(())
+}
+
+/// Génère le datasheet Gebru JSON-LD pour un projet existant.
+pub fn generate_project_datasheet(id: i64, state: &AppState) -> IpcResult<DatasheetDto> {
+    // 1. Récupère le projet.
+    let project = {
+        let store = state
+            .projects
+            .lock()
+            .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
+        store
+            .get(id)
+            .map_err(IpcError::from)?
+            .ok_or_else(|| IpcError::new("not_found", format!("projet {id} inconnu")))?
+    };
+
+    // 2. Filtre les entrées du ledger sur la période.
+    let all_entries = read_all_audit_entries(state)?;
+    let in_period: Vec<sobria_audit::AuditEntry> = all_entries
+        .into_iter()
+        .filter(|e| e.timestamp >= project.period_start && e.timestamp < project.period_end)
+        .collect();
+
+    // 3. Construit le datasheet.
+    let meta = sobria_export::ProjectMeta {
+        id: project.id,
+        name: project.name.clone(),
+        description: project.description.clone(),
+        period_start: project.period_start,
+        period_end: project.period_end,
+        tags: project.tags.clone(),
+        created_at: project.created_at,
+    };
+    let opts = sobria_export::DatasheetOptions::default();
+    let artifact = sobria_export::build_datasheet(&meta, &in_period, &opts);
+
+    info!(
+        project_id = project.id,
+        entries = in_period.len(),
+        sha = %artifact.sha256,
+        "datasheet généré"
+    );
+
+    Ok(DatasheetDto {
+        project: project_to_dto(project),
+        jsonld: artifact.jsonld,
+        composition: CompositionDto::from(&artifact.composition),
+        sha256: artifact.sha256,
+    })
+}
+
+fn project_to_dto(p: Project) -> ProjectDto {
+    ProjectDto {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        period_start: p.period_start.to_rfc3339(),
+        period_end: p.period_end.to_rfc3339(),
+        tags: p.tags,
+        created_at: p.created_at.to_rfc3339(),
+        updated_at: p.updated_at.to_rfc3339(),
+    }
+}
+
+fn parse_rfc3339(s: &str, field: &str) -> IpcResult<chrono::DateTime<Utc>> {
+    chrono::DateTime::parse_from_rfc3339(s)
+        .map(|d| d.with_timezone(&Utc))
+        .map_err(|e| {
+            IpcError::from(AppError::InvalidRequest(format!(
+                "{field} invalide (attendu RFC 3339) : {e}"
+            )))
+        })
 }
 
 /// Lit toutes les entrées du ledger en mémoire (export ndjson + parse).
@@ -1669,6 +1824,186 @@ mod tests {
         assert_eq!(sankey.year, 2023);
         assert!(!sankey.source_url.is_empty());
         assert!(!sankey.source_sha256.is_empty());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // projets + datasheet — C20 / M17
+    // ─────────────────────────────────────────────────────────────────────
+
+    use crate::dto::{CreateProjectDto, UpdateProjectDto};
+
+    fn create_project_req(name: &str) -> CreateProjectDto {
+        CreateProjectDto {
+            name: name.into(),
+            description: "Test".into(),
+            // Période ouverte autour de maintenant
+            period_start: (Utc::now() - chrono::Duration::days(30)).to_rfc3339(),
+            period_end: (Utc::now() + chrono::Duration::days(1)).to_rfc3339(),
+            tags: vec!["test".into(), "etude".into()],
+        }
+    }
+
+    #[test]
+    fn list_projects_empty_by_default() {
+        let (_tmp, state) = fresh_state();
+        assert!(list_projects(&state).unwrap().is_empty());
+    }
+
+    #[test]
+    fn create_project_returns_dto_with_id() {
+        let (_tmp, state) = fresh_state();
+        let p = create_project(create_project_req("Étude A"), &state).unwrap();
+        assert!(p.id >= 1);
+        assert_eq!(p.name, "Étude A");
+        assert_eq!(p.tags.len(), 2);
+    }
+
+    #[test]
+    fn create_project_rejects_invalid_dates() {
+        let (_tmp, state) = fresh_state();
+        let mut req = create_project_req("X");
+        req.period_start = "not-a-date".into();
+        let err = create_project(req, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn create_project_rejects_empty_name() {
+        let (_tmp, state) = fresh_state();
+        let mut req = create_project_req("X");
+        req.name = "  ".into();
+        let err = create_project(req, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn create_project_rejects_bad_tag_chars() {
+        let (_tmp, state) = fresh_state();
+        let mut req = create_project_req("X");
+        req.tags = vec!["UPPERCASE".into()];
+        let err = create_project(req, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn get_project_unknown_returns_not_found() {
+        let (_tmp, state) = fresh_state();
+        let err = get_project(999, &state).unwrap_err();
+        assert_eq!(err.code, "not_found");
+    }
+
+    #[test]
+    fn update_project_partial_fields() {
+        let (_tmp, state) = fresh_state();
+        let p = create_project(create_project_req("Original"), &state).unwrap();
+        let updated = update_project(
+            p.id,
+            UpdateProjectDto {
+                name: Some("Renommé".into()),
+                ..Default::default()
+            },
+            &state,
+        )
+        .unwrap();
+        assert_eq!(updated.name, "Renommé");
+        assert_eq!(updated.description, p.description);
+    }
+
+    #[test]
+    fn update_project_no_fields_returns_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let p = create_project(create_project_req("X"), &state).unwrap();
+        let err = update_project(p.id, UpdateProjectDto::default(), &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn delete_project_idempotent() {
+        let (_tmp, state) = fresh_state();
+        // Delete sur ID inexistant ne plante pas
+        delete_project(999, &state).unwrap();
+        let p = create_project(create_project_req("X"), &state).unwrap();
+        delete_project(p.id, &state).unwrap();
+        assert!(get_project(p.id, &state).is_err());
+    }
+
+    #[test]
+    fn generate_datasheet_unknown_project_returns_not_found() {
+        let (_tmp, state) = fresh_state();
+        let err = generate_project_datasheet(999, &state).unwrap_err();
+        assert_eq!(err.code, "not_found");
+    }
+
+    #[test]
+    fn generate_datasheet_happy_path_has_seven_gebru_sections() {
+        let (_tmp, state) = fresh_state();
+        // 1. Crée des estimations qui tomberont dans la période du projet.
+        for _ in 0..3 {
+            estimate_prompt(
+                EstimationRequestDto {
+                    model_id: "gpt-4o-mini".into(),
+                    tokens_in: 100,
+                    tokens_out_estimated: 500,
+                    datacenter_id: None,
+                },
+                &state,
+            )
+            .unwrap();
+        }
+        // 2. Crée le projet.
+        let p = create_project(create_project_req("Étude test"), &state).unwrap();
+        // 3. Génère le datasheet.
+        let ds = generate_project_datasheet(p.id, &state).unwrap();
+        // 4. Vérifie les 7 sections Gebru
+        let datasheet_node = &ds.jsonld["@graph"][1];
+        for key in [
+            "sobria:motivation",
+            "sobria:composition",
+            "sobria:collectionProcess",
+            "sobria:preprocessing",
+            "sobria:uses",
+            "sobria:distribution",
+            "sobria:maintenance",
+        ] {
+            assert!(
+                !datasheet_node[key].is_null(),
+                "section Gebru manquante : {key}"
+            );
+        }
+        // Composition reflète les 3 estimations
+        assert_eq!(ds.composition.total_requests, 3);
+        assert!(ds.composition.total_co2eq_g_p50 > 0.0);
+        assert_eq!(ds.sha256.len(), 64);
+    }
+
+    #[test]
+    fn generate_datasheet_empty_period_composition_zero() {
+        let (_tmp, state) = fresh_state();
+        // Projet sur une période passée vide (pas d'estimations).
+        let req = CreateProjectDto {
+            name: "Vide".into(),
+            description: "".into(),
+            period_start: "2020-01-01T00:00:00Z".into(),
+            period_end: "2020-12-31T23:59:59Z".into(),
+            tags: vec![],
+        };
+        let p = create_project(req, &state).unwrap();
+        let ds = generate_project_datasheet(p.id, &state).unwrap();
+        // Composition agrégée vide mais datasheet quand même produit.
+        assert_eq!(ds.composition.total_requests, 0);
+        assert!(ds.composition.unique_models.is_empty());
+    }
+
+    #[test]
+    fn datasheet_context_has_4_vocabularies() {
+        let (_tmp, state) = fresh_state();
+        let p = create_project(create_project_req("X"), &state).unwrap();
+        let ds = generate_project_datasheet(p.id, &state).unwrap();
+        let ctx = &ds.jsonld["@context"];
+        assert!(ctx["schema"].is_string());
+        assert!(ctx["prov"].is_string());
+        assert!(ctx["dcat"].is_string());
+        assert!(ctx["sobria"].is_string());
     }
 
     // ─────────────────────────────────────────────────────────────────────

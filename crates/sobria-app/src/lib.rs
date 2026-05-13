@@ -22,6 +22,7 @@ pub mod error;
 pub mod goals_store;
 pub mod logic;
 pub mod preferences_store;
+pub mod project_store;
 pub mod state;
 
 pub use error::{IpcError, IpcResult};

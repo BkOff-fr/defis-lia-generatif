@@ -14,11 +14,12 @@
 use sobria_app::{
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, BenchmarkRequestDto, BenchmarkResultDto,
-        BudgetStatusDto, CountryAggregateDto, CsrdReportRequestDto, CsrdReportResultDto,
-        DashboardSummaryDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
-        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
-        ModelDetailDto, ModelPresetDto, PersonalGoalDto, RegionFrAggregateDto, SankeyDataDto,
-        SimulationRequestDto, SimulationResultDto, YearlyForecastRequestDto,
+        BudgetStatusDto, CountryAggregateDto, CreateProjectDto, CsrdReportRequestDto,
+        CsrdReportResultDto, DashboardSummaryDto, DatacenterDetailDto, DatacenterSummaryDto,
+        DatasheetDto, EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto,
+        IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto, PersonalGoalDto,
+        ProjectDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
+        SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto,
         YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
@@ -210,6 +211,46 @@ fn get_budget_status(
     logic::get_budget_status(state.inner())
 }
 
+#[tauri::command]
+fn list_projects(state: tauri::State<'_, AppState>) -> IpcResult<Vec<ProjectDto>> {
+    logic::list_projects(state.inner())
+}
+
+#[tauri::command]
+fn get_project(id: i64, state: tauri::State<'_, AppState>) -> IpcResult<ProjectDto> {
+    logic::get_project(id, state.inner())
+}
+
+#[tauri::command]
+fn create_project(
+    req: CreateProjectDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<ProjectDto> {
+    logic::create_project(req, state.inner())
+}
+
+#[tauri::command]
+fn update_project(
+    id: i64,
+    req: UpdateProjectDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<ProjectDto> {
+    logic::update_project(id, req, state.inner())
+}
+
+#[tauri::command]
+fn delete_project(id: i64, state: tauri::State<'_, AppState>) -> IpcResult<()> {
+    logic::delete_project(id, state.inner())
+}
+
+#[tauri::command]
+fn generate_project_datasheet(
+    id: i64,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<DatasheetDto> {
+    logic::generate_project_datasheet(id, state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,6 +300,12 @@ fn main() {
             set_personal_goal,
             delete_personal_goal,
             get_budget_status,
+            list_projects,
+            get_project,
+            create_project,
+            update_project,
+            delete_project,
+            generate_project_datasheet,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");

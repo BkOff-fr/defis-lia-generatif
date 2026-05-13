@@ -16,6 +16,7 @@ use tracing::info;
 
 use crate::{
     error::AppError, goals_store::PersonalGoalsStore, preferences_store::PreferencesStore,
+    project_store::ProjectStore,
 };
 
 /// State partagé de l'application.
@@ -32,6 +33,8 @@ pub struct AppState {
     pub preferences: Mutex<PreferencesStore>,
     /// Store des objectifs eco-budget — voir brief C19 (M25).
     pub goals: Mutex<PersonalGoalsStore>,
+    /// Store des projets scientifiques — voir brief C20 (M17).
+    pub projects: Mutex<ProjectStore>,
     /// Moteur Monte-Carlo (immuable, partageable).
     pub estimator: MonteCarloEngine,
 }
@@ -57,6 +60,7 @@ impl AppState {
         info!(path = %referentiel_path.display(), "préférences: ouverture du référentiel");
         let preferences = PreferencesStore::open(&referentiel_path)?;
         let goals = PersonalGoalsStore::open(&referentiel_path)?;
+        let projects = ProjectStore::open(&referentiel_path)?;
 
         let estimator = MonteCarloEngine::default();
         Ok(Self {
@@ -66,6 +70,7 @@ impl AppState {
             ledger: Mutex::new(ledger),
             preferences: Mutex::new(preferences),
             goals: Mutex::new(goals),
+            projects: Mutex::new(projects),
             estimator,
         })
     }

@@ -19,11 +19,15 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
 
+pub mod datasheet;
 pub mod error;
 pub mod provo;
 pub mod report;
 pub mod summary;
 
+pub use datasheet::{
+    build_datasheet, Composition, DatasheetArtifact, DatasheetOptions, ProjectMeta,
+};
 pub use error::{ExportError, ExportResult};
 pub use provo::{build_provo_jsonld, ProvOOptions};
 pub use report::{generate_report, ReportArtifacts, ReportRequest};
