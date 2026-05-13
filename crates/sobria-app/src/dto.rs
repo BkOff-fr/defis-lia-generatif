@@ -17,6 +17,7 @@ use sobria_estimator::{
     CalibrationStatus, ForecastConfig, ForecastResult, ModelPreset, Openness, ParamOverrides,
     Scenario, ScenarioOutcome, SimulationRequest, SimulationResult,
 };
+use sobria_geoloc::{CountryAggregate, DatacenterRecord};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // meta_info
@@ -446,6 +447,95 @@ impl SimulationResultDto {
             baseline,
             scenarios,
             forecast: r.forecast.clone().map(Into::into),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// datacenters (C12 — M12)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Résumé d'un datacenter, suffisant pour placer un marker sur la carte.
+#[derive(Debug, Clone, Serialize)]
+pub struct DatacenterSummaryDto {
+    pub id: String,
+    pub name: String,
+    pub operator: String,
+    pub country_iso: String,
+    pub city: String,
+    pub lat: f64,
+    pub lon: f64,
+    pub pue: f64,
+    pub if_electrical_g_per_kwh: f64,
+}
+
+impl From<&DatacenterRecord> for DatacenterSummaryDto {
+    fn from(d: &DatacenterRecord) -> Self {
+        Self {
+            id: d.id.clone(),
+            name: d.name.clone(),
+            operator: d.operator.clone(),
+            country_iso: d.country_iso.clone(),
+            city: d.city.clone(),
+            lat: d.lat,
+            lon: d.lon,
+            pue: d.pue,
+            if_electrical_g_per_kwh: d.if_electrical_g_per_kwh,
+        }
+    }
+}
+
+/// Détail complet pour le drill-down (donut + barres + 24h).
+#[derive(Debug, Clone, Serialize)]
+pub struct DatacenterDetailDto {
+    pub id: String,
+    pub name: String,
+    pub operator: String,
+    pub country_iso: String,
+    pub city: String,
+    pub lat: f64,
+    pub lon: f64,
+    pub pue: f64,
+    pub if_electrical_g_per_kwh: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wue_l_per_kwh: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capacity_mw: Option<f64>,
+    pub sources: Vec<String>,
+    pub hourly_profile_24h: Vec<f64>,
+    /// CO₂eq P50 (gCO₂eq) pour un prompt de référence (gpt-4o-mini 100/500 tokens)
+    /// avec les paramètres PUE/IF/WUE du DC. Permet à l'UI de remplir les
+    /// "barres" sans nouvelle commande IPC.
+    pub baseline_co2eq_p50_g: f64,
+    /// Idem pour l'énergie (Wh) — médiane.
+    pub baseline_energy_wh_p50: f64,
+    /// Idem pour l'eau (L) — médiane.
+    pub baseline_water_l_p50: f64,
+}
+
+/// Agrégat par pays pour la vue dézoomée Europe.
+#[derive(Debug, Clone, Serialize)]
+pub struct CountryAggregateDto {
+    pub country_iso: String,
+    pub datacenter_count: usize,
+    pub avg_pue: f64,
+    pub if_electrical_g_per_kwh: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_capacity_mw: Option<f64>,
+    pub centroid_lat: f64,
+    pub centroid_lon: f64,
+}
+
+impl From<&CountryAggregate> for CountryAggregateDto {
+    fn from(c: &CountryAggregate) -> Self {
+        Self {
+            country_iso: c.country_iso.clone(),
+            datacenter_count: c.datacenter_count,
+            avg_pue: c.avg_pue,
+            if_electrical_g_per_kwh: c.if_electrical_g_per_kwh,
+            total_capacity_mw: c.total_capacity_mw,
+            centroid_lat: c.centroid_lat,
+            centroid_lon: c.centroid_lon,
         }
     }
 }

@@ -100,7 +100,7 @@ test("Onboarding : « Terminer » hors Tauri affiche l'erreur tauri_unavailable"
   await page.locator('[data-persona="student"]').click();
   // Étape 3 → 4
   await page.getByRole('button', { name: /^Continuer/ }).click();
-  await expect(page.getByRole('heading', { name: /Votre premier prompt/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /C'est parti/ })).toBeVisible();
 
   // Clic « Terminer » sans contexte Tauri → bannière d'erreur affichée,
   // pas de redirection. Le contrat no-mock est respecté : aucune

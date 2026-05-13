@@ -5326,6 +5326,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "proptest",
+ "schemars 0.8.22",
  "serde",
  "serde_json",
  "sobria-core",

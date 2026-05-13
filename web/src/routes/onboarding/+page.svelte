@@ -371,13 +371,13 @@
     </section>
   {/if}
 
-  <!-- ╭───── ÉTAPE 4 — PREMIER PROMPT GUIDÉ ───────────────────────╮ -->
+  <!-- ╭───── ÉTAPE 4 — READY ───────────────────────────────────────╮ -->
   {#if step === 4}
-    <section class="prompt-stage" id="step4">
+    <section class="ready-stage" id="step4">
       <header class="step-head">
         <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 4 sur 4</span
         >
-        <h2 class="display">Votre premier prompt</h2>
+        <h2 class="display">C'est parti.</h2>
         <p class="step-sub">
           Sobr.ia est paré. À l'écran suivant, l'atelier d'estimation vous attend : choisissez un
           modèle, écrivez 50 à 200 tokens, cliquez « Estimer l'impact ». Le moteur Monte-Carlo fera
@@ -385,33 +385,30 @@
         </p>
       </header>
 
-      <!-- Aperçu illustré de M1 avec tooltip animé sur le sélecteur de modèle. -->
-      <div class="m1-preview" aria-hidden="true">
-        <div class="mock-row">
-          <div class="mock-field mock-field-model">
-            <span class="mock-label">Modèle</span>
-            <span class="mock-value">gpt-4o-mini · OpenAI</span>
-            <span class="tooltip">
-              <Sparkles size={11} strokeWidth={2} />
-              Commencez ici
-            </span>
-          </div>
-          <div class="mock-field">
-            <span class="mock-label">Tokens sortie</span>
-            <span class="mock-value mono">720</span>
-          </div>
-        </div>
-        <div class="mock-textarea">
-          <span class="mock-cursor"></span>
-          Écris-moi un résumé de la photosynthèse en 500 mots…
-        </div>
-        <div class="mock-cta">
-          <span class="mock-btn">
-            <Zap size={12} strokeWidth={2} />
-            Estimer l'impact
+      <!-- Trois mini-cartes résumant ce qui attend l'utilisateur — pas de
+           mock UI interactif (le brief demandait un tooltip sur M1 réel,
+           ré-implémenté sur la route `/` au prochain ralliement). -->
+      <ul class="ready-cards">
+        <li class="ready-card">
+          <span class="ready-ico" aria-hidden="true"><Sparkles size={20} strokeWidth={1.6} /></span>
+          <span class="ready-title">Premier prompt</span>
+          <span class="ready-sub">Modèle + texte + « Estimer ». Environ 2 secondes.</span>
+        </li>
+        <li class="ready-card">
+          <span class="ready-ico" aria-hidden="true"><Zap size={20} strokeWidth={1.6} /></span>
+          <span class="ready-title">
+            {chosenCount} module{chosenCount > 1 ? 's' : ''} actif{chosenCount > 1 ? 's' : ''}
           </span>
-        </div>
-      </div>
+          <span class="ready-sub"
+            >Visibles dans le rail. Modifiables dans Paramètres à tout moment.</span
+          >
+        </li>
+        <li class="ready-card">
+          <span class="ready-ico" aria-hidden="true"><Check size={20} strokeWidth={2} /></span>
+          <span class="ready-title">100 % local</span>
+          <span class="ready-sub">Aucune donnée envoyée vers un serveur tiers.</span>
+        </li>
+      </ul>
 
       {#if error}
         <div class="error-banner" role="alert">
@@ -441,7 +438,7 @@
           data-autofocus
           data-action="finish"
         >
-          {saving ? 'Enregistrement…' : 'Terminer'}
+          {saving ? 'Enregistrement…' : "Ouvrir l'atelier"}
           {#if !saving}
             <ArrowRight size={16} strokeWidth={2} />
           {/if}
@@ -523,14 +520,25 @@
   }
 
   /* ─── Wizard shell ──────────────────────────────────────────────────── */
+  /* Plein écran scrollable. Pas de centrage vertical global (sinon les
+     étapes hautes comme l'étape 3 « Bundle » avec ses 24 modules ont leur
+     bas hors viewport et l'utilisateur ne peut pas remonter au CTA).
+     Le centrage vertical du splash est géré localement dans .splash. */
   .wizard {
     position: relative;
     z-index: 1;
     min-height: 100vh;
-    display: grid;
-    place-items: center;
-    padding: 80px 32px 56px;
+    height: 100vh;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 72px 32px 64px;
+  }
+  /* Chaque section prend la largeur dispo et défile naturellement. */
+  .wizard > section {
+    width: 100%;
+    flex: 0 0 auto;
   }
 
   /* ─── Typo / atomes partagés ────────────────────────────────────────── */
@@ -638,10 +646,13 @@
   }
 
   /* ─── ÉTAPE 1 — Splash ──────────────────────────────────────────────── */
+  /* Splash : centré verticalement dans le viewport (contenu court). */
   .splash {
+    min-height: calc(100vh - 136px);
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     text-align: center;
     gap: 8px;
     animation: rise 600ms var(--ease) backwards;
@@ -954,153 +965,53 @@
     justify-content: center;
   }
 
-  /* ─── ÉTAPE 4 — Premier prompt ──────────────────────────────────────── */
-  .prompt-stage {
+  /* ─── ÉTAPE 4 — Ready ──────────────────────────────────────────────── */
+  .ready-stage {
     width: 100%;
-    max-width: 780px;
+    max-width: 820px;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
     animation: rise 500ms var(--ease) backwards;
   }
-  .m1-preview {
-    width: 100%;
-    margin-top: 30px;
-    padding: 24px 26px;
-    background: rgba(10, 13, 11, 0.55);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-  }
-  .mock-row {
+  .ready-cards {
+    list-style: none;
+    padding: 0;
+    margin: 28px 0 0;
     display: grid;
-    grid-template-columns: 1.6fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 14px;
-    text-align: left;
+    width: 100%;
   }
-  .mock-field {
-    position: relative;
-    padding: 12px 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+  .ready-card {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-  }
-  .mock-field-model {
-    border-color: rgba(197, 240, 74, 0.45);
-    background: rgba(197, 240, 74, 0.04);
-    animation: spotlight 2.5s ease-in-out infinite;
-  }
-  @keyframes spotlight {
-    0%,
-    100% {
-      box-shadow: 0 0 0 0 rgba(197, 240, 74, 0.4);
-    }
-    50% {
-      box-shadow: 0 0 0 6px rgba(197, 240, 74, 0);
-    }
-  }
-  .mock-label {
-    font: 500 10px/1 var(--font-ui);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--ivory-4);
-  }
-  .mock-value {
-    font: 500 14px/1.2 var(--font-ui);
-    color: var(--ivory);
-  }
-  .mock-value.mono {
-    font-family: var(--font-mono);
-    font-size: 14px;
-  }
-  .tooltip {
-    position: absolute;
-    top: -14px;
-    right: 12px;
-    transform: translateY(-100%);
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: var(--lime);
-    color: var(--ink);
-    padding: 5px 11px;
-    border-radius: var(--radius-pill);
-    font: 600 11px/1 var(--font-ui);
-    box-shadow: var(--glow-lime-sm);
-    white-space: nowrap;
-    animation: bob 1.6s ease-in-out infinite;
-  }
-  .tooltip::after {
-    content: '';
-    position: absolute;
-    bottom: -5px;
-    right: 18px;
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 5px solid var(--lime);
-  }
-  @keyframes bob {
-    0%,
-    100% {
-      transform: translateY(-100%);
-    }
-    50% {
-      transform: translateY(calc(-100% - 4px));
-    }
-  }
-  .mock-textarea {
-    margin-top: 14px;
-    padding: 16px;
-    background: var(--surface);
+    align-items: flex-start;
+    gap: 8px;
+    padding: 18px 20px;
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.005));
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    font: 400 13px/1.55 var(--font-ui);
-    color: var(--ivory-3);
-    min-height: 70px;
     text-align: left;
-    font-style: italic;
   }
-  .mock-cursor {
-    display: inline-block;
-    width: 1px;
-    height: 13px;
-    background: var(--lime);
-    margin-right: 4px;
-    vertical-align: middle;
-    animation: blink 1s steps(2) infinite;
+  .ready-ico {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    color: var(--lime);
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.28);
   }
-  @keyframes blink {
-    0%,
-    50% {
-      opacity: 1;
-    }
-    51%,
-    100% {
-      opacity: 0;
-    }
+  .ready-title {
+    font: 500 14px/1.25 var(--font-ui);
+    color: var(--ivory);
   }
-  .mock-cta {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 14px;
-  }
-  .mock-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 16px;
-    background: var(--lime);
-    color: var(--ink);
-    border-radius: var(--radius-pill);
-    font: 600 12px/1 var(--font-ui);
-    box-shadow: var(--glow-lime-sm);
+  .ready-sub {
+    font: 400 12px/1.45 var(--font-ui);
+    color: var(--ivory-3);
   }
 
   .error-banner {
@@ -1162,9 +1073,6 @@
     }
     .dot {
       width: 20px;
-    }
-    .mock-row {
-      grid-template-columns: 1fr;
     }
   }
 </style>

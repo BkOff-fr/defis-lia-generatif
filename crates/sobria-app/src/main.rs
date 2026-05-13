@@ -13,8 +13,9 @@
 
 use sobria_app::{
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto,
-        IntegrityReportDto, MetaInfo, ModelPresetDto, SimulationRequestDto, SimulationResultDto,
+        AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, DatacenterDetailDto,
+        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto, IntegrityReportDto,
+        MetaInfo, ModelPresetDto, SimulationRequestDto, SimulationResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -86,6 +87,24 @@ fn simulate_scenarios(
     logic::simulate_scenarios(req, state.inner())
 }
 
+#[tauri::command]
+fn list_datacenters() -> IpcResult<Vec<DatacenterSummaryDto>> {
+    logic::list_datacenters()
+}
+
+#[tauri::command]
+fn get_datacenter_detail(
+    id: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<DatacenterDetailDto> {
+    logic::get_datacenter_detail(&id, state.inner())
+}
+
+#[tauri::command]
+fn aggregate_datacenters_by_country() -> IpcResult<Vec<CountryAggregateDto>> {
+    logic::aggregate_datacenters_by_country()
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,6 +138,9 @@ fn main() {
             get_app_preferences,
             set_app_preferences,
             simulate_scenarios,
+            list_datacenters,
+            get_datacenter_detail,
+            aggregate_datacenters_by_country,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");
