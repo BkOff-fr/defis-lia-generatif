@@ -238,9 +238,13 @@
     <button class="btn-ghost" type="button" disabled aria-disabled="true">
       <Bookmark size={14} strokeWidth={1.8} />Sauvegarder
     </button>
-    <button class="btn-ghost" type="button" disabled aria-disabled="true">
+    <a
+      class="btn-ghost"
+      href={`/comparer?prompt=${encodeURIComponent(prompt)}&tokensOut=${tokensOut}&model=${encodeURIComponent(selectedModelId)}`}
+      title="Comparer ce prompt sur 2 à 8 modèles côte-à-côte"
+    >
       <GitCompare size={14} strokeWidth={1.8} />Comparer
-    </button>
+    </a>
     <span class="kbd-hint" aria-hidden="true">
       <kbd class="kbd">Ctrl</kbd><kbd class="kbd">↵</kbd> pour estimer
     </span>
@@ -626,6 +630,7 @@
     border-radius: var(--radius-md);
     font: 500 13px/1 var(--font-ui);
     cursor: pointer;
+    text-decoration: none;
     transition: all var(--dur-base) var(--ease);
   }
   .btn-ghost:hover:not(:disabled) {

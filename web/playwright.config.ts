@@ -13,6 +13,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
+  // Un seul worker : les tests se partagent un unique dev server Vite, et
+  // plusieurs onglets concurrents font occasionnellement timeout au mount
+  // (Vite re-optimize sur changement de deps). Sequentiel = stable.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',

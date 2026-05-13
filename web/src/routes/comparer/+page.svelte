@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     Sparkles,
-    Trophy,
+    Award,
     HelpCircle,
     Lock,
     Info,
@@ -9,7 +9,10 @@
     PlugZap,
     RotateCcw,
     Check,
-    Loader
+    Loader,
+    X,
+    ArrowUpRight,
+    FlaskConical
   } from '@lucide/svelte';
   import {
     estimatePrompt,
@@ -21,6 +24,7 @@
     type IpcErrorCode,
     type ModelPresetDto
   } from '$lib/api';
+  import { tick } from 'svelte';
 
   // ─── State ───────────────────────────────────────────────────────────
   const MAX_SELECTED = 8;
@@ -48,10 +52,9 @@
   let results = $state<Record<string, EstimationResultDto>>({});
   let errorById = $state<Record<string, string>>({});
 
-  // Poids du score composite (somme libre, on normalise au moment du calcul).
-  let wCO2 = $state(60);
-  let wEnergy = $state(25);
-  let wWater = $state(15);
+  // Modèle dont le détail de note est affiché dans le drawer (clic sur le
+  // badge A-F dans la matrice).
+  let selectedDetail = $state<string | null>(null);
 
   const tauriAvailable = $derived(isTauriContext());
 
@@ -201,18 +204,11 @@
     model: ModelPresetDto;
     result: EstimationResultDto | undefined;
     error: string | undefined;
-    // Valeurs brutes en unité canonique (Rust) pour normalisation.
-    co2: number | undefined;
-    energy: number | undefined;
-    water: number | undefined;
-    score: number;
-    // Décomposition du score par indicateur — rend l'effet des poids
-    // visible dans la matrice même quand les 3 indicateurs sont
-    // corrélés (auquel cas le total bouge peu mais les contributions
-    // changent fortement).
-    contribCo2: number;
-    contribEnergy: number;
-    contribWater: number;
+    // Valeurs P5/P50/P95 par indicateur en unité canonique (Rust).
+    co2: IndicatorDto | undefined;
+    energy: IndicatorDto | undefined;
+    water: IndicatorDto | undefined;
+    totalTokens: number;
   };
 
   const rows = $derived.by<Row[]>(() => {
@@ -221,81 +217,55 @@
       .map((id) => models.find((m) => m.id === id))
       .filter((m): m is ModelPresetDto => !!m);
 
-    const rawRows: Row[] = ms.map((model) => {
+    return ms.map((model) => {
       const r = results[model.id];
       const err = errorById[model.id];
+      if (!r) {
+        return {
+          model,
+          result: undefined,
+          error: err,
+          co2: undefined,
+          energy: undefined,
+          water: undefined,
+          totalTokens: 0
+        };
+      }
       return {
         model,
         result: r,
         error: err,
-        co2: r ? pickInd(r, 'co2eq')?.p50 : undefined,
-        energy: r ? pickInd(r, 'energy')?.p50 : undefined,
-        water: r ? pickInd(r, 'water')?.p50 : undefined,
-        score: 0,
-        contribCo2: 0,
-        contribEnergy: 0,
-        contribWater: 0
+        co2: pickInd(r, 'co2eq'),
+        energy: pickInd(r, 'energy'),
+        water: pickInd(r, 'water'),
+        totalTokens: r.request.tokens_in + r.request.tokens_out_estimated
       };
     });
-
-    // Score composite : on normalise chaque indicateur sur l'intervalle
-    // [min, max] de la colonne (modèles comparés ensemble) puis on
-    // applique les poids. Plus c'est BAS, mieux c'est ; donc le score
-    // final est `100 × (1 - moyenne pondérée des normalisés)`.
-    const totalW = wCO2 + wEnergy + wWater || 1;
-    type ContribKey = 'contribCo2' | 'contribEnergy' | 'contribWater';
-    const cols: Array<{ key: 'co2' | 'energy' | 'water'; w: number; contrib: ContribKey }> = [
-      { key: 'co2', w: wCO2 / totalW, contrib: 'contribCo2' },
-      { key: 'energy', w: wEnergy / totalW, contrib: 'contribEnergy' },
-      { key: 'water', w: wWater / totalW, contrib: 'contribWater' }
-    ];
-    for (const c of cols) {
-      const values = rawRows
-        .map((r) => r[c.key])
-        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
-      if (values.length === 0) continue;
-      const min = Math.min(...values);
-      const max = Math.max(...values);
-      const span = max - min || 1;
-      for (const r of rawRows) {
-        const v = r[c.key];
-        if (typeof v !== 'number') continue;
-        const norm = (v - min) / span; // [0, 1], 0 = meilleur
-        const contribution = (1 - norm) * c.w * 100;
-        r.score += contribution;
-        r[c.contrib] = contribution;
-      }
-    }
-
-    return rawRows;
   });
 
-  /** Normalisé [0, 1] de la valeur dans sa colonne (0 = meilleur). */
-  function normCell(row: Row, key: IndKey): number | undefined {
-    const value = key === 'co2eq' ? row.co2 : key === 'energy' ? row.energy : row.water;
-    if (typeof value !== 'number') return undefined;
-    const values = rows
-      .map((r) => (key === 'co2eq' ? r.co2 : key === 'energy' ? r.energy : r.water))
-      .filter((v): v is number => typeof v === 'number');
-    if (values.length === 0) return undefined;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    if (max === min) return 0;
-    return (value - min) / (max - min);
-  }
+  // ─── Drawer : modèle sélectionné pour détail de note ───────────────
+  const detailRow = $derived(
+    selectedDetail ? rows.find((r) => r.model.id === selectedDetail) : undefined
+  );
 
-  function cellTone(normalized: number | undefined): string {
-    if (typeof normalized !== 'number') return '';
-    if (normalized < 0.34) return 'good';
-    if (normalized < 0.67) return 'mid';
-    return 'bad';
+  function openDetail(modelId: string) {
+    selectedDetail = modelId;
   }
+  function closeDetail() {
+    selectedDetail = null;
+  }
+  function handleEsc(e: KeyboardEvent) {
+    if (e.key === 'Escape' && selectedDetail) closeDetail();
+  }
+  let closeBtn: HTMLButtonElement | undefined = $state();
+  $effect(() => {
+    if (selectedDetail) {
+      void tick().then(() => closeBtn?.focus());
+    }
+  });
 
-  // ─── Formatage des cellules ─────────────────────────────────────────
+  // ─── Échelles d'unités partagées (mêmes chaînes que ResultBlock) ───
   type Scale = { mult: number; unit: string };
-
-  // Chaînes d'unités (sous-ensemble des chaînes ResultBlock — on a besoin
-  // ici de CO₂eq / Wh / L uniquement pour la matrice).
   const UNIT_CHAINS: Record<string, Scale[]> = {
     gCO2eq: [
       { mult: 1e-3, unit: 'kg CO₂eq' },
@@ -319,14 +289,13 @@
     ]
   };
 
-  /** Choisit l'échelle d'affichage commune en se basant sur le P50
-   *  médian des modèles comparés — toutes les cellules d'une colonne
-   *  utilisent la même unité pour qu'on puisse comparer à l'œil. */
+  /** Échelle commune à tous les modèles comparés sur cet indicateur,
+   *  choisie sur la médiane des P50 — toutes les cards affichent la
+   *  même unité pour pouvoir comparer à l'œil. */
   function pickColScale(values: number[], baseUnit: string): Scale {
     const chain = UNIT_CHAINS[baseUnit];
     const fallback: Scale = { mult: 1, unit: baseUnit };
     if (!chain || chain.length === 0 || values.length === 0) return fallback;
-    // Médiane pour ignorer les outliers.
     const sorted = [...values].sort((a, b) => a - b);
     const mid = sorted[Math.floor(sorted.length / 2)] ?? 0;
     if (!Number.isFinite(mid) || mid === 0) {
@@ -339,36 +308,68 @@
     return chain[chain.length - 1] ?? fallback;
   }
 
-  const co2ColScale = $derived(
+  const co2Scale = $derived(
     pickColScale(
-      rows.map((r) => r.co2).filter((v): v is number => typeof v === 'number'),
+      rows.map((r) => r.co2?.p50).filter((v): v is number => typeof v === 'number'),
       'gCO2eq'
     )
   );
-  const energyColScale = $derived(
+  const energyScale = $derived(
     pickColScale(
-      rows.map((r) => r.energy).filter((v): v is number => typeof v === 'number'),
+      rows.map((r) => r.energy?.p50).filter((v): v is number => typeof v === 'number'),
       'Wh'
     )
   );
-  const waterColScale = $derived(
+  const waterScale = $derived(
     pickColScale(
-      rows.map((r) => r.water).filter((v): v is number => typeof v === 'number'),
+      rows.map((r) => r.water?.p50).filter((v): v is number => typeof v === 'number'),
       'L'
     )
   );
 
   function fmtNum(value: number): string {
+    if (!Number.isFinite(value)) return '—';
     return new Intl.NumberFormat('fr-FR', {
       maximumSignificantDigits: 3,
       minimumSignificantDigits: 1
     }).format(value);
   }
 
-  // ─── Classement (top 3) ─────────────────────────────────────────────
-  const ranking = $derived.by(() => {
-    return [...rows].filter((r) => r.result).sort((a, b) => b.score - a.score);
+  // ─── Verdict : meilleur vs pire CO₂eq ──────────────────────────────
+  type Verdict = {
+    best: Row;
+    worst: Row;
+    ratio: number; // worst.p50 / best.p50
+    percentSaved: number; // (1 − best/worst) × 100
+  };
+
+  const verdict = $derived.by<Verdict | undefined>(() => {
+    const scored = rows.filter(
+      (r): r is Row & { co2: IndicatorDto } => !!r.co2 && Number.isFinite(r.co2.p50)
+    );
+    if (scored.length < 2) return undefined;
+    const sorted = [...scored].sort((a, b) => a.co2.p50 - b.co2.p50);
+    const best = sorted[0];
+    const worst = sorted[sorted.length - 1];
+    if (!best || !worst || best === worst) return undefined;
+    if (best.co2.p50 <= 0) return undefined;
+    const ratio = worst.co2.p50 / best.co2.p50;
+    const percentSaved = (1 - best.co2.p50 / worst.co2.p50) * 100;
+    return { best, worst, ratio, percentSaved };
   });
+
+  /** Largeur de barre relative pour un P50 dans sa colonne (0–100 %) ;
+   *  utilisée dans la card pour rendre le ratio visuel. */
+  function relBarPct(value: number | undefined, key: 'co2' | 'energy' | 'water'): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+    const values = rows
+      .map((r) => (key === 'co2' ? r.co2?.p50 : key === 'energy' ? r.energy?.p50 : r.water?.p50))
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    if (values.length === 0) return 0;
+    const max = Math.max(...values);
+    if (max <= 0) return 0;
+    return Math.min(100, Math.max(2, (value / max) * 100));
+  }
 
   const errorTone = $derived.by<'info' | 'warn' | 'error'>(() => {
     if (!loadError) return 'info';
@@ -549,160 +550,263 @@
       </div>
     </section>
 
-    <!-- ─── Résultats : score composite + matrice ───────────────── -->
-    {#if ranking.length > 0 && !comparing}
-      <!-- Top 3 podium -->
-      <section class="podium" aria-label="Classement composite">
-        <div class="podium-head">
-          <Trophy size={16} strokeWidth={1.8} />
-          <h2>Classement composite</h2>
-          <span class="podium-hint mono">poids ajustables ci-dessous · plus haut = mieux</span>
-        </div>
-        <div class="podium-list">
-          {#each ranking.slice(0, 3) as r, i (r.model.id)}
-            <div class="podium-row" data-rank={i + 1}>
-              <span class="podium-rank">{(i + 1).toString().padStart(2, '0')}</span>
-              <div class="podium-meta">
-                <div class="podium-name">{r.model.display_name}</div>
-                <div class="podium-prov mono">{r.model.provider}</div>
-              </div>
-              <div class="podium-score">
-                <span class="podium-score-v">{fmtNum(r.score)}</span>
-                <span class="podium-score-l">/ 100</span>
-              </div>
-            </div>
-          {/each}
-        </div>
-      </section>
-
-      <!-- Pondération du score composite -->
-      <section class="weights" aria-label="Poids du score composite">
-        <header class="weights-head">
-          <h3>Poids du score composite</h3>
-          <span class="weights-hint mono">
-            Σ = {wCO2 + wEnergy + wWater}% · renormalisé automatiquement
+    <!-- ─── Verdict ────────────────────────────────────────────── -->
+    {#if verdict && !comparing}
+      <section class="verdict" aria-label="Verdict de la comparaison">
+        <div class="verdict-body">
+          <span class="verdict-eye">
+            <Award size={12} strokeWidth={1.8} />
+            Verdict · plus sobre en CO₂eq
           </span>
-        </header>
-        <div class="weight-row">
-          <label for="w-co2">CO₂eq</label>
-          <input id="w-co2" type="range" min="0" max="100" bind:value={wCO2} />
-          <span class="weight-val mono">{wCO2}%</span>
+          <h2 class="verdict-h">
+            <em>{verdict.best.model.display_name}</em>
+            est <i>{fmtNum(verdict.ratio)}×</i>
+            plus sobre que <span class="loser">{verdict.worst.model.display_name}</span>.
+          </h2>
+          <p class="verdict-why">
+            À tokens identiques ({verdict.best.result?.request.tokens_in ?? '?'} entrée +
+            {verdict.best.result?.request.tokens_out_estimated ?? '?'}
+            sortie), {verdict.best.model.display_name} émet
+            <b>{fmtNum(verdict.percentSaved)} %</b> de moins. L'écart vient principalement de la
+            taille du modèle (N<sub>params</sub>) — en v0.3 le datacenter du provider entrera aussi
+            dans le calcul (mix électrique, PUE, WUE par fournisseur).
+          </p>
         </div>
-        <div class="weight-row">
-          <label for="w-energy">Énergie</label>
-          <input id="w-energy" type="range" min="0" max="100" bind:value={wEnergy} />
-          <span class="weight-val mono">{wEnergy}%</span>
-        </div>
-        <div class="weight-row">
-          <label for="w-water">Eau</label>
-          <input id="w-water" type="range" min="0" max="100" bind:value={wWater} />
-          <span class="weight-val mono">{wWater}%</span>
+        <div class="verdict-delta">
+          <span class="verdict-delta-v">−{Math.round(verdict.percentSaved)} %</span>
+          <span class="verdict-delta-u">CO₂eq économisé</span>
         </div>
       </section>
     {/if}
 
+    <!-- ─── Cards par modèle ──────────────────────────────────── -->
     {#if rows.length > 0}
-      <section class="matrix" aria-label="Matrice d'indicateurs">
-        <div class="table-wrap scrollable">
-          <table class="cmp-table">
-            <thead>
-              <tr>
-                <th class="th-model">Modèle</th>
-                <th class="th-calib">Calibration</th>
-                <th class="th-ind">
-                  CO₂eq P50 <small class="mono">({co2ColScale.unit})</small>
-                </th>
-                <th class="th-ind">
-                  Énergie P50 <small class="mono">({energyColScale.unit})</small>
-                </th>
-                <th class="th-ind">
-                  Eau P50 <small class="mono">({waterColScale.unit})</small>
-                </th>
-                <th class="th-score">Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each rows as r (r.model.id)}
-                {@const co2N = normCell(r, 'co2eq')}
-                {@const eN = normCell(r, 'energy')}
-                {@const wN = normCell(r, 'water')}
-                <tr>
-                  <td class="td-model">
-                    <span class="td-model-name">{r.model.display_name}</span>
-                    <span class="td-model-prov mono">{r.model.provider}</span>
-                  </td>
-                  <td>
-                    <span class="badge calib" data-tone={calibTone(r.model.calibration)}>
-                      {calibLabel[r.model.calibration]}
-                    </span>
-                  </td>
-                  <td class="td-cell" data-tone={cellTone(co2N)}>
-                    {#if comparing}<Loader size={11} strokeWidth={2} />
-                    {:else if r.error}<span class="td-err" title={r.error}>échec</span>
-                    {:else if typeof r.co2 === 'number'}{fmtNum(r.co2 * co2ColScale.mult)}
-                    {:else}—
-                    {/if}
-                  </td>
-                  <td class="td-cell" data-tone={cellTone(eN)}>
-                    {#if comparing}<Loader size={11} strokeWidth={2} />
-                    {:else if typeof r.energy === 'number'}{fmtNum(r.energy * energyColScale.mult)}
-                    {:else}—
-                    {/if}
-                  </td>
-                  <td class="td-cell" data-tone={cellTone(wN)}>
-                    {#if comparing}<Loader size={11} strokeWidth={2} />
-                    {:else if typeof r.water === 'number'}{fmtNum(r.water * waterColScale.mult)}
-                    {:else}—
-                    {/if}
-                  </td>
-                  <td class="td-score">
-                    {#if r.result}
-                      <div class="score-cell">
-                        <div class="score-val mono">{fmtNum(r.score)}</div>
-                        <div
-                          class="score-bar"
-                          role="img"
-                          aria-label={`CO₂eq ${fmtNum(r.contribCo2)} · Énergie ${fmtNum(r.contribEnergy)} · Eau ${fmtNum(r.contribWater)}`}
-                          title={`Décomposition · CO₂eq ${fmtNum(r.contribCo2)} + Énergie ${fmtNum(r.contribEnergy)} + Eau ${fmtNum(r.contribWater)}`}
-                        >
-                          <span class="seg seg-co2" style="flex: {Math.max(0.01, r.contribCo2)}"
-                          ></span>
-                          <span
-                            class="seg seg-energy"
-                            style="flex: {Math.max(0.01, r.contribEnergy)}"
-                          ></span>
-                          <span class="seg seg-water" style="flex: {Math.max(0.01, r.contribWater)}"
-                          ></span>
-                          <span class="seg seg-rest" style="flex: {Math.max(0.01, 100 - r.score)}"
-                          ></span>
-                        </div>
-                      </div>
-                    {:else}
-                      <span class="mono">—</span>
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+      <section class="cards-section" aria-label="Profils détaillés des modèles">
+        <header class="cards-head">
+          <h2>Profils détaillés</h2>
+          <span class="cards-hint mono">
+            unité commune CO₂eq : {co2Scale.unit} · énergie : {energyScale.unit} · eau : {waterScale.unit}
+          </span>
+        </header>
+
+        <div class="cmp-grid" data-count={rows.length}>
+          {#each rows as r (r.model.id)}
+            {@const isBest = verdict?.best.model.id === r.model.id}
+            {@const isWorst = verdict?.worst.model.id === r.model.id}
+            <article
+              class="cmp-card"
+              class:winner={isBest}
+              class:loser={isWorst}
+              aria-label={`Profil ${r.model.display_name}`}
+            >
+              <header class="cmp-card-head">
+                <span class="cmp-card-logo">
+                  {r.model.display_name
+                    .replace(/[^A-Za-z0-9]/g, '')
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </span>
+                <div class="cmp-card-id">
+                  <div class="cmp-card-name">{r.model.display_name}</div>
+                  <div class="cmp-card-meta mono">
+                    {r.model.provider} · ~{r.model.approx_params_billions} B
+                  </div>
+                </div>
+                {#if isBest}
+                  <span class="cmp-trophy" title="Plus sobre du panel">
+                    <Award size={14} strokeWidth={2} />
+                  </span>
+                {/if}
+              </header>
+
+              {#if comparing}
+                <div class="cmp-card-skel" aria-busy="true">
+                  <Loader size={14} strokeWidth={2} />
+                  Estimation Monte-Carlo en cours…
+                </div>
+              {:else if r.error}
+                <div class="cmp-card-err">
+                  <AlertTriangle size={14} strokeWidth={1.8} />
+                  {r.error}
+                </div>
+              {:else if r.result}
+                <!-- 3 metric rows -->
+                <div class="cmp-metric primary">
+                  <div class="cmp-metric-l">CO₂eq · médiane</div>
+                  <div class="cmp-metric-v">
+                    {#if r.co2}{fmtNum(r.co2.p50 * co2Scale.mult)}<span class="cmp-metric-u"
+                        >{co2Scale.unit}</span
+                      >{:else}—{/if}
+                  </div>
+                  {#if r.co2}
+                    <div class="cmp-metric-r">
+                      P5–P95 · {fmtNum(r.co2.p5 * co2Scale.mult)} → {fmtNum(
+                        r.co2.p95 * co2Scale.mult
+                      )}
+                    </div>
+                    <div class="cmp-bar">
+                      <div
+                        class="cmp-bar-fill primary"
+                        style="width: {relBarPct(r.co2.p50, 'co2')}%"
+                      ></div>
+                    </div>
+                  {/if}
+                </div>
+
+                <div class="cmp-metric">
+                  <div class="cmp-metric-l">Énergie · médiane</div>
+                  <div class="cmp-metric-v">
+                    {#if r.energy}{fmtNum(r.energy.p50 * energyScale.mult)}<span
+                        class="cmp-metric-u">{energyScale.unit}</span
+                      >{:else}—{/if}
+                  </div>
+                  {#if r.energy}
+                    <div class="cmp-metric-r">
+                      P5–P95 · {fmtNum(r.energy.p5 * energyScale.mult)} → {fmtNum(
+                        r.energy.p95 * energyScale.mult
+                      )}
+                    </div>
+                    <div class="cmp-bar">
+                      <div
+                        class="cmp-bar-fill energy"
+                        style="width: {relBarPct(r.energy.p50, 'energy')}%"
+                      ></div>
+                    </div>
+                  {/if}
+                </div>
+
+                <div class="cmp-metric">
+                  <div class="cmp-metric-l">Eau · médiane</div>
+                  <div class="cmp-metric-v">
+                    {#if r.water}{fmtNum(r.water.p50 * waterScale.mult)}<span class="cmp-metric-u"
+                        >{waterScale.unit}</span
+                      >{:else}—{/if}
+                  </div>
+                  {#if r.water}
+                    <div class="cmp-metric-r">
+                      P5–P95 · {fmtNum(r.water.p5 * waterScale.mult)} → {fmtNum(
+                        r.water.p95 * waterScale.mult
+                      )}
+                    </div>
+                    <div class="cmp-bar">
+                      <div
+                        class="cmp-bar-fill water"
+                        style="width: {relBarPct(r.water.p50, 'water')}%"
+                      ></div>
+                    </div>
+                  {/if}
+                </div>
+
+                <footer class="cmp-card-foot">
+                  <span class="badge calib" data-tone={calibTone(r.model.calibration)}>
+                    {calibLabel[r.model.calibration]}
+                  </span>
+                  <span class="spacer-flex"></span>
+                  <button
+                    type="button"
+                    class="cmp-detail-btn"
+                    onclick={() => openDetail(r.model.id)}
+                  >
+                    <FlaskConical size={12} strokeWidth={1.8} />
+                    Hypothèses
+                  </button>
+                  <a
+                    class="cmp-detail-btn"
+                    href={`/journal?focus=${r.result.audit_id}`}
+                    title="Voir l'entrée dans le ledger d'audit"
+                  >
+                    Ledger #{r.result.audit_id}
+                    <ArrowUpRight size={11} strokeWidth={2} />
+                  </a>
+                </footer>
+              {/if}
+            </article>
+          {/each}
         </div>
 
-        <p class="matrix-footnote">
+        <p class="cards-footnote">
           <Info size={12} strokeWidth={1.8} />
-          Cellule
-          <span class="legend good"></span> meilleur ·
-          <span class="legend mid"></span> milieu ·
-          <span class="legend bad"></span> moins bon — normalisation par colonne sur les modèles
-          affichés. Barre Score :
-          <span class="legend lime-bar"></span> CO₂eq ·
-          <span class="legend blue-bar"></span> énergie ·
-          <span class="legend cyan-bar"></span> eau. Largeur du segment = contribution réelle au total
-          — c'est ce qui bouge quand vous ajustez les poids.
+          Barres normalisées au pire modèle du panel (100 % = pire CO₂eq / énergie / eau). Toutes les
+          valeurs proviennent du moteur Monte-Carlo Rust, 10 000 tirages par modèle, journalisées dans
+          le ledger d'audit local.
         </p>
       </section>
     {/if}
   {/if}
 </div>
+
+<!-- ─── Drawer : hypothèses + sources du modèle ────────────────── -->
+{#if detailRow}
+  <button class="drawer-backdrop" type="button" aria-label="Fermer le détail" onclick={closeDetail}
+  ></button>
+  <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="cmp-detail-title">
+    <header class="drawer-head">
+      <div>
+        <div class="drawer-eye">Hypothèses · {detailRow.model.provider}</div>
+        <div id="cmp-detail-title" class="drawer-title">{detailRow.model.display_name}</div>
+        <div class="drawer-sub mono">
+          {detailRow.model.id} · ~{detailRow.model.approx_params_billions} B params
+        </div>
+      </div>
+      <button
+        class="icon-btn"
+        type="button"
+        bind:this={closeBtn}
+        onclick={closeDetail}
+        aria-label="Fermer"
+      >
+        <X size={16} strokeWidth={1.8} />
+      </button>
+    </header>
+
+    <div class="drawer-body scrollable">
+      {#if detailRow.result && detailRow.result.hypotheses.length > 0}
+        <div class="sec-h">Hypothèses Monte-Carlo</div>
+        <ul class="hyp-list">
+          {#each detailRow.result.hypotheses as h (h.key)}
+            <li class="hyp-item">
+              <span class="hyp-key mono">{h.key}</span>
+              <span class="hyp-val mono">{String(h.value)}</span>
+              <span class="hyp-src">{h.source}</span>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="empty">Pas d'hypothèse exportée par le moteur pour ce modèle.</p>
+      {/if}
+
+      <div class="sec-h">Sources du preset</div>
+      {#if detailRow.model.sources.length > 0}
+        <ul class="src-list">
+          {#each detailRow.model.sources as s (s)}
+            <li>
+              {#if /^https?:\/\//i.test(s)}
+                <a href={s} target="_blank" rel="noopener noreferrer" title={s}>
+                  <span class="src-text">{s.replace(/^https?:\/\//i, '').slice(0, 56)}</span>
+                  <ArrowUpRight size={11} strokeWidth={2} />
+                </a>
+              {:else}
+                <span class="src-plain">{s}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="empty">Aucune source listée pour ce preset.</p>
+      {/if}
+
+      {#if detailRow.result}
+        <div class="sec-h">Lien ledger</div>
+        <a class="drawer-ledger" href={`/journal?focus=${detailRow.result.audit_id}`}>
+          Voir l'entrée #{detailRow.result.audit_id} dans le journal d'audit
+          <ArrowUpRight size={12} strokeWidth={2} />
+        </a>
+      {/if}
+    </div>
+  </div>
+{/if}
+
+<svelte:window onkeydown={handleEsc} />
 
 <style>
   .canvas-inner {
@@ -1080,209 +1184,315 @@
     }
   }
 
-  /* Podium */
-  .podium {
-    background: linear-gradient(180deg, rgba(197, 240, 74, 0.04), rgba(255, 255, 255, 0.01));
-    border: 1px solid rgba(197, 240, 74, 0.25);
-    border-radius: var(--radius-md);
-    padding: 18px 22px;
-    margin-bottom: 16px;
+  /* ─── Verdict banner ──────────────────────────────────────── */
+  .verdict {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: center;
+    padding: 26px 30px;
+    margin-bottom: 18px;
+    background: linear-gradient(160deg, rgba(197, 240, 74, 0.08), rgba(197, 240, 74, 0.01));
+    border: 1px solid rgba(197, 240, 74, 0.3);
+    border-radius: var(--radius-lg);
     animation: rise 400ms var(--ease);
   }
-  .podium-head {
-    display: flex;
+  .verdict-eye {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .podium-head :global(svg) {
+    gap: 8px;
+    font: 500 10px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
     color: var(--lime);
   }
-  .podium-head h2 {
-    font: 400 22px/1 var(--font-display);
+  .verdict-eye :global(svg) {
+    color: var(--lime);
+  }
+  .verdict-h {
+    font: 400 32px/1.15 var(--font-display);
+    font-style: italic;
+    color: var(--ivory);
+    letter-spacing: -0.015em;
+    margin: 8px 0 6px;
+  }
+  .verdict-h em {
+    font-style: italic;
+    color: var(--lime);
+  }
+  .verdict-h i {
+    font-style: italic;
+    color: var(--lime);
+    font-weight: 500;
+  }
+  .verdict-h .loser {
+    font-style: italic;
+    color: var(--coral);
+  }
+  .verdict-why {
+    font: 400 13px/1.5 var(--font-ui);
+    color: var(--ivory-2);
+    margin: 0;
+    max-width: 640px;
+  }
+  .verdict-why b {
+    color: var(--lime);
+    font-weight: 500;
+  }
+  .verdict-delta {
+    text-align: right;
+  }
+  .verdict-delta-v {
+    display: block;
+    font: 400 52px/1 var(--font-display);
+    font-style: italic;
+    color: var(--lime);
+    letter-spacing: -0.025em;
+  }
+  .verdict-delta-u {
+    display: block;
+    margin-top: 4px;
+    font: 500 9px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ivory-3);
+  }
+
+  /* ─── Section profils détaillés ───────────────────────────── */
+  .cards-section {
+    margin-top: 14px;
+  }
+  .cards-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .cards-head h2 {
+    font: 400 24px/1 var(--font-display);
     font-style: italic;
     color: var(--ivory);
     margin: 0;
-    flex: 1;
   }
-  .podium-hint {
-    font-size: 11px;
-    color: var(--ivory-3);
+  .cards-hint {
+    font: 400 11px/1.4 var(--font-mono);
+    color: var(--ivory-4);
   }
-  .podium-list {
+
+  .cmp-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    align-items: stretch;
   }
-  .podium-row {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: rgba(0, 0, 0, 0.25);
+  /* Avec 2 modèles on force exactly 2 colonnes pour un effet head-to-head
+     vraiment lisible (sinon `auto-fit` peut basculer sur 1 colonne
+     selon la largeur). */
+  .cmp-grid[data-count='2'] {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cmp-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 22px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.005));
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-  }
-  .podium-row[data-rank='1'] {
-    border-color: rgba(197, 240, 74, 0.4);
-    background: rgba(197, 240, 74, 0.06);
-  }
-  .podium-rank {
-    font: 400 22px/1 var(--font-display);
-    font-style: italic;
-    color: var(--ivory-3);
-  }
-  .podium-row[data-rank='1'] .podium-rank {
-    color: var(--lime);
-  }
-  .podium-meta {
+    border-radius: var(--radius-lg);
+    transition: all var(--dur-base) var(--ease);
     min-width: 0;
   }
-  .podium-name {
-    font: 500 13px/1.2 var(--font-ui);
+  .cmp-card:hover {
+    border-color: var(--border-hi);
+  }
+  .cmp-card.winner {
+    border-color: rgba(197, 240, 74, 0.5);
+    box-shadow:
+      0 0 0 1px rgba(197, 240, 74, 0.1) inset,
+      0 12px 32px rgba(0, 0, 0, 0.3);
+  }
+  .cmp-card.loser {
+    border-color: rgba(240, 108, 90, 0.3);
+  }
+
+  .cmp-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cmp-card-logo {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #c5f04a, #7a9a32);
+    color: var(--ivory-inv);
+    font: 600 14px/1 var(--font-ui);
+    letter-spacing: 0.04em;
+  }
+  .cmp-card.loser .cmp-card-logo {
+    background: linear-gradient(135deg, #f08c5a, #b56340);
     color: var(--ivory);
+  }
+  .cmp-card-id {
+    flex: 1;
+    min-width: 0;
+  }
+  .cmp-card-name {
+    font: 400 18px/1.2 var(--font-display);
+    font-style: italic;
+    color: var(--ivory);
+    letter-spacing: -0.01em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .podium-prov {
-    font: 400 10px/1.4 var(--font-mono);
+  .cmp-card-meta {
+    font: 400 11px/1.4 var(--font-mono);
     color: var(--ivory-3);
+    margin-top: 2px;
   }
-  .podium-score {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 2px;
-  }
-  .podium-score-v {
-    font: 400 22px/1 var(--font-display);
-    font-style: italic;
-    color: var(--lime);
-  }
-  .podium-score-l {
-    font: 400 10px/1 var(--font-ui);
-    color: var(--ivory-3);
+  .cmp-trophy {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    background: var(--lime);
+    color: var(--ink);
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
-  /* Pondération */
-  .weights {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 16px 20px;
-    margin-bottom: 16px;
-  }
-  .weights-head {
+  .cmp-card-skel {
     display: flex;
-    align-items: baseline;
-    gap: 12px;
-    margin-bottom: 10px;
+    align-items: center;
+    gap: 8px;
+    padding: 30px 20px;
+    color: var(--ivory-3);
+    font: 400 12px/1 var(--font-mono);
+    justify-content: center;
   }
-  .weights-head h3 {
-    font: 500 11px/1 var(--font-ui);
+  .cmp-card-skel :global(svg) {
+    color: var(--lime);
+    animation: spin 1.4s linear infinite;
+  }
+  .cmp-card-err {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    background: rgba(240, 108, 90, 0.08);
+    border: 1px solid rgba(240, 108, 90, 0.25);
+    border-radius: var(--radius-md);
+    color: var(--coral);
+    font: 400 12px/1.4 var(--font-ui);
+    font-style: italic;
+  }
+
+  .cmp-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .cmp-metric-l {
+    font: 500 9px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
-    margin: 0;
-    flex: 1;
   }
-  .weights-hint {
-    font-size: 11px;
+  .cmp-metric-v {
+    font: 400 22px/1.1 var(--font-display);
+    font-style: italic;
+    color: var(--ivory);
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .cmp-metric.primary .cmp-metric-v {
+    font-size: 36px;
+    color: var(--lime);
+  }
+  .cmp-card.loser .cmp-metric.primary .cmp-metric-v {
+    color: var(--coral);
+  }
+  .cmp-metric-u {
+    font: 400 11px/1 var(--font-ui);
+    font-style: normal;
+    color: var(--ivory-3);
+  }
+  .cmp-metric-r {
+    font: 400 10px/1.3 var(--font-mono);
     color: var(--ivory-4);
   }
-  .weight-row {
-    display: grid;
-    grid-template-columns: 80px 1fr 50px;
-    align-items: center;
-    gap: 14px;
-    padding: 6px 0;
+  .cmp-bar {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
   }
-  .weight-row label {
-    font: 500 12px/1 var(--font-ui);
-    color: var(--ivory);
+  .cmp-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 350ms var(--ease);
   }
-  .weight-row input[type='range'] {
-    width: 100%;
-    accent-color: var(--lime);
+  .cmp-bar-fill.primary {
+    background: linear-gradient(90deg, #7a9a32, #c5f04a);
   }
-  .weight-val {
-    font: 500 12px/1 var(--font-mono);
-    color: var(--lime);
-    text-align: right;
+  .cmp-card.loser .cmp-bar-fill.primary {
+    background: linear-gradient(90deg, #7a3a1a, #f08c5a);
+  }
+  .cmp-bar-fill.energy {
+    background: linear-gradient(90deg, #3a6db5, #7eb6ff);
+  }
+  .cmp-bar-fill.water {
+    background: linear-gradient(90deg, #2e6a78, #5ec3d6);
   }
 
-  /* Matrice */
-  .matrix {
-    margin-top: 8px;
-  }
-  .table-wrap {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.015);
-    overflow: auto;
-  }
-  .cmp-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font: 400 13px/1 var(--font-ui);
-  }
-  .cmp-table thead th {
-    text-align: left;
-    font: 500 10px/1 var(--font-ui);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--ivory-3);
-    padding: 12px 14px;
-    background: var(--ink-2);
-    border-bottom: 1px solid var(--border);
-  }
-  .cmp-table thead th small {
-    color: var(--ivory-4);
-    text-transform: none;
-    letter-spacing: 0;
-    font-size: 10px;
-    margin-left: 4px;
-  }
-  .th-model {
-    width: 24%;
-  }
-  .th-calib {
-    width: 110px;
-  }
-  .th-ind {
-    width: auto;
-    text-align: right !important;
-  }
-  .th-score {
-    width: 160px;
-    text-align: right !important;
-  }
-  .cmp-table tbody td {
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
-  .cmp-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-  .td-model {
+  .cmp-card-foot {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    flex-wrap: wrap;
   }
-  .td-model-name {
-    font: 500 13px/1.2 var(--font-ui);
+  .spacer-flex {
+    flex: 1;
+  }
+  .cmp-detail-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 10px;
+    background: transparent;
+    color: var(--ivory-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font: 500 11px/1 var(--font-ui);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .cmp-detail-btn:hover {
+    border-color: var(--border-hi);
     color: var(--ivory);
   }
-  .td-model-prov {
-    font: 400 10px/1 var(--font-mono);
-    color: var(--ivory-3);
-  }
+
   .badge.calib {
     display: inline-flex;
-    padding: 3px 8px;
+    align-items: center;
+    height: 22px;
+    padding: 0 9px;
     border-radius: var(--radius-pill);
     border: 1px solid var(--border);
     background: var(--surface);
@@ -1306,117 +1516,200 @@
     color: var(--coral);
   }
 
-  .td-cell {
-    text-align: right;
-    font: 500 13px/1 var(--font-mono);
-    color: var(--ivory);
-    position: relative;
-  }
-  .td-cell[data-tone='good'] {
-    color: var(--lime);
-    background: linear-gradient(90deg, transparent 0%, rgba(197, 240, 74, 0.08) 100%);
-  }
-  .td-cell[data-tone='mid'] {
-    color: var(--amber);
-    background: linear-gradient(90deg, transparent 0%, rgba(245, 183, 105, 0.08) 100%);
-  }
-  .td-cell[data-tone='bad'] {
-    color: var(--coral);
-    background: linear-gradient(90deg, transparent 0%, rgba(240, 108, 90, 0.08) 100%);
-  }
-  .td-cell :global(svg) {
-    color: var(--ivory-3);
-    animation: spin 1.4s linear infinite;
-  }
-  .td-err {
-    color: var(--coral);
-    font-style: italic;
-    font-size: 12px;
-  }
-  .td-score {
-    text-align: right;
-  }
-  .score-cell {
+  .cards-footnote {
     display: flex;
-    flex-direction: column;
-    gap: 5px;
-    align-items: flex-end;
-  }
-  .score-val {
-    font: 600 14px/1 var(--font-mono);
-    color: var(--lime);
-  }
-  /* Barre segmentée : chaque segment est dimensionné par sa contribution
-     au score. Quand l'utilisateur déplace un slider de poids, les widths
-     changent instantanément — c'est le signal visuel principal de
-     l'effet des poids, même si le total bouge peu (indicateurs corrélés). */
-  .score-bar {
-    display: flex;
-    width: 100%;
-    height: 8px;
-    border-radius: 4px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-  }
-  .score-bar .seg {
-    display: block;
-    height: 100%;
-    transition:
-      flex 250ms var(--ease),
-      background 200ms var(--ease);
-  }
-  .score-bar .seg-co2 {
-    background: var(--lime);
-  }
-  .score-bar .seg-energy {
-    background: var(--blue);
-  }
-  .score-bar .seg-water {
-    background: #5ec3d6;
-  }
-  .score-bar .seg-rest {
-    background: transparent;
-  }
-
-  .matrix-footnote {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 8px;
-    margin: 12px 0 0;
-    font: 400 11px/1.6 var(--font-ui);
+    align-items: flex-start;
+    gap: 8px;
+    margin: 14px 0 0;
+    font: 400 11px/1.5 var(--font-ui);
     color: var(--ivory-3);
   }
-  .matrix-footnote :global(svg) {
+  .cards-footnote :global(svg) {
     color: var(--ivory-4);
     flex-shrink: 0;
+    margin-top: 2px;
   }
-  .legend {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    margin: 0 4px 0 8px;
-    vertical-align: middle;
+
+  /* ─── Drawer (commun) ────────────────────────────────────── */
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 13, 11, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 40;
+    border: none;
+    padding: 0;
+    cursor: default;
+    animation: fade 200ms var(--ease);
   }
-  .legend.good {
-    background: var(--lime);
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 460px;
+    max-width: 92vw;
+    background: var(--ink-3);
+    border-left: 1px solid var(--border-hi);
+    z-index: 50;
+    box-shadow: var(--shadow-modal);
+    display: flex;
+    flex-direction: column;
+    animation: slide-in 280ms var(--ease);
   }
-  .legend.mid {
-    background: var(--amber);
+  @keyframes slide-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
   }
-  .legend.bad {
-    background: var(--coral);
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
-  .legend.lime-bar {
-    background: var(--lime);
+  .drawer-head {
+    padding: 20px 24px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    border-bottom: 1px solid var(--border);
   }
-  .legend.blue-bar {
-    background: var(--blue);
+  .drawer-eye {
+    font: 500 10px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ivory-3);
+    margin-bottom: 6px;
   }
-  .legend.cyan-bar {
-    background: #5ec3d6;
+  .drawer-title {
+    font: 400 26px/1.1 var(--font-display);
+    font-style: italic;
+    color: var(--ivory);
+    margin-bottom: 4px;
+  }
+  .drawer-sub {
+    font: 400 11px/1.4 var(--font-mono);
+    color: var(--ivory-3);
+  }
+  .drawer-body {
+    padding: 20px 24px 24px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .sec-h {
+    font: 500 10px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ivory-3);
+    margin: 6px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sec-h::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Liste d'hypothèses */
+  .hyp-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hyp-item {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 4px 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .hyp-key {
+    font: 400 12px/1.2 var(--font-mono);
+    color: var(--lime);
+    grid-row: span 2;
+    align-self: center;
+  }
+  .hyp-val {
+    font: 500 12px/1.3 var(--font-mono);
+    color: var(--ivory);
+    overflow-wrap: anywhere;
+  }
+  .hyp-src {
+    font: 400 10px/1.3 var(--font-ui);
+    color: var(--ivory-3);
+    font-style: italic;
+  }
+
+  /* Liste de sources */
+  .src-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .src-list li a,
+  .src-list li .src-plain {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: 400 12px/1.3 var(--font-ui);
+    color: var(--ivory-2);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: all var(--dur-base) var(--ease);
+  }
+  .src-list li a:hover {
+    border-color: rgba(197, 240, 74, 0.3);
+    color: var(--ivory);
+  }
+  .src-text {
+    overflow-wrap: anywhere;
+  }
+
+  .drawer-ledger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--lime);
+    font: 500 12px/1 var(--font-ui);
+    text-decoration: none;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .drawer-ledger:hover {
+    background: rgba(197, 240, 74, 0.18);
+  }
+
+  .empty {
+    font: 400 13px/1.5 var(--font-ui);
+    color: var(--ivory-3);
+    font-style: italic;
+    margin: 0 0 16px;
   }
 
   @keyframes rise {
@@ -1437,9 +1730,8 @@
     .hero-h1 {
       font-size: 32px;
     }
-    .weight-row {
-      grid-template-columns: 70px 1fr 44px;
-      gap: 10px;
+    .drawer {
+      width: 100%;
     }
   }
 </style>
