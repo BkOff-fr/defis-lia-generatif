@@ -118,6 +118,58 @@ export interface AuditEntrySummaryDto {
   purged: boolean;
 }
 
+// ─── Simulation (C11 — M13 « Et si...? ») ────────────────────────────────
+//
+// Mirror 1-pour-1 de `crates/sobria-app/src/dto.rs` (bloc "simulation").
+
+export interface ParamOverridesDto {
+  model_id?: string;
+  tokens_out?: number;
+  pue?: number;
+  if_electrical_g_per_kwh?: number;
+  embodied_g_per_request?: number;
+  wue_l_per_kwh?: number;
+}
+
+export interface ScenarioDto {
+  label: string;
+  overrides: ParamOverridesDto;
+}
+
+export interface ForecastConfigDto {
+  months: number;
+  monthly_growth_pct: number;
+  base_volume_per_day: number;
+}
+
+export interface SimulationRequestDto {
+  baseline: EstimationRequestDto;
+  scenarios: ScenarioDto[];
+  forecast?: ForecastConfigDto;
+}
+
+export interface ScenarioOutcomeDto {
+  label: string;
+  result: EstimationResultDto;
+  delta_co2eq_g: number;
+  delta_pct: number;
+}
+
+export interface ForecastResultDto {
+  months: number;
+  base_volume_per_day: number;
+  monthly_growth_pct: number;
+  baseline_monthly_co2eq_g: number[];
+  baseline_annual_co2eq_g: number;
+  scenarios_annual_co2eq_g: number[];
+}
+
+export interface SimulationResultDto {
+  baseline: EstimationResultDto;
+  scenarios: ScenarioOutcomeDto[];
+  forecast?: ForecastResultDto;
+}
+
 // ─── Erreurs typées ──────────────────────────────────────────────────────
 
 // Codes alignés sur `crates/sobria-app/src/error.rs::AppError -> IpcError`.
@@ -225,6 +277,10 @@ export function listAuditEntries(limit: number, offset: number): Promise<AuditEn
 
 export function exportAuditNdjson(path: string): Promise<number> {
   return call<number>('export_audit_ndjson', { path });
+}
+
+export function simulateScenarios(req: SimulationRequestDto): Promise<SimulationResultDto> {
+  return call<SimulationResultDto>('simulate_scenarios', { req });
 }
 
 // ─── Préférences utilisateur (C10 — ADR-0010) ────────────────────────────

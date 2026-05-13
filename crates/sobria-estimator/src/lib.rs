@@ -42,6 +42,7 @@ pub mod model_presets;
 pub mod params;
 pub mod scenarios;
 pub mod validation;
+pub mod yearly_forecast;
 
 pub use distributions::Distribution;
 pub use engine::{bin_samples, MonteCarloEngine, DEFAULT_BIN_COUNT, DEFAULT_N, MIN_SAMPLES_FOR_BINS};
@@ -53,6 +54,10 @@ pub use params::EstimationParams;
 pub use scenarios::{
     simulate, ForecastConfig, ForecastResult, ParamOverrides, Scenario, ScenarioOutcome,
     SimulationRequest, SimulationResult, MAX_FORECAST_MONTHS, MAX_SCENARIOS,
+};
+pub use yearly_forecast::{
+    forecast_yearly, YearlyForecastRequest, YearlyForecastResult, YearlyScenario,
+    YearlyScenarioOutcome, MAX_FORECAST_HORIZON_MONTHS, MAX_FORECAST_SCENARIOS,
 };
 pub use validation::{
     run_all_plausibility, run_all_reproduction, run_plausibility, run_reproduction, Expectation,

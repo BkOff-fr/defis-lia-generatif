@@ -27,14 +27,35 @@
 
   // Pathname réactif, autonome (évite `$app/stores` qui ne résout pas dans
   // le tsconfig SvelteKit généré — voir .svelte-kit/tsconfig.json).
+  // `popstate` ne se déclenche que sur Back/Forward du navigateur ; la
+  // navigation client-side de SvelteKit passe par `history.pushState`, qui
+  // ne déclenche aucun évènement natif. On instrumente donc `pushState` et
+  // `replaceState` (pattern standard des SDK d'analytics SPA) pour capter
+  // toute mutation d'URL.
   let pathname = $state(typeof window !== 'undefined' ? window.location.pathname : '/');
   $effect(() => {
     if (typeof window === 'undefined') return;
     const update = () => {
       pathname = window.location.pathname;
     };
+    const origPush = history.pushState;
+    const origReplace = history.replaceState;
+    history.pushState = function (...args) {
+      const r = origPush.apply(this, args);
+      update();
+      return r;
+    };
+    history.replaceState = function (...args) {
+      const r = origReplace.apply(this, args);
+      update();
+      return r;
+    };
     window.addEventListener('popstate', update);
-    return () => window.removeEventListener('popstate', update);
+    return () => {
+      window.removeEventListener('popstate', update);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+    };
   });
 
   // ─── Garde d'onboarding (C10 — ADR-0010) ───────────────────────────────

@@ -15,7 +15,8 @@ use sobria_core::{
 };
 use sobria_estimator::{
     CalibrationStatus, ForecastConfig, ForecastResult, ModelPreset, Openness, ParamOverrides,
-    Scenario, ScenarioOutcome, SimulationRequest, SimulationResult,
+    Scenario, ScenarioOutcome, SimulationRequest, SimulationResult, YearlyForecastRequest,
+    YearlyForecastResult, YearlyScenario, YearlyScenarioOutcome,
 };
 use sobria_geoloc::{
     CountryAggregate, DatacenterRecord, IndustrialSite, IndustrialSiteSummary, RegionFrAggregate,
@@ -437,6 +438,103 @@ impl From<&SankeyData> for SankeyDataDto {
             year: s.year,
             source_url: s.source_url.clone(),
             source_sha256: s.source_sha256.clone(),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// yearly forecast (C15 — M16 Forecaster 12 mois)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Payload du forecast envoyé par le frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YearlyForecastRequestDto {
+    pub baseline: EstimationRequestDto,
+    pub scenarios: Vec<YearlyScenarioDto>,
+    pub months: u32,
+    pub base_volume_per_day: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YearlyScenarioDto {
+    pub label: String,
+    pub monthly_growth_pct: f64,
+}
+
+impl From<YearlyScenarioDto> for YearlyScenario {
+    fn from(d: YearlyScenarioDto) -> Self {
+        Self {
+            label: d.label,
+            monthly_growth_pct: d.monthly_growth_pct,
+        }
+    }
+}
+
+impl YearlyForecastRequestDto {
+    /// Convertit en types internes (ajoute le timestamp baseline).
+    #[must_use]
+    pub fn into_core(self, baseline_timestamp: DateTime<Utc>) -> YearlyForecastRequest {
+        YearlyForecastRequest {
+            baseline: self.baseline.into_core(baseline_timestamp),
+            scenarios: self.scenarios.into_iter().map(Into::into).collect(),
+            months: self.months,
+            base_volume_per_day: self.base_volume_per_day,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct YearlyScenarioOutcomeDto {
+    pub label: String,
+    pub monthly_growth_pct: f64,
+    pub monthly_p5_g: Vec<f64>,
+    pub monthly_p50_g: Vec<f64>,
+    pub monthly_p95_g: Vec<f64>,
+    pub cumulative_p5_g: Vec<f64>,
+    pub cumulative_p50_g: Vec<f64>,
+    pub cumulative_p95_g: Vec<f64>,
+    pub annual_p5_g: f64,
+    pub annual_p50_g: f64,
+    pub annual_p95_g: f64,
+}
+
+impl From<&YearlyScenarioOutcome> for YearlyScenarioOutcomeDto {
+    fn from(o: &YearlyScenarioOutcome) -> Self {
+        Self {
+            label: o.label.clone(),
+            monthly_growth_pct: o.monthly_growth_pct,
+            monthly_p5_g: o.monthly_p5_g.clone(),
+            monthly_p50_g: o.monthly_p50_g.clone(),
+            monthly_p95_g: o.monthly_p95_g.clone(),
+            cumulative_p5_g: o.cumulative_p5_g.clone(),
+            cumulative_p50_g: o.cumulative_p50_g.clone(),
+            cumulative_p95_g: o.cumulative_p95_g.clone(),
+            annual_p5_g: o.annual_p5_g,
+            annual_p50_g: o.annual_p50_g,
+            annual_p95_g: o.annual_p95_g,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct YearlyForecastResultDto {
+    pub baseline_co2eq_p5_g: f64,
+    pub baseline_co2eq_p50_g: f64,
+    pub baseline_co2eq_p95_g: f64,
+    /// `audit_id` de l'entrée journalisée pour la baseline (0 si non journalisé).
+    pub baseline_audit_id: i64,
+    pub scenarios: Vec<YearlyScenarioOutcomeDto>,
+}
+
+impl YearlyForecastResultDto {
+    #[must_use]
+    pub fn from_result(r: &YearlyForecastResult, baseline_audit_id: i64) -> Self {
+        Self {
+            baseline_co2eq_p5_g: r.baseline_co2eq_p5_g,
+            baseline_co2eq_p50_g: r.baseline_co2eq_p50_g,
+            baseline_co2eq_p95_g: r.baseline_co2eq_p95_g,
+            baseline_audit_id,
+            scenarios: r.scenarios.iter().map(Into::into).collect(),
         }
     }
 }

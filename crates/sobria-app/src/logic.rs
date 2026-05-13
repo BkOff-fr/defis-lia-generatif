@@ -24,7 +24,7 @@ use crate::{
         CsrdReportResultDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
         EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
         ModelPresetDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
-        SimulationResultDto,
+        SimulationResultDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     preferences_store::StoredPreferences,
@@ -464,6 +464,55 @@ fn pick_p50(result: &sobria_core::EstimationResult, ind: Indicator) -> f64 {
         .iter()
         .find(|i| i.indicator == ind)
         .map_or(0.0, |i| i.interval.p50)
+}
+
+/// Lance un forecast 12 mois (M16 / C15) avec bande d'incertitude
+/// P5/P50/P95 et superposition de scénarios de croissance.
+///
+/// Étapes :
+/// 1. Validation modèle baseline.
+/// 2. `sobria_estimator::forecast_yearly()` (1 Monte-Carlo + projections déterministes).
+/// 3. Journalisation du baseline dans le ledger (1 entrée).
+/// 4. Conversion DTO.
+pub fn forecast_yearly_budget(
+    req: YearlyForecastRequestDto,
+    state: &AppState,
+) -> IpcResult<YearlyForecastResultDto> {
+    if find_preset(&req.baseline.model_id).is_none() {
+        return Err(IpcError::from(AppError::UnknownModel(
+            req.baseline.model_id.clone(),
+        )));
+    }
+    let core_req = req.into_core(Utc::now());
+    let result = sobria_estimator::forecast_yearly(&state.estimator, &core_req)
+        .map_err(AppError::from)?;
+
+    // Journalisation baseline : on relance l'estimateur baseline pour
+    // récupérer un EstimationResult complet (avec bins) à journaliser.
+    // Aurait pu être renvoyé par forecast_yearly() mais on garde l'API
+    // simple ; le coût est faible (1 Monte-Carlo de plus).
+    let params = sobria_estimator::EstimationParams::for_model(&core_req.baseline.model_id)
+        .map_err(AppError::from)?;
+    let baseline_full = state
+        .estimator
+        .estimate(&core_req.baseline, &params)
+        .map_err(AppError::from)?;
+    let mut ledger = state
+        .ledger
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
+    let entry = ledger.append(&baseline_full).map_err(AppError::from)?;
+    let audit_id = entry.id;
+    drop(ledger);
+
+    info!(
+        baseline_model = %core_req.baseline.model_id,
+        scenarios = result.scenarios.len(),
+        months = core_req.months,
+        audit_id,
+        "forecast_yearly_budget: ok"
+    );
+    Ok(YearlyForecastResultDto::from_result(&result, audit_id))
 }
 
 /// Lance une simulation « Et si...? » (M13 / C11).
@@ -1189,6 +1238,82 @@ mod tests {
         assert_eq!(sankey.year, 2023);
         assert!(!sankey.source_url.is_empty());
         assert!(!sankey.source_sha256.is_empty());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // yearly forecast — C15 / M16
+    // ─────────────────────────────────────────────────────────────────────
+
+    use crate::dto::{YearlyForecastRequestDto, YearlyScenarioDto};
+
+    fn yearly_request(growth_pcts: &[f64]) -> YearlyForecastRequestDto {
+        YearlyForecastRequestDto {
+            baseline: EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: None,
+            },
+            scenarios: growth_pcts
+                .iter()
+                .enumerate()
+                .map(|(i, g)| YearlyScenarioDto {
+                    label: format!("scenario_{i}"),
+                    monthly_growth_pct: *g,
+                })
+                .collect(),
+            months: 12,
+            base_volume_per_day: 100.0,
+        }
+    }
+
+    #[test]
+    fn forecast_unknown_model_returns_unknown_model() {
+        let (_tmp, state) = fresh_state();
+        let mut req = yearly_request(&[0.0]);
+        req.baseline.model_id = "ce-modele-existe-pas".into();
+        let err = forecast_yearly_budget(req, &state).unwrap_err();
+        assert_eq!(err.code, "unknown_model");
+    }
+
+    #[test]
+    fn forecast_happy_path_journalises_baseline() {
+        let (_tmp, state) = fresh_state();
+        let req = yearly_request(&[0.0, 5.0, -3.0]);
+        let res = forecast_yearly_budget(req, &state).unwrap();
+        assert!(res.baseline_audit_id >= 1);
+        assert_eq!(res.scenarios.len(), 3);
+        // Quantiles baseline cohérents.
+        assert!(res.baseline_co2eq_p5_g <= res.baseline_co2eq_p50_g);
+        assert!(res.baseline_co2eq_p50_g <= res.baseline_co2eq_p95_g);
+    }
+
+    #[test]
+    fn forecast_returns_12_monthly_values_per_scenario() {
+        let (_tmp, state) = fresh_state();
+        let res = forecast_yearly_budget(yearly_request(&[5.0]), &state).unwrap();
+        let o = &res.scenarios[0];
+        assert_eq!(o.monthly_p5_g.len(), 12);
+        assert_eq!(o.monthly_p50_g.len(), 12);
+        assert_eq!(o.monthly_p95_g.len(), 12);
+        assert_eq!(o.cumulative_p50_g.len(), 12);
+    }
+
+    #[test]
+    fn forecast_too_many_scenarios_returns_estimator_error() {
+        let (_tmp, state) = fresh_state();
+        let growths: Vec<f64> = (0..11).map(|i| i as f64).collect();
+        let req = yearly_request(&growths);
+        let err = forecast_yearly_budget(req, &state).unwrap_err();
+        assert_eq!(err.code, "estimator_error");
+    }
+
+    #[test]
+    fn forecast_invalid_growth_returns_estimator_error() {
+        let (_tmp, state) = fresh_state();
+        let req = yearly_request(&[200.0]);
+        let err = forecast_yearly_budget(req, &state).unwrap_err();
+        assert_eq!(err.code, "estimator_error");
     }
 
     // ─────────────────────────────────────────────────────────────────────

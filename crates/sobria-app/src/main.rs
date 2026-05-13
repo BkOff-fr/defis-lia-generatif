@@ -17,7 +17,7 @@ use sobria_app::{
         CsrdReportResultDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
         EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
         ModelPresetDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
-        SimulationResultDto,
+        SimulationResultDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -87,6 +87,14 @@ fn simulate_scenarios(
     state: tauri::State<'_, AppState>,
 ) -> IpcResult<SimulationResultDto> {
     logic::simulate_scenarios(req, state.inner())
+}
+
+#[tauri::command]
+fn forecast_yearly_budget(
+    req: YearlyForecastRequestDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<YearlyForecastResultDto> {
+    logic::forecast_yearly_budget(req, state.inner())
 }
 
 #[tauri::command]
@@ -178,6 +186,7 @@ fn main() {
             get_app_preferences,
             set_app_preferences,
             simulate_scenarios,
+            forecast_yearly_budget,
             list_datacenters,
             get_datacenter_detail,
             aggregate_datacenters_by_country,
