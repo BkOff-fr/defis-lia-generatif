@@ -13,10 +13,11 @@
 
 use sobria_app::{
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, DatacenterDetailDto,
-        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto,
-        IntegrityReportDto, MetaInfo, ModelPresetDto, RegionFrAggregateDto, SankeyDataDto,
-        SimulationRequestDto, SimulationResultDto,
+        AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, CsrdReportRequestDto,
+        CsrdReportResultDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
+        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
+        ModelPresetDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
+        SimulationResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -135,6 +136,15 @@ fn sankey_fr_data(state: tauri::State<'_, AppState>) -> IpcResult<SankeyDataDto>
     logic::sankey_fr_data(state.inner())
 }
 
+#[tauri::command]
+fn export_csrd_report(
+    req: CsrdReportRequestDto,
+    output_dir: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<CsrdReportResultDto> {
+    logic::export_csrd_report(req, std::path::Path::new(&output_dir), state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,6 +185,7 @@ fn main() {
             get_industrial_site_fr,
             aggregate_industrial_sites_by_region,
             sankey_fr_data,
+            export_csrd_report,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");

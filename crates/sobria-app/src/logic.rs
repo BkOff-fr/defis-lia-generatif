@@ -20,10 +20,11 @@ use tracing::{debug, info};
 
 use crate::{
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, DatacenterDetailDto,
-        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto,
-        IntegrityReportDto, MetaInfo, ModelPresetDto, RegionFrAggregateDto, SankeyDataDto,
-        SimulationRequestDto, SimulationResultDto,
+        AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, CsrdReportRequestDto,
+        CsrdReportResultDto, DatacenterDetailDto, DatacenterSummaryDto, EstimationRequestDto,
+        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
+        ModelPresetDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
+        SimulationResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     preferences_store::StoredPreferences,
@@ -290,6 +291,124 @@ pub fn sankey_fr_data(state: &AppState) -> IpcResult<SankeyDataDto> {
     let mix = load_rte_mix(&rte_mix_path(state)).map_err(sankey_or_data_not_ingested)?;
     let sankey = generate_sankey_fr(&mix);
     Ok((&sankey).into())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// rapport CSRD/AGEC (C14 — M22)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Génère un rapport CSRD/AGEC pour la période demandée et écrit les
+/// fichiers `report.pdf` + `provo.jsonld` dans `output_dir`.
+///
+/// La période est inclusive sur `period_start` et exclusive sur `period_end`.
+pub fn export_csrd_report(
+    req: CsrdReportRequestDto,
+    output_dir: &std::path::Path,
+    state: &AppState,
+) -> IpcResult<CsrdReportResultDto> {
+    // 1. Parse les dates ISO 8601.
+    let period_start = chrono::DateTime::parse_from_rfc3339(&req.period_start)
+        .map_err(|e| {
+            IpcError::from(AppError::InvalidRequest(format!(
+                "period_start invalide (attendu RFC 3339) : {e}"
+            )))
+        })?
+        .with_timezone(&Utc);
+    let period_end = chrono::DateTime::parse_from_rfc3339(&req.period_end)
+        .map_err(|e| {
+            IpcError::from(AppError::InvalidRequest(format!(
+                "period_end invalide (attendu RFC 3339) : {e}"
+            )))
+        })?
+        .with_timezone(&Utc);
+    if period_end <= period_start {
+        return Err(IpcError::from(AppError::InvalidRequest(
+            "period_end doit être strictement après period_start".into(),
+        )));
+    }
+    if req.organization_name.trim().is_empty() {
+        return Err(IpcError::from(AppError::InvalidRequest(
+            "organization_name ne doit pas être vide".into(),
+        )));
+    }
+    if !matches!(req.locale.as_str(), "fr" | "en") {
+        return Err(IpcError::from(AppError::InvalidRequest(format!(
+            "locale '{}' non supportée (fr|en)",
+            req.locale
+        ))));
+    }
+
+    // 2. Lit toutes les entrées de l'audit ledger.
+    let entries = read_all_audit_entries(state)?;
+
+    // 3. Génère le rapport.
+    let export_req = sobria_export::ReportRequest {
+        period_start,
+        period_end,
+        organization_name: req.organization_name.clone(),
+        locale: req.locale.clone(),
+        app_version: APP_VERSION.into(),
+        estimator_seed: state.estimator.seed(),
+        estimator_n: state.estimator.n(),
+    };
+    let artifacts = sobria_export::generate_report(&export_req, &entries)
+        .map_err(|e| match e {
+            sobria_export::ExportError::EmptyPeriod => IpcError::new(
+                "empty_period",
+                "aucune entrée d'audit dans la période demandée",
+            ),
+            other => IpcError::new("export_error", other.to_string()),
+        })?;
+
+    // 4. Écrit les artefacts sur disque.
+    std::fs::create_dir_all(output_dir).map_err(AppError::from)?;
+    let pdf_path = output_dir.join("report.pdf");
+    let provo_path = output_dir.join("provo.jsonld");
+    std::fs::write(&pdf_path, &artifacts.pdf_bytes).map_err(AppError::from)?;
+    let provo_text = serde_json::to_string_pretty(&artifacts.provo_jsonld)
+        .map_err(AppError::from)?;
+    std::fs::write(&provo_path, provo_text).map_err(AppError::from)?;
+
+    info!(
+        pdf = %pdf_path.display(),
+        provo = %provo_path.display(),
+        sha256 = %artifacts.pdf_sha256,
+        "rapport CSRD généré"
+    );
+
+    Ok(CsrdReportResultDto {
+        pdf_path: pdf_path.display().to_string(),
+        provo_path: provo_path.display().to_string(),
+        pdf_sha256: artifacts.pdf_sha256,
+        audit_entries_count: artifacts.audit_entries_count,
+        total_requests: artifacts.summary.total_requests,
+        total_co2eq_g_p50: artifacts.summary.total_co2eq_g_p50,
+        total_energy_wh_p50: artifacts.summary.total_energy_wh_p50,
+        total_water_l_p50: artifacts.summary.total_water_l_p50,
+    })
+}
+
+/// Lit toutes les entrées du ledger en mémoire (export ndjson + parse).
+/// OK au volume v1.0 (<10⁵ entrées).
+fn read_all_audit_entries(state: &AppState) -> IpcResult<Vec<sobria_audit::AuditEntry>> {
+    let ledger = state
+        .ledger
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
+    let mut buf: Vec<u8> = Vec::new();
+    ledger.export_ndjson(&mut buf).map_err(AppError::from)?;
+    drop(ledger);
+    let text = String::from_utf8(buf).map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut out: Vec<sobria_audit::AuditEntry> = Vec::new();
+    for line in text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let entry: sobria_audit::AuditEntry =
+            serde_json::from_str(line).map_err(AppError::from)?;
+        out.push(entry);
+    }
+    Ok(out)
 }
 
 /// Calcule un baseline (CO₂eq, énergie, eau) pour un DC donné avec un prompt
@@ -1070,6 +1189,134 @@ mod tests {
         assert_eq!(sankey.year, 2023);
         assert!(!sankey.source_url.is_empty());
         assert!(!sankey.source_sha256.is_empty());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // CSRD report — C14 / M22
+    // ─────────────────────────────────────────────────────────────────────
+
+    use crate::dto::CsrdReportRequestDto;
+
+    #[test]
+    fn csrd_report_empty_period_returns_error() {
+        let (_tmp, state) = fresh_state();
+        let req = CsrdReportRequestDto {
+            period_start: "2026-01-01T00:00:00Z".into(),
+            period_end: "2026-04-01T00:00:00Z".into(),
+            organization_name: "Acme".into(),
+            locale: "fr".into(),
+        };
+        let out_dir = _tmp.path().join("report-out");
+        let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
+        assert_eq!(err.code, "empty_period");
+    }
+
+    #[test]
+    fn csrd_report_invalid_dates_return_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let req = CsrdReportRequestDto {
+            period_start: "not-a-date".into(),
+            period_end: "2026-04-01T00:00:00Z".into(),
+            organization_name: "Acme".into(),
+            locale: "fr".into(),
+        };
+        let out_dir = _tmp.path().join("report-out");
+        let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn csrd_report_period_inverted_returns_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let req = CsrdReportRequestDto {
+            period_start: "2026-04-01T00:00:00Z".into(),
+            period_end: "2026-01-01T00:00:00Z".into(),
+            organization_name: "Acme".into(),
+            locale: "fr".into(),
+        };
+        let out_dir = _tmp.path().join("report-out");
+        let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn csrd_report_empty_org_name_rejected() {
+        let (_tmp, state) = fresh_state();
+        let req = CsrdReportRequestDto {
+            period_start: "2026-01-01T00:00:00Z".into(),
+            period_end: "2026-04-01T00:00:00Z".into(),
+            organization_name: "   ".into(),
+            locale: "fr".into(),
+        };
+        let out_dir = _tmp.path().join("report-out");
+        let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn csrd_report_unknown_locale_rejected() {
+        let (_tmp, state) = fresh_state();
+        let req = CsrdReportRequestDto {
+            period_start: "2026-01-01T00:00:00Z".into(),
+            period_end: "2026-04-01T00:00:00Z".into(),
+            organization_name: "Acme".into(),
+            locale: "es".into(),
+        };
+        let out_dir = _tmp.path().join("report-out");
+        let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn csrd_report_happy_path_writes_pdf_and_provo() {
+        let (_tmp, state) = fresh_state();
+        // 1. Crée des entrées d'audit en passant par estimate_prompt
+        let est_req = EstimationRequestDto {
+            model_id: "gpt-4o-mini".into(),
+            tokens_in: 100,
+            tokens_out_estimated: 500,
+            datacenter_id: None,
+        };
+        for _ in 0..3 {
+            estimate_prompt(est_req.clone(), &state).unwrap();
+        }
+        // 2. Génère le rapport pour une période très large couvrant maintenant
+        let now = Utc::now();
+        let start = now - chrono::Duration::days(1);
+        let end = now + chrono::Duration::days(1);
+        let req = CsrdReportRequestDto {
+            period_start: start.to_rfc3339(),
+            period_end: end.to_rfc3339(),
+            organization_name: "Acme Corp".into(),
+            locale: "fr".into(),
+        };
+        let out_dir = _tmp.path().join("report-out");
+        let result = export_csrd_report(req, &out_dir, &state).unwrap();
+
+        // 3. Validation
+        assert_eq!(result.audit_entries_count, 3);
+        assert_eq!(result.total_requests, 3);
+        assert!(result.total_co2eq_g_p50 > 0.0);
+        assert_eq!(result.pdf_sha256.len(), 64);
+        let pdf_path = std::path::Path::new(&result.pdf_path);
+        let provo_path = std::path::Path::new(&result.provo_path);
+        assert!(pdf_path.exists());
+        assert!(provo_path.exists());
+        // PDF magic bytes
+        let pdf_bytes = std::fs::read(pdf_path).unwrap();
+        assert!(pdf_bytes.starts_with(b"%PDF-"));
+        // PROV-O JSON-LD valide + lien vers le sha256
+        let provo_text = std::fs::read_to_string(provo_path).unwrap();
+        let provo: serde_json::Value = serde_json::from_str(&provo_text).unwrap();
+        assert!(provo["@context"]["prov"].is_string());
+        let graph = provo["@graph"].as_array().unwrap();
+        assert!(!graph.is_empty());
+        let report_node = &graph[0];
+        assert_eq!(
+            report_node["schema:contentSha256"].as_str().unwrap(),
+            result.pdf_sha256
+        );
+        assert_eq!(report_node["sobria:organizationName"], "Acme Corp");
     }
 
     #[test]

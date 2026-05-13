@@ -104,6 +104,9 @@ csv = "1.3"
 # Filesystem locations (Tauri app — XDG / AppData / Application Support)
 dirs = "5.0"
 
+# PDF generation (M22 Rapport CSRD/AGEC — C14)
+printpdf = "0.7"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Profils de compilation (frugalité par défaut — voir CDC §8)
 # ─────────────────────────────────────────────────────────────────────────────

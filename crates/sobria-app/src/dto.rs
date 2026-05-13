@@ -442,6 +442,34 @@ impl From<&SankeyData> for SankeyDataDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CSRD report (C14 — M22)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Requête de génération de rapport CSRD/AGEC envoyée par le frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CsrdReportRequestDto {
+    /// ISO 8601 (`2026-01-01T00:00:00Z`).
+    pub period_start: String,
+    pub period_end: String,
+    pub organization_name: String,
+    /// Locale UI — v1.0 : `"fr"`.
+    pub locale: String,
+}
+
+/// Réponse renvoyée après génération.
+#[derive(Debug, Clone, Serialize)]
+pub struct CsrdReportResultDto {
+    pub pdf_path: String,
+    pub provo_path: String,
+    pub pdf_sha256: String,
+    pub audit_entries_count: usize,
+    pub total_requests: u32,
+    pub total_co2eq_g_p50: f64,
+    pub total_energy_wh_p50: f64,
+    pub total_water_l_p50: f64,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // simulation (C11 — M13 Simulateur « Et si...? »)
 // ─────────────────────────────────────────────────────────────────────────────
 

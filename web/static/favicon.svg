@@ -1,25 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-label="Sobr.ia">
-  <defs>
-    <linearGradient id="fav-leaf" x1="20" y1="15" x2="85" y2="90" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#e0ff80"/>
-      <stop offset="60%" stop-color="#c5f04a"/>
-      <stop offset="100%" stop-color="#7a9a32"/>
-    </linearGradient>
-    <radialGradient id="fav-node" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="30%" stop-color="#e0ff80"/>
-      <stop offset="100%" stop-color="#c5f04a"/>
-    </radialGradient>
-  </defs>
-  <!-- Fond ink avec coin doux (utile pour la PWA / favicons rasterisées) -->
-  <rect width="100" height="100" rx="22" fill="#0a0d0b"/>
-  <!-- Mark simplifié pour rester lisible à 16-32 px (cf. design system, taille favicon) -->
-  <g transform="translate(8 8) scale(0.84)">
-    <path d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84"
-          stroke="url(#fav-leaf)" stroke-width="7" stroke-linecap="round" fill="none"/>
-    <path d="M 22 80 Q 38 64, 48 50 T 80 28"
-          stroke="#c5f04a" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="6 4" fill="none" opacity=".6"/>
-    <circle cx="50" cy="52" r="7" fill="url(#fav-node)"/>
-    <circle cx="74" cy="32" r="4.5" fill="url(#fav-node)" opacity=".9"/>
-  </g>
+  <!--
+    Favicon Sobr.ia — variante simplifiée du logo mark
+    (cf. design system, preview/37-logo.html § ⑥ « En situation »).
+    Stroke 9 + nœud central solide lime : reste lisible à 16 px.
+    Fond transparent → s'affiche correctement sur les chromes sombres
+    (ink #1a1d18) et lime sur les chromes clairs (le contraste se fait
+    sur le tracé épais).
+  -->
+  <path d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84"
+        stroke="#c5f04a" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <circle cx="50" cy="52" r="9" fill="#c5f04a"/>
 </svg>
