@@ -257,7 +257,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Datacenters Europe',
     description: 'Carte interactive des sites avec drill-down énergie.',
     category: 'visualisation',
-    href: null
+    href: '/datacenters'
   },
   m13: {
     id: 'm13',

@@ -223,6 +223,49 @@ export interface SankeyLinkDto {
   value_twh: number;
 }
 
+// ─── Datacenters Europe (C12 — M12) ──────────────────────────────────────
+
+export interface DatacenterSummaryDto {
+  id: string;
+  name: string;
+  operator: string;
+  country_iso: string;
+  city: string;
+  lat: number;
+  lon: number;
+  pue: number;
+  if_electrical_g_per_kwh: number;
+}
+
+export interface DatacenterDetailDto {
+  id: string;
+  name: string;
+  operator: string;
+  country_iso: string;
+  city: string;
+  lat: number;
+  lon: number;
+  pue: number;
+  if_electrical_g_per_kwh: number;
+  wue_l_per_kwh?: number;
+  capacity_mw?: number;
+  sources: string[];
+  hourly_profile_24h: number[];
+  baseline_co2eq_p50_g: number;
+  baseline_energy_wh_p50: number;
+  baseline_water_l_p50: number;
+}
+
+export interface CountryAggregateDto {
+  country_iso: string;
+  datacenter_count: number;
+  avg_pue: number;
+  if_electrical_g_per_kwh: number;
+  total_capacity_mw?: number;
+  centroid_lat: number;
+  centroid_lon: number;
+}
+
 export interface SankeyDataDto {
   nodes: SankeyNodeDto[];
   links: SankeyLinkDto[];
@@ -367,6 +410,20 @@ export function aggregateIndustrialSitesByRegion(): Promise<RegionFrAggregateDto
 
 export function sankeyFrData(): Promise<SankeyDataDto> {
   return call<SankeyDataDto>('sankey_fr_data');
+}
+
+// ─── Datacenters Europe (C12 — M12) ──────────────────────────────────────
+
+export function listDatacenters(): Promise<DatacenterSummaryDto[]> {
+  return call<DatacenterSummaryDto[]>('list_datacenters');
+}
+
+export function getDatacenterDetail(id: string): Promise<DatacenterDetailDto> {
+  return call<DatacenterDetailDto>('get_datacenter_detail', { id });
+}
+
+export function aggregateDatacentersByCountry(): Promise<CountryAggregateDto[]> {
+  return call<CountryAggregateDto[]>('aggregate_datacenters_by_country');
 }
 
 // ─── Préférences utilisateur (C10 — ADR-0010) ────────────────────────────
