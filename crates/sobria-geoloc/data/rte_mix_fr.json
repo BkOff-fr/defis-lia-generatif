@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0.0",
-    "fetched_at": "2026-05-13T13:00:05.329030+00:00",
+    "fetched_at": "2026-05-13T13:07:54.879082200+00:00",
     "source_url": "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-national-cons-def/exports/json?lang=fr&timezone=UTC&where=date_heure%3E%3Ddate%272023-01-01%27%20AND%20date_heure%3Cdate%272024-01-01%27&select=nucleaire%2Chydraulique%2Ceolien%2Csolaire%2Cgaz%2Ccharbon%2Cfioul%2Cbioenergies%2Cpompage%2Cech_physiques",
     "source_sha256": "a2250fe722dd39b0399bb2c66e638a178ebe324901d42fc9bb79ceb4bd0b0637",
     "license": "Etalab 2.0",

@@ -17,7 +17,10 @@ use sobria_estimator::{
     CalibrationStatus, ForecastConfig, ForecastResult, ModelPreset, Openness, ParamOverrides,
     Scenario, ScenarioOutcome, SimulationRequest, SimulationResult,
 };
-use sobria_geoloc::{CountryAggregate, DatacenterRecord};
+use sobria_geoloc::{
+    CountryAggregate, DatacenterRecord, IndustrialSite, IndustrialSiteSummary, RegionFrAggregate,
+    SankeyData, SankeyLink, SankeyNode,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // meta_info
@@ -282,6 +285,158 @@ impl AuditEntrySummaryDto {
             co2eq_p50,
             sig_short,
             purged: e.is_purged(),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// territoire_fr (C13 — M20 Territoire FR)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Résumé d'un site industriel pour la carte M20.
+#[derive(Debug, Clone, Serialize)]
+pub struct IndustrialSiteSummaryDto {
+    pub code_iris: String,
+    pub commune: String,
+    pub department_code: String,
+    pub region_iso: String,
+    pub lat: f64,
+    pub lon: f64,
+    pub consumption_mwh_elec: f64,
+    pub consumption_mwh_gas: f64,
+    pub consumption_total_mwh: f64,
+    pub pdl_total: u32,
+    pub year: u32,
+}
+
+impl From<&IndustrialSite> for IndustrialSiteSummaryDto {
+    fn from(s: &IndustrialSite) -> Self {
+        Self {
+            code_iris: s.code_iris.clone(),
+            commune: s.commune.clone(),
+            department_code: s.department_code.clone(),
+            region_iso: s.region_iso.clone(),
+            lat: s.lat,
+            lon: s.lon,
+            consumption_mwh_elec: s.consumption_mwh_elec,
+            consumption_mwh_gas: s.consumption_mwh_gas_grtgaz + s.consumption_mwh_gas_terega,
+            consumption_total_mwh: s.consumption_total_mwh,
+            pdl_total: s.pdl_total,
+            year: s.year,
+        }
+    }
+}
+
+/// Agrégat régional FR pour le drill-down.
+#[derive(Debug, Clone, Serialize)]
+pub struct RegionFrAggregateDto {
+    pub region_iso: String,
+    pub region_name: String,
+    pub insee_code: String,
+    pub site_count: usize,
+    pub total_consumption_mwh_elec: f64,
+    pub total_consumption_mwh_gas: f64,
+    pub total_consumption_mwh: f64,
+    pub centroid_lat: f64,
+    pub centroid_lon: f64,
+    pub nuclear_share_pct: f64,
+    pub top_sites: Vec<TopSiteDto>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TopSiteDto {
+    pub code_iris: String,
+    pub commune: String,
+    pub consumption_total_mwh: f64,
+}
+
+impl From<&IndustrialSiteSummary> for TopSiteDto {
+    fn from(s: &IndustrialSiteSummary) -> Self {
+        Self {
+            code_iris: s.code_iris.clone(),
+            commune: s.commune.clone(),
+            consumption_total_mwh: s.consumption_total_mwh,
+        }
+    }
+}
+
+impl From<&RegionFrAggregate> for RegionFrAggregateDto {
+    fn from(r: &RegionFrAggregate) -> Self {
+        Self {
+            region_iso: r.region_iso.clone(),
+            region_name: r.region_name.clone(),
+            insee_code: r.insee_code.clone(),
+            site_count: r.site_count,
+            total_consumption_mwh_elec: r.total_consumption_mwh_elec,
+            total_consumption_mwh_gas: r.total_consumption_mwh_gas,
+            total_consumption_mwh: r.total_consumption_mwh,
+            centroid_lat: r.centroid_lat,
+            centroid_lon: r.centroid_lon,
+            nuclear_share_pct: r.nuclear_share_pct,
+            top_sites: r.top_sites.iter().map(Into::into).collect(),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// sankey_fr (C13)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SankeyNodeDto {
+    pub id: String,
+    pub label: String,
+    pub layer: u8,
+    pub value_twh: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SankeyLinkDto {
+    pub source: String,
+    pub target: String,
+    pub value_twh: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SankeyDataDto {
+    pub nodes: Vec<SankeyNodeDto>,
+    pub links: Vec<SankeyLinkDto>,
+    pub total_production_twh: f64,
+    pub year: u32,
+    pub source_url: String,
+    pub source_sha256: String,
+}
+
+impl From<&SankeyNode> for SankeyNodeDto {
+    fn from(n: &SankeyNode) -> Self {
+        Self {
+            id: n.id.clone(),
+            label: n.label.clone(),
+            layer: n.layer,
+            value_twh: n.value_twh,
+        }
+    }
+}
+
+impl From<&SankeyLink> for SankeyLinkDto {
+    fn from(l: &SankeyLink) -> Self {
+        Self {
+            source: l.source.clone(),
+            target: l.target.clone(),
+            value_twh: l.value_twh,
+        }
+    }
+}
+
+impl From<&SankeyData> for SankeyDataDto {
+    fn from(s: &SankeyData) -> Self {
+        Self {
+            nodes: s.nodes.iter().map(Into::into).collect(),
+            links: s.links.iter().map(Into::into).collect(),
+            total_production_twh: s.total_production_twh,
+            year: s.year,
+            source_url: s.source_url.clone(),
+            source_sha256: s.source_sha256.clone(),
         }
     }
 }

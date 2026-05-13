@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0.0",
-    "fetched_at": "2026-05-13T12:55:23.063004300+00:00",
+    "fetched_at": "2026-05-13T13:07:50.768629600+00:00",
     "source_url": "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/consommation-annuelle-par-iris/records?limit=100&offset=0",
     "source_sha256": "66b2d2558e5b002fa4ce36357b6d2e5d4d237244fd1372a6b592c85eff915aeb",
     "license": "Etalab 2.0",

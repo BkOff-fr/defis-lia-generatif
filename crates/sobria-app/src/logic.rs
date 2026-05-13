@@ -11,14 +11,19 @@ use sobria_core::{EstimationRequest, Indicator, ModuleId};
 use sobria_estimator::{
     available_models, find_preset, Distribution, EstimationParams,
 };
-use sobria_geoloc::{aggregate_by_country, all_datacenters, find_datacenter, DatacenterRecord};
+use sobria_geoloc::{
+    aggregate_by_country, aggregate_by_region, all_datacenters, find_datacenter,
+    find_site_by_code_iris, generate_sankey_fr, load_rte_mix, load_territoire_fr, DatacenterRecord,
+    TerritoireFrArtifact, TerritoireFrError,
+};
 use tracing::{debug, info};
 
 use crate::{
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, DatacenterDetailDto,
-        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto, IntegrityReportDto,
-        MetaInfo, ModelPresetDto, SimulationRequestDto, SimulationResultDto,
+        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto,
+        IntegrityReportDto, MetaInfo, ModelPresetDto, RegionFrAggregateDto, SankeyDataDto,
+        SimulationRequestDto, SimulationResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     preferences_store::StoredPreferences,
@@ -181,6 +186,110 @@ pub fn get_datacenter_detail(id: &str, state: &AppState) -> IpcResult<Datacenter
 /// Agrège les 28 datacenters par pays (13 pays en v1.0).
 pub fn aggregate_datacenters_by_country() -> IpcResult<Vec<CountryAggregateDto>> {
     Ok(aggregate_by_country().iter().map(Into::into).collect())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// territoire_fr (C13 — M20 Territoire FR)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Chemin attendu pour le JSON ODRÉ produit par `sobria-ingest`.
+fn territoire_fr_path(state: &AppState) -> std::path::PathBuf {
+    state.data_root.join("territoire_fr.json")
+}
+
+fn rte_mix_path(state: &AppState) -> std::path::PathBuf {
+    state.data_root.join("rte_mix_fr.json")
+}
+
+fn territoire_or_data_not_ingested(e: TerritoireFrError) -> IpcError {
+    match e {
+        TerritoireFrError::NotFound(p) => IpcError::new(
+            "data_not_ingested",
+            format!(
+                "données territoire FR absentes ({}). Lance : \
+                 cargo run -p sobria-ingest -- fetch territoire-fr",
+                p.display()
+            ),
+        ),
+        TerritoireFrError::Json(e) => {
+            IpcError::new("io_error", format!("territoire_fr.json corrompu : {e}"))
+        },
+        TerritoireFrError::Schema(m) => IpcError::new(
+            "data_not_ingested",
+            format!("territoire_fr.json non conforme : {m}"),
+        ),
+        TerritoireFrError::Io(e) => IpcError::new("io_error", e.to_string()),
+    }
+}
+
+fn sankey_or_data_not_ingested(e: sobria_geoloc::SankeyFrError) -> IpcError {
+    match e {
+        sobria_geoloc::SankeyFrError::NotFound(p) => IpcError::new(
+            "data_not_ingested",
+            format!(
+                "données RTE mix absentes ({}). Lance : \
+                 cargo run -p sobria-ingest -- fetch rte-mix --year 2023",
+                p.display()
+            ),
+        ),
+        sobria_geoloc::SankeyFrError::Json(e) => {
+            IpcError::new("io_error", format!("rte_mix_fr.json corrompu : {e}"))
+        },
+        sobria_geoloc::SankeyFrError::Schema(m) => {
+            IpcError::new("data_not_ingested", format!("rte_mix_fr.json non conforme : {m}"))
+        },
+        sobria_geoloc::SankeyFrError::Io(e) => IpcError::new("io_error", e.to_string()),
+    }
+}
+
+fn load_or_err(state: &AppState) -> IpcResult<TerritoireFrArtifact> {
+    load_territoire_fr(&territoire_fr_path(state)).map_err(territoire_or_data_not_ingested)
+}
+
+/// Liste paginée des sites industriels (top par consommation totale décroissante).
+pub fn list_industrial_sites_fr(
+    limit: u32,
+    offset: u32,
+    state: &AppState,
+) -> IpcResult<Vec<IndustrialSiteSummaryDto>> {
+    let artifact = load_or_err(state)?;
+    let limit = (limit as usize).min(1000);
+    let offset = offset as usize;
+    let dtos: Vec<IndustrialSiteSummaryDto> = artifact
+        .industrial_sites
+        .iter()
+        .skip(offset)
+        .take(limit)
+        .map(Into::into)
+        .collect();
+    Ok(dtos)
+}
+
+/// Détail d'un site IRIS par son code.
+pub fn get_industrial_site_fr(
+    code_iris: &str,
+    state: &AppState,
+) -> IpcResult<IndustrialSiteSummaryDto> {
+    let artifact = load_or_err(state)?;
+    let site = find_site_by_code_iris(&artifact, code_iris).ok_or_else(|| {
+        IpcError::new("not_found", format!("site IRIS '{code_iris}' inconnu"))
+    })?;
+    Ok(site.into())
+}
+
+/// Agrégation des sites industriels par région ISO.
+pub fn aggregate_industrial_sites_by_region(
+    state: &AppState,
+) -> IpcResult<Vec<RegionFrAggregateDto>> {
+    let artifact = load_or_err(state)?;
+    Ok(aggregate_by_region(&artifact).iter().map(Into::into).collect())
+}
+
+/// Génère les données du Sankey énergétique national à partir du mix RTE chargé.
+pub fn sankey_fr_data(state: &AppState) -> IpcResult<SankeyDataDto> {
+    let mix = load_rte_mix(&rte_mix_path(state)).map_err(sankey_or_data_not_ingested)?;
+    let sankey = generate_sankey_fr(&mix);
+    Ok((&sankey).into())
 }
 
 /// Calcule un baseline (CO₂eq, énergie, eau) pour un DC donné avec un prompt
@@ -844,6 +953,131 @@ mod tests {
         let err = simulate_scenarios(req, &state).unwrap_err();
         // Erreur propagée depuis estimator → mappée en estimator_error.
         assert_eq!(err.code, "estimator_error");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // territoire_fr — C13 / M20
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// Fixture JSON ODRÉ minimale écrite dans `data_root` pour tester le loader.
+    fn write_territoire_fixture(state: &AppState) {
+        let path = state.data_root.join("territoire_fr.json");
+        let json = r#"{
+            "_meta": {
+                "version": "1.0.0",
+                "fetched_at": "2026-05-13T12:00:00+00:00",
+                "source_url": "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/consommation-annuelle-par-iris/records",
+                "source_sha256": "deadbeef00000000000000000000000000000000000000000000000000000000",
+                "license": "Etalab 2.0",
+                "notes": ["fixture test"]
+            },
+            "regions": [
+                {"region_iso": "FR-HDF", "name": "Hauts-de-France", "insee_code": "32",
+                 "centroid_lat": 50.0, "centroid_lon": 2.7, "nuclear_share_pct": 78.4}
+            ],
+            "industrial_sites": [
+                {"code_iris": "591830001", "commune": "Dunkerque", "commune_code": "59183",
+                 "department_code": "59", "department_label": "Nord",
+                 "region_insee_code": "32", "region_iso": "FR-HDF",
+                 "lat": 51.04, "lon": 2.38,
+                 "consumption_mwh_elec": 800000.0, "consumption_mwh_gas_grtgaz": 0.0,
+                 "consumption_mwh_gas_terega": 0.0, "consumption_total_mwh": 800000.0,
+                 "pdl_count_elec": 12, "pdl_count_gas": 0, "pdl_total": 12, "year": 2022}
+            ]
+        }"#;
+        std::fs::write(&path, json).unwrap();
+    }
+
+    fn write_rte_mix_fixture(state: &AppState) {
+        let path = state.data_root.join("rte_mix_fr.json");
+        let json = r#"{
+            "_meta": {
+                "version": "1.0.0",
+                "fetched_at": "2026-05-13T12:00:00+00:00",
+                "source_url": "https://odre.opendatasoft.com/.../eco2mix-national-cons-def",
+                "source_sha256": "feedface00000000000000000000000000000000000000000000000000000000",
+                "license": "Etalab 2.0",
+                "notes": ["fixture test"]
+            },
+            "mix": {
+                "nuclear_twh": 320.0, "hydro_twh": 50.0, "wind_twh": 45.0,
+                "solar_twh": 20.0, "gas_twh": 30.0, "coal_twh": 1.0,
+                "oil_twh": 1.0, "bioenergies_twh": 5.0, "pumped_twh": 3.0,
+                "exchange_net_twh": 50.0, "total_production_twh": 475.0,
+                "records_processed": 35040, "year": 2023
+            }
+        }"#;
+        std::fs::write(&path, json).unwrap();
+    }
+
+    #[test]
+    fn list_industrial_sites_fr_without_data_returns_data_not_ingested() {
+        let (_tmp, state) = fresh_state();
+        let err = list_industrial_sites_fr(50, 0, &state).unwrap_err();
+        assert_eq!(err.code, "data_not_ingested");
+        assert!(err.message.contains("sobria-ingest"));
+    }
+
+    #[test]
+    fn list_industrial_sites_fr_with_fixture_returns_summary() {
+        let (_tmp, state) = fresh_state();
+        write_territoire_fixture(&state);
+        let sites = list_industrial_sites_fr(50, 0, &state).unwrap();
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].commune, "Dunkerque");
+        assert_eq!(sites[0].region_iso, "FR-HDF");
+        assert!((sites[0].consumption_total_mwh - 800000.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn get_industrial_site_fr_unknown_iris_returns_not_found() {
+        let (_tmp, state) = fresh_state();
+        write_territoire_fixture(&state);
+        let err = get_industrial_site_fr("000000000", &state).unwrap_err();
+        assert_eq!(err.code, "not_found");
+    }
+
+    #[test]
+    fn aggregate_industrial_sites_by_region_groups_correctly() {
+        let (_tmp, state) = fresh_state();
+        write_territoire_fixture(&state);
+        let agg = aggregate_industrial_sites_by_region(&state).unwrap();
+        assert_eq!(agg.len(), 1);
+        assert_eq!(agg[0].region_iso, "FR-HDF");
+        assert_eq!(agg[0].site_count, 1);
+        assert!((agg[0].nuclear_share_pct - 78.4).abs() < 1e-9);
+    }
+
+    #[test]
+    fn sankey_fr_data_without_data_returns_data_not_ingested() {
+        let (_tmp, state) = fresh_state();
+        let err = sankey_fr_data(&state).unwrap_err();
+        assert_eq!(err.code, "data_not_ingested");
+        assert!(err.message.contains("rte-mix"));
+    }
+
+    #[test]
+    fn sankey_fr_data_with_fixture_returns_conserved_flows() {
+        let (_tmp, state) = fresh_state();
+        write_rte_mix_fixture(&state);
+        let sankey = sankey_fr_data(&state).unwrap();
+        // Σ liens == total production (pas d'import dans la fixture)
+        let sum_links: f64 = sankey.links.iter().map(|l| l.value_twh).sum();
+        assert!(
+            (sum_links - sankey.total_production_twh).abs() < 1e-6,
+            "conservation violée"
+        );
+        assert_eq!(sankey.year, 2023);
+        assert!(!sankey.source_url.is_empty());
+        assert!(!sankey.source_sha256.is_empty());
+    }
+
+    #[test]
+    fn sankey_fr_data_exposes_real_source_url() {
+        let (_tmp, state) = fresh_state();
+        write_rte_mix_fixture(&state);
+        let sankey = sankey_fr_data(&state).unwrap();
+        assert!(sankey.source_url.contains("eco2mix"));
     }
 
     #[test]

@@ -14,8 +14,9 @@
 use sobria_app::{
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, CountryAggregateDto, DatacenterDetailDto,
-        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto, IntegrityReportDto,
-        MetaInfo, ModelPresetDto, SimulationRequestDto, SimulationResultDto,
+        DatacenterSummaryDto, EstimationRequestDto, EstimationResultDto, IndustrialSiteSummaryDto,
+        IntegrityReportDto, MetaInfo, ModelPresetDto, RegionFrAggregateDto, SankeyDataDto,
+        SimulationRequestDto, SimulationResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -105,6 +106,35 @@ fn aggregate_datacenters_by_country() -> IpcResult<Vec<CountryAggregateDto>> {
     logic::aggregate_datacenters_by_country()
 }
 
+#[tauri::command]
+fn list_industrial_sites_fr(
+    limit: u32,
+    offset: u32,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<IndustrialSiteSummaryDto>> {
+    logic::list_industrial_sites_fr(limit, offset, state.inner())
+}
+
+#[tauri::command]
+fn get_industrial_site_fr(
+    code_iris: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<IndustrialSiteSummaryDto> {
+    logic::get_industrial_site_fr(&code_iris, state.inner())
+}
+
+#[tauri::command]
+fn aggregate_industrial_sites_by_region(
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<RegionFrAggregateDto>> {
+    logic::aggregate_industrial_sites_by_region(state.inner())
+}
+
+#[tauri::command]
+fn sankey_fr_data(state: tauri::State<'_, AppState>) -> IpcResult<SankeyDataDto> {
+    logic::sankey_fr_data(state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,6 +171,10 @@ fn main() {
             list_datacenters,
             get_datacenter_detail,
             aggregate_datacenters_by_country,
+            list_industrial_sites_fr,
+            get_industrial_site_fr,
+            aggregate_industrial_sites_by_region,
+            sankey_fr_data,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");
