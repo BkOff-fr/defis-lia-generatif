@@ -11,7 +11,8 @@
     ShieldCheck,
     AlertTriangle,
     Info,
-    PlugZap
+    PlugZap,
+    Scale
   } from '@lucide/svelte';
   import {
     estimatePrompt,
@@ -280,6 +281,23 @@
         </div>
       </section>
     {/if}
+
+    <!-- Cross-screen CTA : prolonger vers le comparateur avec le même prompt -->
+    <a
+      class="cross-cta"
+      href={`/comparer?prompt=${encodeURIComponent(prompt)}&tokensOut=${tokensOut}&model=${encodeURIComponent(selectedModelId)}`}
+    >
+      <span class="cross-ico" aria-hidden="true">
+        <Scale size={18} strokeWidth={1.6} />
+      </span>
+      <span class="cross-body">
+        <span class="cross-title">Et avec d'autres modèles&nbsp;?</span>
+        <span class="cross-sub">
+          Comparer ce prompt sur 2 à 8 modèles côte-à-côte (matrice + score composite).
+        </span>
+      </span>
+      <span class="cross-arrow" aria-hidden="true">→</span>
+    </a>
 
     <!-- Hypothèses -->
     <HypothesisBlock hypotheses={result.hypotheses} />
@@ -589,6 +607,62 @@
     font: 400 12px/1.3 var(--font-ui);
     color: var(--ivory-3);
     margin-top: 4px;
+  }
+
+  /* ─── Cross-screen CTA vers Comparer ───────────────────────── */
+  .cross-cta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 16px 22px;
+    background: linear-gradient(90deg, rgba(197, 240, 74, 0.05), rgba(126, 182, 255, 0.04));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    border-bottom: none;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .cross-cta:hover {
+    border-color: rgba(197, 240, 74, 0.3);
+    background: linear-gradient(90deg, rgba(197, 240, 74, 0.08), rgba(126, 182, 255, 0.06));
+    transform: translateY(-1px);
+  }
+  .cross-ico {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--lime);
+  }
+  .cross-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .cross-title {
+    font: 500 14px/1.3 var(--font-ui);
+    color: var(--ivory);
+  }
+  .cross-sub {
+    font: 400 12px/1.4 var(--font-ui);
+    color: var(--ivory-3);
+  }
+  .cross-arrow {
+    font: 400 22px/1 var(--font-display);
+    font-style: italic;
+    color: var(--ivory-3);
+    transition: transform var(--dur-base) var(--ease);
+  }
+  .cross-cta:hover .cross-arrow {
+    color: var(--lime);
+    transform: translateX(3px);
   }
 
   /* ─── Signature ────────────────────────────────────────────── */

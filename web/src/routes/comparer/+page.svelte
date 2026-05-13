@@ -31,8 +31,18 @@
   let loadError = $state<{ code: IpcErrorCode; message: string } | null>(null);
 
   let selectedIds = $state<Set<string>>(new Set());
-  let tokensIn = $state(100);
+  // Prompt (source de vérité pour tokens_in). Ratio FR 3,3 chars/token —
+  // même heuristique que Composer Estimer. Si l'utilisateur le laisse vide,
+  // on retombe sur le `manualTokensIn` ci-dessous.
+  let prompt = $state('');
+  let manualTokensIn = $state(100);
   let tokensOut = $state(500);
+  const CHARS_PER_TOKEN_FR = 3.3;
+  const tokensIn = $derived(
+    prompt.trim().length > 0
+      ? Math.max(1, Math.ceil(prompt.length / CHARS_PER_TOKEN_FR))
+      : Math.max(1, manualTokensIn)
+  );
 
   let comparing = $state(false);
   let results = $state<Record<string, EstimationResultDto>>({});
@@ -64,12 +74,35 @@
             ? a.display_name.localeCompare(b.display_name, 'fr')
             : a.provider.localeCompare(b.provider, 'fr')
         );
-        // Préselection : 4 modèles d'entrée de gamme pour démarrer.
+        // Lecture des paramètres d'URL (depuis l'écran Estimer : CTA
+        // « Comparer avec d'autres modèles » → /comparer?prompt=…&
+        // tokensOut=…&model=…).
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const pParam = params.get('prompt');
+          if (pParam) prompt = pParam;
+          const toParam = params.get('tokensOut');
+          if (toParam) {
+            const n = Number.parseInt(toParam, 10);
+            if (Number.isFinite(n) && n > 0) tokensOut = n;
+          }
+        }
+        // Préselection : 4 modèles d'entrée de gamme + le modèle source de
+        // la redirection si fourni.
         const defaults = ['gpt-4o-mini', 'claude-3-5-sonnet', 'mistral-large-2', 'llama-3-1-70b'];
         for (const id of defaults) {
           if (list.find((m) => m.id === id)) selectedIds.add(id);
         }
-        selectedIds = new Set(selectedIds);
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const modelParam = params.get('model');
+          if (modelParam && list.find((m) => m.id === modelParam)) {
+            selectedIds.add(modelParam);
+          }
+        }
+        // Respecte la borne MAX_SELECTED (le `model` source pourrait pousser
+        // à 5 modèles, on tronque pour rester sous 8 — pas critique ici).
+        selectedIds = new Set([...selectedIds].slice(0, MAX_SELECTED));
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           loadError = { code: err.code, message: err.message };
@@ -173,6 +206,13 @@
     energy: number | undefined;
     water: number | undefined;
     score: number;
+    // Décomposition du score par indicateur — rend l'effet des poids
+    // visible dans la matrice même quand les 3 indicateurs sont
+    // corrélés (auquel cas le total bouge peu mais les contributions
+    // changent fortement).
+    contribCo2: number;
+    contribEnergy: number;
+    contribWater: number;
   };
 
   const rows = $derived.by<Row[]>(() => {
@@ -191,7 +231,10 @@
         co2: r ? pickInd(r, 'co2eq')?.p50 : undefined,
         energy: r ? pickInd(r, 'energy')?.p50 : undefined,
         water: r ? pickInd(r, 'water')?.p50 : undefined,
-        score: 0
+        score: 0,
+        contribCo2: 0,
+        contribEnergy: 0,
+        contribWater: 0
       };
     });
 
@@ -200,10 +243,11 @@
     // applique les poids. Plus c'est BAS, mieux c'est ; donc le score
     // final est `100 × (1 - moyenne pondérée des normalisés)`.
     const totalW = wCO2 + wEnergy + wWater || 1;
-    const cols: Array<{ key: keyof Row; w: number }> = [
-      { key: 'co2', w: wCO2 / totalW },
-      { key: 'energy', w: wEnergy / totalW },
-      { key: 'water', w: wWater / totalW }
+    type ContribKey = 'contribCo2' | 'contribEnergy' | 'contribWater';
+    const cols: Array<{ key: 'co2' | 'energy' | 'water'; w: number; contrib: ContribKey }> = [
+      { key: 'co2', w: wCO2 / totalW, contrib: 'contribCo2' },
+      { key: 'energy', w: wEnergy / totalW, contrib: 'contribEnergy' },
+      { key: 'water', w: wWater / totalW, contrib: 'contribWater' }
     ];
     for (const c of cols) {
       const values = rawRows
@@ -217,7 +261,9 @@
         const v = r[c.key];
         if (typeof v !== 'number') continue;
         const norm = (v - min) / span; // [0, 1], 0 = meilleur
-        r.score += (1 - norm) * c.w * 100;
+        const contribution = (1 - norm) * c.w * 100;
+        r.score += contribution;
+        r[c.contrib] = contribution;
       }
     }
 
@@ -446,31 +492,61 @@
       {/if}
     </section>
 
-    <!-- ─── Paramètres communs ────────────────────────────────── -->
+    <!-- ─── Prompt + paramètres communs ────────────────────────── -->
     <section class="params">
-      <div class="param-field">
-        <label for="tokens-in">Tokens d'entrée</label>
-        <input id="tokens-in" type="number" min="1" max="100000" bind:value={tokensIn} />
+      <div class="prompt-block">
+        <label for="cmp-prompt">Prompt à comparer</label>
+        <textarea
+          id="cmp-prompt"
+          bind:value={prompt}
+          placeholder="(Optionnel) Écrivez votre prompt — Sobr.ia estime alors les tokens d'entrée automatiquement. Sinon, saisissez directement le nombre de tokens ci-dessous."
+          rows="2"
+        ></textarea>
+        <div class="prompt-meta mono">
+          {#if prompt.trim().length > 0}
+            <span>Tokens entrée (auto)&nbsp;: <b>{tokensIn}</b></span>
+            <span class="hint">~ 3,3 chars/token FR · tokenizer réel en v0.3</span>
+          {:else}
+            <span class="hint">Pas de prompt → tokens entrée saisis ci-dessous.</span>
+          {/if}
+        </div>
       </div>
-      <div class="param-field">
-        <label for="tokens-out">Tokens de sortie estimés</label>
-        <input id="tokens-out" type="number" min="1" max="100000" bind:value={tokensOut} />
+
+      <div class="param-row">
+        <div class="param-field">
+          <label for="tokens-in">Tokens d'entrée</label>
+          <input
+            id="tokens-in"
+            type="number"
+            min="1"
+            max="100000"
+            disabled={prompt.trim().length > 0}
+            bind:value={manualTokensIn}
+            title={prompt.trim().length > 0
+              ? 'Désactivé : valeur dérivée du prompt ci-dessus.'
+              : 'Tokens d’entrée pour les N estimations.'}
+          />
+        </div>
+        <div class="param-field">
+          <label for="tokens-out">Tokens de sortie estimés</label>
+          <input id="tokens-out" type="number" min="1" max="100000" bind:value={tokensOut} />
+        </div>
+        <div class="param-spacer"></div>
+        <button
+          class="btn-primary"
+          type="button"
+          disabled={!canCompare || comparing}
+          onclick={runComparison}
+        >
+          {#if comparing}
+            <Loader size={16} strokeWidth={2} />
+            Comparaison en cours… ({selectedIds.size} estimations parallèles)
+          {:else}
+            <Sparkles size={16} strokeWidth={2} />
+            Comparer
+          {/if}
+        </button>
       </div>
-      <div class="param-spacer"></div>
-      <button
-        class="btn-primary"
-        type="button"
-        disabled={!canCompare || comparing}
-        onclick={runComparison}
-      >
-        {#if comparing}
-          <Loader size={16} strokeWidth={2} />
-          Comparaison en cours… ({selectedIds.size} estimations parallèles)
-        {:else}
-          <Sparkles size={16} strokeWidth={2} />
-          Comparer
-        {/if}
-      </button>
     </section>
 
     <!-- ─── Résultats : score composite + matrice ───────────────── -->
@@ -579,8 +655,31 @@
                     {:else}—
                     {/if}
                   </td>
-                  <td class="td-score mono">
-                    {#if r.result}{fmtNum(r.score)}{:else}—{/if}
+                  <td class="td-score">
+                    {#if r.result}
+                      <div class="score-cell">
+                        <div class="score-val mono">{fmtNum(r.score)}</div>
+                        <div
+                          class="score-bar"
+                          role="img"
+                          aria-label={`CO₂eq ${fmtNum(r.contribCo2)} · Énergie ${fmtNum(r.contribEnergy)} · Eau ${fmtNum(r.contribWater)}`}
+                          title={`Décomposition · CO₂eq ${fmtNum(r.contribCo2)} + Énergie ${fmtNum(r.contribEnergy)} + Eau ${fmtNum(r.contribWater)}`}
+                        >
+                          <span class="seg seg-co2" style="flex: {Math.max(0.01, r.contribCo2)}"
+                          ></span>
+                          <span
+                            class="seg seg-energy"
+                            style="flex: {Math.max(0.01, r.contribEnergy)}"
+                          ></span>
+                          <span class="seg seg-water" style="flex: {Math.max(0.01, r.contribWater)}"
+                          ></span>
+                          <span class="seg seg-rest" style="flex: {Math.max(0.01, 100 - r.score)}"
+                          ></span>
+                        </div>
+                      </div>
+                    {:else}
+                      <span class="mono">—</span>
+                    {/if}
                   </td>
                 </tr>
               {/each}
@@ -593,7 +692,12 @@
           Cellule
           <span class="legend good"></span> meilleur ·
           <span class="legend mid"></span> milieu ·
-          <span class="legend bad"></span> moins bon — normalisation par colonne sur les modèles affichés.
+          <span class="legend bad"></span> moins bon — normalisation par colonne sur les modèles
+          affichés. Barre Score :
+          <span class="legend lime-bar"></span> CO₂eq ·
+          <span class="legend blue-bar"></span> énergie ·
+          <span class="legend cyan-bar"></span> eau. Largeur du segment = contribution réelle au total
+          — c'est ce qui bouge quand vous ajustez les poids.
         </p>
       </section>
     {/if}
@@ -835,17 +939,71 @@
     color: rgba(197, 240, 74, 0.7);
   }
 
-  /* Paramètres communs */
+  /* Prompt + paramètres communs */
   .params {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
+    flex-direction: column;
     gap: 14px;
     margin-bottom: 24px;
     padding: 16px 20px;
     background: rgba(255, 255, 255, 0.015);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
+  }
+  .prompt-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .prompt-block label {
+    font: 500 10px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ivory-3);
+  }
+  .prompt-block textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--ivory);
+    font: 400 14px/1.5 var(--font-ui);
+    resize: vertical;
+    transition: border-color var(--dur-base) var(--ease);
+  }
+  .prompt-block textarea:focus {
+    outline: none;
+    border-color: rgba(197, 240, 74, 0.4);
+  }
+  .prompt-block textarea::placeholder {
+    color: var(--ivory-4);
+  }
+  .prompt-meta {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    font: 500 11px/1.4 var(--font-mono);
+    color: var(--ivory-3);
+  }
+  .prompt-meta b {
+    color: var(--ivory);
+    font-weight: 600;
+  }
+  .prompt-meta .hint {
+    color: var(--ivory-4);
+    font-weight: 400;
+  }
+
+  .param-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px;
+    padding-top: 4px;
+    border-top: 1px dashed var(--border);
   }
   .param-field {
     display: flex;
@@ -873,6 +1031,10 @@
   .param-field input:focus {
     outline: none;
     border-color: rgba(197, 240, 74, 0.4);
+  }
+  .param-field input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   .param-spacer {
     flex: 1;
@@ -1094,7 +1256,7 @@
     text-align: right !important;
   }
   .th-score {
-    width: 80px;
+    width: 160px;
     text-align: right !important;
   }
   .cmp-table tbody td {
@@ -1173,16 +1335,57 @@
   }
   .td-score {
     text-align: right;
+  }
+  .score-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-end;
+  }
+  .score-val {
+    font: 600 14px/1 var(--font-mono);
     color: var(--lime);
-    font-weight: 600;
+  }
+  /* Barre segmentée : chaque segment est dimensionné par sa contribution
+     au score. Quand l'utilisateur déplace un slider de poids, les widths
+     changent instantanément — c'est le signal visuel principal de
+     l'effet des poids, même si le total bouge peu (indicateurs corrélés). */
+  .score-bar {
+    display: flex;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+  }
+  .score-bar .seg {
+    display: block;
+    height: 100%;
+    transition:
+      flex 250ms var(--ease),
+      background 200ms var(--ease);
+  }
+  .score-bar .seg-co2 {
+    background: var(--lime);
+  }
+  .score-bar .seg-energy {
+    background: var(--blue);
+  }
+  .score-bar .seg-water {
+    background: #5ec3d6;
+  }
+  .score-bar .seg-rest {
+    background: transparent;
   }
 
   .matrix-footnote {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
     margin: 12px 0 0;
-    font: 400 11px/1.5 var(--font-ui);
+    font: 400 11px/1.6 var(--font-ui);
     color: var(--ivory-3);
   }
   .matrix-footnote :global(svg) {
@@ -1205,6 +1408,15 @@
   }
   .legend.bad {
     background: var(--coral);
+  }
+  .legend.lime-bar {
+    background: var(--lime);
+  }
+  .legend.blue-bar {
+    background: var(--blue);
+  }
+  .legend.cyan-bar {
+    background: #5ec3d6;
   }
 
   @keyframes rise {
