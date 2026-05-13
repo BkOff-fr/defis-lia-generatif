@@ -380,10 +380,10 @@
         <thead>
           <tr>
             <th class="th-id">#</th>
-            <th>Horodatage</th>
-            <th>Modèle</th>
+            <th class="th-date">Horodatage</th>
+            <th class="th-model">Modèle</th>
             <th class="th-num">CO₂eq P50</th>
-            <th>Signature</th>
+            <th class="th-sig">Signature</th>
             <th class="th-state">État</th>
           </tr>
         </thead>
@@ -431,8 +431,10 @@
                 <td class="td-model">{e.model_id}</td>
                 <td class="td-num">{fmtCo2(e.co2eq_p50)}</td>
                 <td class="td-sig">
-                  <Hash size={10} strokeWidth={1.8} />
-                  <span class="sig-text">{e.sig_short}…</span>
+                  <span class="sig-wrap">
+                    <Hash size={10} strokeWidth={1.8} />
+                    <span class="sig-text">{e.sig_short}…</span>
+                  </span>
                 </td>
                 <td class="td-state">
                   {#if e.purged}
@@ -800,6 +802,10 @@
   .ledger-table {
     width: 100%;
     border-collapse: collapse;
+    /* `table-layout: fixed` empêche un contenu long (signature mono large,
+       nom de modèle inattendu) de pousser les colonnes voisines. Les
+       largeurs déclarées sur les `th` sont strictement respectées. */
+    table-layout: fixed;
     font: 400 13px/1 var(--font-ui);
   }
   .ledger-table thead th {
@@ -816,14 +822,23 @@
     z-index: 1;
   }
   .ledger-table .th-id {
-    width: 80px;
+    width: 70px;
+  }
+  .ledger-table .th-date {
+    width: 200px;
+  }
+  .ledger-table .th-model {
+    width: auto;
   }
   .ledger-table .th-num {
     text-align: right;
-    width: 130px;
+    width: 140px;
+  }
+  .ledger-table .th-sig {
+    width: 220px;
   }
   .ledger-table .th-state {
-    width: 90px;
+    width: 100px;
     text-align: center;
   }
   .row {
@@ -870,17 +885,23 @@
     text-align: right;
   }
   .td-sig {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+    /* `<td>` doit rester en `display: table-cell` pour respecter la grille
+       du tableau ; on déporte le flex sur un span enfant. */
     font: 400 11px/1 var(--font-mono);
     color: var(--ivory-3);
     vertical-align: middle;
   }
+  .sig-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 180px;
+  }
   .sig-text {
-    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
   .td-state {
     text-align: center;
