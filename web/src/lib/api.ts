@@ -266,6 +266,37 @@ export interface CountryAggregateDto {
   centroid_lon: number;
 }
 
+// ─── Eco-budget personnel (C19 — M25) ────────────────────────────────────
+//
+// Mirror 1-pour-1 de `crates/sobria-app/src/dto.rs` (bloc "dashboard +
+// eco-budget"). Le tuple (indicator, period) est la PK côté SQLite —
+// un seul objectif par combinaison. UPSERT en backend (cf. `goals_store`).
+
+export type GoalIndicator = 'co2eq' | 'energy' | 'water';
+export type GoalPeriod = 'daily' | 'weekly' | 'monthly';
+export type GoalUnit = 'gCO2eq' | 'Wh' | 'L';
+export type BudgetStatusLevel = 'ok' | 'warning' | 'exceeded';
+
+export interface PersonalGoalDto {
+  indicator: GoalIndicator;
+  period: GoalPeriod;
+  value_max: number;
+  unit: GoalUnit;
+}
+
+export interface BudgetStatusDto {
+  goal: PersonalGoalDto;
+  current_value: number;
+  period_start: string;
+  period_end: string;
+  /** 0..100+ (peut dépasser). */
+  consumed_pct: number;
+  /** "ok" (<70%), "warning" (70-100%), "exceeded" (>100%). */
+  status: BudgetStatusLevel;
+  /** value_max - current_value (peut être < 0). */
+  remaining: number;
+}
+
 // ─── Rapport CSRD / AGEC (C14 — M22) ─────────────────────────────────────
 
 export interface CsrdReportRequestDto {
@@ -459,6 +490,31 @@ export function exportCsrdReport(
   // Argument Rust = `output_dir` (snake_case) — Tauri 2 convertit
   // automatiquement depuis camelCase JS.
   return call<CsrdReportResultDto>('export_csrd_report', { req, outputDir });
+}
+
+// ─── Eco-budget personnel (C19 — M25) ────────────────────────────────────
+//
+// `list_personal_goals` et `get_budget_status` sont sans argument.
+// `set_personal_goal` reçoit l'objectif complet (UPSERT côté Rust).
+// `delete_personal_goal` est idempotent — pas d'erreur si la clé n'existe pas.
+
+export function listPersonalGoals(): Promise<PersonalGoalDto[]> {
+  return call<PersonalGoalDto[]>('list_personal_goals');
+}
+
+export async function setPersonalGoal(goal: PersonalGoalDto): Promise<void> {
+  await call<null>('set_personal_goal', { goal });
+}
+
+export async function deletePersonalGoal(
+  indicator: GoalIndicator,
+  period: GoalPeriod
+): Promise<void> {
+  await call<null>('delete_personal_goal', { indicator, period });
+}
+
+export function getBudgetStatus(): Promise<BudgetStatusDto[]> {
+  return call<BudgetStatusDto[]>('get_budget_status');
 }
 
 // ─── Préférences utilisateur (C10 — ADR-0010) ────────────────────────────
