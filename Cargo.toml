@@ -92,6 +92,7 @@ hex-literal = "0.4"
 # Tauri (côté app uniquement)
 tauri = { version = "2.0", features = [] }
 tauri-build = { version = "2.0", features = [] }
+tauri-plugin-dialog = "2.0"
 
 # Géospatial (M9, M12)
 geo = "0.28"
@@ -99,6 +100,9 @@ geojson = "0.24"
 
 # Parsing
 csv = "1.3"
+
+# Filesystem locations (Tauri app — XDG / AppData / Application Support)
+dirs = "5.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Profils de compilation (frugalité par défaut — voir CDC §8)

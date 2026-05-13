@@ -1,0 +1,387 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Sobr.ia · M15 Comparateur de modèles</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ink);color:var(--ivory);font-family:var(--font-ui);min-height:100vh;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 700px 400px at 80% 5%,rgba(197,240,74,.05),transparent 60%),radial-gradient(ellipse 500px 400px at 5% 95%,rgba(126,182,255,.04),transparent 60%);filter:blur(20px);}
+
+.app{position:relative;z-index:1;display:grid;grid-template-columns:60px 1fr;min-height:100vh;}
+.tbar{grid-column:1/3;display:flex;align-items:center;gap:20px;padding:0 24px;height:54px;border-bottom:1px solid var(--border);background:rgba(15,18,16,.7);backdrop-filter:blur(20px);position:sticky;top:0;z-index:10;}
+.brand{display:inline-flex;align-items:center;gap:9px;font:500 14px/1 var(--font-ui);color:var(--ivory);}
+.brand::before{content:'';width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c5f04a,#5a7a1e);box-shadow:0 0 14px rgba(197,240,74,.5);}
+.crumb{font:400 12px var(--font-mono);color:var(--ivory-3);}
+.crumb .cur{color:var(--lime);}
+.tbar .grow{flex:1;}
+.btn{background:transparent;border:1px solid var(--border);color:var(--ivory-2);font:500 11px var(--font-ui);padding:7px 14px;border-radius:var(--radius-pill);cursor:pointer;}
+.btn:hover{border-color:var(--lime);color:var(--lime);}
+.btn.p{background:var(--lime);color:var(--ivory-inv);border-color:var(--lime);font-weight:600;}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#3a4a2e,#c5f04a);display:grid;place-items:center;font:500 11px var(--font-ui);color:var(--ivory-inv);}
+
+/* Rail */
+.rail{border-right:1px solid var(--border);background:rgba(15,18,16,.5);padding:14px 0;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.rl-ic{width:38px;height:38px;display:grid;place-items:center;border-radius:var(--radius-md);color:var(--ivory-3);cursor:pointer;font-size:18px;position:relative;}
+.rl-ic:hover{color:var(--ivory);background:rgba(255,255,255,.03);}
+.rl-ic.on{color:var(--ivory-inv);background:var(--lime);}
+.rl-sep{width:24px;height:1px;background:var(--border);margin:6px 0;}
+
+/* Main */
+main{padding:32px 44px 60px;max-width:1480px;}
+
+.page-head{margin-bottom:28px;}
+.eye{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.eye::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px var(--lime);}
+h1{font:400 48px/1.05 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.015em;margin:8px 0 8px;}
+.sub{font:400 15px/1.5 var(--font-ui);color:var(--ivory-3);font-style:italic;max-width:680px;}
+
+/* Selector strip */
+.selector{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:stretch;margin:32px 0 28px;}
+.slot{background:linear-gradient(160deg,rgba(255,255,255,.03),rgba(255,255,255,.005));border:1px solid var(--border-hi);border-radius:var(--radius-lg);padding:22px 24px;display:flex;flex-direction:column;gap:10px;position:relative;}
+.slot.a{border-color:rgba(197,240,74,.4);box-shadow:0 0 0 1px rgba(197,240,74,.1) inset,0 12px 32px rgba(0,0,0,.3);}
+.slot.b{border-color:rgba(126,182,255,.4);box-shadow:0 0 0 1px rgba(126,182,255,.1) inset,0 12px 32px rgba(0,0,0,.3);}
+.slot .badge{position:absolute;top:-9px;left:22px;background:var(--ink);padding:0 10px;font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.18em;}
+.slot.a .badge{color:var(--lime);}
+.slot.b .badge{color:#7eb6ff;}
+.slot .picker{display:flex;align-items:center;gap:12px;cursor:pointer;}
+.slot .logo{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font:600 16px var(--font-ui);flex-shrink:0;}
+.slot.a .logo{background:linear-gradient(135deg,#c5f04a,#7a9a32);color:var(--ivory-inv);}
+.slot.b .logo{background:linear-gradient(135deg,#7eb6ff,#3a6db5);color:var(--ivory-inv);}
+.slot .nm{font:400 24px var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.01em;}
+.slot .op{font:400 11px var(--font-mono);color:var(--ivory-3);margin-top:2px;}
+.slot .chevron{margin-left:auto;color:var(--ivory-3);font-size:18px;}
+.slot .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.slot .meta .t{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.1em;padding:3px 9px;border-radius:var(--radius-pill);background:rgba(255,255,255,.03);color:var(--ivory-3);border:1px solid var(--border);}
+
+.vs{display:grid;place-items:center;font:400 36px var(--font-display);font-style:italic;color:var(--ivory-3);width:60px;}
+.vs::before{content:'';position:absolute;width:1px;background:linear-gradient(180deg,transparent,var(--border),transparent);height:100px;}
+.vs span{background:var(--ink);padding:0 8px;position:relative;}
+
+/* Task selector */
+.task-bar{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap;}
+.task-bar .lbl{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);}
+.task-bar .chip{padding:7px 14px;border:1px solid var(--border);border-radius:var(--radius-pill);font:500 11px var(--font-ui);color:var(--ivory-2);cursor:pointer;background:rgba(255,255,255,.02);}
+.task-bar .chip.on{background:var(--lime);color:var(--ivory-inv);border-color:var(--lime);font-weight:600;}
+.task-bar .grow{flex:1;}
+.task-bar .vol{font:400 11px var(--font-mono);color:var(--ivory-3);}
+.task-bar .vol b{font:400 18px var(--font-display);font-style:italic;color:var(--lime);}
+
+/* Verdict banner */
+.verdict{background:linear-gradient(160deg,rgba(197,240,74,.08),rgba(197,240,74,.01));border:1px solid rgba(197,240,74,.3);border-radius:var(--radius-lg);padding:28px 32px;margin-bottom:32px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;}
+.verdict .e{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--lime);}
+.verdict h2{font:400 36px/1.1 var(--font-display);font-style:italic;color:var(--ivory);margin:4px 0 6px;letter-spacing:-.015em;}
+.verdict h2 b{color:var(--lime);font-style:italic;font-weight:400;}
+.verdict .why{font:400 13px/1.5 var(--font-ui);color:var(--ivory-2);font-style:italic;max-width:560px;}
+.verdict .delta{text-align:right;}
+.verdict .delta .v{font:400 64px/1 var(--font-display);font-style:italic;color:var(--lime);letter-spacing:-.025em;}
+.verdict .delta .u{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-top:2px;}
+
+/* KPI comparison row */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px;}
+.kpi{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;}
+.kpi .l{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:10px;}
+.kpi .pair{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:6px 0;}
+.kpi .v{font:400 26px/1 var(--font-display);font-style:italic;letter-spacing:-.01em;}
+.kpi .v .u{font:400 10px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.kpi .v.a{color:var(--ivory);}
+.kpi .v.b{color:var(--ivory);text-align:right;}
+.kpi .winner{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--lime);}
+.kpi .bar{height:6px;background:rgba(255,255,255,.05);border-radius:3px;position:relative;overflow:hidden;}
+.kpi .bar .fa{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#7a9a32,#c5f04a);border-radius:3px;}
+.kpi .bar .fb{position:absolute;right:0;top:0;bottom:0;background:linear-gradient(270deg,#3a6db5,#7eb6ff);border-radius:3px;}
+.kpi .bar .mid{position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--border-hi);}
+.kpi .ci{font:400 9px var(--font-mono);color:var(--ivory-4);margin-top:6px;display:flex;justify-content:space-between;}
+
+/* Side-by-side detail panels */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px;}
+.dp{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 26px;}
+.dp.a{border-color:rgba(197,240,74,.25);}
+.dp.b{border-color:rgba(126,182,255,.25);}
+.dp h3{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin:0 0 14px;display:flex;align-items:center;gap:8px;}
+.dp.a h3::before,.dp.b h3::before{content:'';width:8px;height:8px;border-radius:50%;}
+.dp.a h3::before{background:var(--lime);}
+.dp.b h3::before{background:#7eb6ff;}
+.dp .nm{font:400 28px var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.015em;}
+.dp .op-line{font:400 11px var(--font-mono);color:var(--ivory-3);margin:4px 0 16px;}
+
+.bar-row{margin-bottom:12px;}
+.bar-row .lab{display:flex;justify-content:space-between;align-items:baseline;font:400 11px var(--font-ui);color:var(--ivory-2);}
+.bar-row .lab .v{font:400 13px var(--font-mono);}
+.bar-row .track{height:8px;background:rgba(255,255,255,.04);border-radius:4px;margin-top:4px;overflow:hidden;}
+.bar-row .fill{height:100%;border-radius:4px;}
+.dp.a .bar-row .fill{background:linear-gradient(90deg,#7a9a32,#c5f04a);}
+.dp.b .bar-row .fill{background:linear-gradient(90deg,#3a6db5,#7eb6ff);}
+.dp.a .bar-row .lab .v{color:var(--lime);}
+.dp.b .bar-row .lab .v{color:#7eb6ff;}
+
+/* Radar */
+.radar-block{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 28px;margin-bottom:32px;}
+.radar-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;}
+.radar-head h3{font:400 22px var(--font-display);font-style:italic;color:var(--ivory);margin:0;letter-spacing:-.01em;}
+.radar-head .legend{display:flex;gap:18px;font:400 11px var(--font-ui);color:var(--ivory-2);}
+.radar-head .legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;}
+.radar-head .legend .la::before{background:var(--lime);}
+.radar-head .legend .lb::before{background:#7eb6ff;}
+.radar-wrap{display:grid;grid-template-columns:auto 1fr;gap:36px;align-items:center;}
+
+/* Cost projection */
+.proj-block{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 28px;margin-bottom:32px;}
+.proj-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;}
+.proj-head h3{font:400 22px var(--font-display);font-style:italic;color:var(--ivory);margin:0;letter-spacing:-.01em;}
+.proj-head h3 i{color:var(--lime);}
+.proj-head .pill{font:400 10px var(--font-mono);color:var(--ivory-3);}
+.proj-axis{display:flex;justify-content:space-between;font:400 10px var(--font-mono);color:var(--ivory-4);margin-top:4px;}
+
+/* Equivalents */
+.eq-block{background:linear-gradient(160deg,rgba(126,182,255,.04),rgba(255,255,255,.01));border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 28px;margin-bottom:32px;}
+.eq-block h3{font:400 22px var(--font-display);font-style:italic;color:var(--ivory);margin:0 0 4px;letter-spacing:-.01em;}
+.eq-block h3 i{color:#7eb6ff;}
+.eq-block .sb{font:400 12px var(--font-ui);color:var(--ivory-3);font-style:italic;margin-bottom:16px;}
+.eq-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.eq{background:rgba(15,18,16,.5);border:1px dashed var(--border);border-radius:var(--radius-md);padding:16px 18px;}
+.eq .ic{font:400 26px var(--font-display);font-style:italic;color:#7eb6ff;line-height:1;}
+.eq .n{font:400 12px var(--font-ui);color:var(--ivory-2);margin-top:6px;}
+.eq .v{font:400 26px/1 var(--font-display);font-style:italic;color:var(--ivory);margin-top:4px;letter-spacing:-.01em;}
+.eq .v .u{font:400 10px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:2px;}
+
+/* Recommend action */
+.cta{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(197,240,74,.1),rgba(197,240,74,.02));border:1px solid rgba(197,240,74,.3);border-radius:var(--radius-lg);padding:24px 32px;gap:24px;}
+.cta h4{font:400 24px var(--font-display);font-style:italic;color:var(--ivory);margin:0;letter-spacing:-.01em;}
+.cta .s{font:400 12px var(--font-ui);color:var(--ivory-3);margin-top:4px;}
+.cta .btns{display:flex;gap:10px;}
+</style>
+</head>
+<body>
+<div class="amb"></div>
+
+<div class="app">
+<div class="tbar">
+  <span class="brand">Sobr.ia<span style="color:var(--ivory-3);font-weight:400;margin-left:2px">.fr</span></span>
+  <span class="crumb">Outils <span style="color:var(--ivory-4)">/</span> Comparateur <span style="color:var(--ivory-4)">/</span> <span class="cur">GPT-4o vs Mistral Large</span></span>
+  <span class="grow"></span>
+  <button class="btn">↻ Réinitialiser</button>
+  <button class="btn">↓ Exporter PDF</button>
+  <button class="btn p">✓ Adopter Mistral Large</button>
+  <div class="av">CB</div>
+</div>
+
+<aside class="rail">
+  <div class="rl-ic"><span>⌂</span></div>
+  <div class="rl-ic"><span>✎</span></div>
+  <div class="rl-ic"><span>≡</span></div>
+  <div class="rl-ic on"><span>◊</span></div>
+  <div class="rl-sep"></div>
+  <div class="rl-ic"><span>◉</span></div>
+  <div class="rl-ic"><span>⛁</span></div>
+  <div class="rl-ic"><span>◔</span></div>
+  <div class="rl-sep"></div>
+  <div class="rl-ic"><span>?</span></div>
+</aside>
+
+<main>
+
+<div class="page-head">
+  <span class="eye">M15 · Comparateur de modèles</span>
+  <h1>Lequel <i>tu choisis</i> ?</h1>
+  <p class="sub">Compare deux modèles sur ton usage réel : énergie, eau, CO₂, performance, prix. La décision finale t'appartient — on te donne les ordres de grandeur honnêtes.</p>
+</div>
+
+<!-- Selector -->
+<div class="selector">
+  <div class="slot a">
+    <span class="badge">Modèle A</span>
+    <div class="picker">
+      <div class="logo">G4</div>
+      <div>
+        <div class="nm">GPT-4o</div>
+        <div class="op">OpenAI · 200B params · Azure US-East</div>
+      </div>
+      <span class="chevron">⌄</span>
+    </div>
+    <div class="meta">
+      <span class="t">Multimodal</span>
+      <span class="t">128k ctx</span>
+      <span class="t">Hébergé US</span>
+      <span class="t" style="color:#f08c5a;border-color:rgba(240,140,90,.3);background:rgba(240,140,90,.06)">Mix 386 g/kWh</span>
+    </div>
+  </div>
+
+  <div class="vs"><span>vs</span></div>
+
+  <div class="slot b">
+    <span class="badge">Modèle B</span>
+    <div class="picker">
+      <div class="logo">ML</div>
+      <div>
+        <div class="nm">Mistral Large</div>
+        <div class="op">Mistral AI · 123B params · Scaleway FR</div>
+      </div>
+      <span class="chevron">⌄</span>
+    </div>
+    <div class="meta">
+      <span class="t">Multimodal</span>
+      <span class="t">128k ctx</span>
+      <span class="t">Hébergé FR</span>
+      <span class="t" style="color:var(--lime);border-color:rgba(197,240,74,.3);background:rgba(197,240,74,.06)">Mix 56 g/kWh</span>
+    </div>
+  </div>
+</div>
+
+<!-- Task -->
+<div class="task-bar">
+  <span class="lbl">Cas d'usage</span>
+  <span class="chip">Q/R court</span>
+  <span class="chip on">Rédaction longue</span>
+  <span class="chip">Code</span>
+  <span class="chip">Analyse doc</span>
+  <span class="chip">Résumé</span>
+  <span class="chip">Traduction</span>
+  <span class="grow"></span>
+  <span class="vol">Volume modélisé : <b>1 000</b> appels · ~ 800 tokens entrée + 1 200 sortie</span>
+</div>
+
+<!-- Verdict -->
+<div class="verdict">
+  <div>
+    <span class="e">Verdict</span>
+    <h2><b>Mistral Large</b> est <i>6,9×</i> plus sobre.</h2>
+    <p class="why">À performance équivalente sur ce cas d'usage, Mistral Large hébergé en France émet 6,9 fois moins de CO₂eq que GPT-4o sur Azure US-East. L'écart vient à 88 % du mix électrique, à 12 % de l'efficacité matérielle.</p>
+  </div>
+  <div class="delta">
+    <div class="v">−85 %</div>
+    <div class="u">CO₂eq économisé</div>
+  </div>
+</div>
+
+<!-- KPI row -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="l">Énergie · kWh / 1 000 appels</div>
+    <div class="pair"><span class="v a">14,4</span><span style="font-family:var(--font-mono);color:var(--ivory-4);font-size:11px">vs</span><span class="v b">12,8</span></div>
+    <div class="bar"><div class="fa" style="width:48%"></div><div class="fb" style="width:43%"></div><div class="mid"></div></div>
+    <div class="ci"><span>P5 11,2 – P95 18,1</span><span>P5 9,8 – P95 16,4</span></div>
+  </div>
+  <div class="kpi">
+    <div class="l">CO₂eq · g / 1 000 appels</div>
+    <div class="pair"><span class="v a" style="color:#f08c5a">5 558</span><span style="font-family:var(--font-mono);color:var(--ivory-4);font-size:11px">vs</span><span class="v b" style="color:var(--lime)">817</span></div>
+    <div class="bar"><div class="fa" style="width:88%;background:linear-gradient(90deg,#7a3a1a,#f08c5a)"></div><div class="fb" style="width:13%"></div><div class="mid"></div></div>
+    <div class="ci"><span>386 g/kWh · US-East</span><span>56 g/kWh · FR</span></div>
+  </div>
+  <div class="kpi">
+    <div class="l">Eau · L / 1 000 appels</div>
+    <div class="pair"><span class="v a">25,9</span><span style="font-family:var(--font-mono);color:var(--ivory-4);font-size:11px">vs</span><span class="v b" style="color:var(--lime)">11,5</span></div>
+    <div class="bar"><div class="fa" style="width:65%"></div><div class="fb" style="width:29%"></div><div class="mid"></div></div>
+    <div class="ci"><span>1,8 L/kWh</span><span>0,9 L/kWh refr. adiab.</span></div>
+  </div>
+  <div class="kpi">
+    <div class="l">Coût €/1k appels (API)</div>
+    <div class="pair"><span class="v a">12,40</span><span style="font-family:var(--font-mono);color:var(--ivory-4);font-size:11px">vs</span><span class="v b" style="color:var(--lime)">5,80</span></div>
+    <div class="bar"><div class="fa" style="width:62%"></div><div class="fb" style="width:29%"></div><div class="mid"></div></div>
+    <div class="ci"><span>tarif liste 04/2026</span><span>tarif liste 04/2026</span></div>
+  </div>
+</div>
+
+<!-- Detail side-by-side -->
+<div class="detail-grid">
+  <div class="dp a">
+    <h3>GPT-4o · profil détaillé</h3>
+    <div class="nm">GPT-4o</div>
+    <div class="op-line">OpenAI · 200B params estimés · Azure US-East · datacenter mixte gaz/nucléaire/renouv. · PUE 1,28</div>
+
+    <div class="bar-row"><div class="lab"><span>Compute IT</span><span class="v">11,3 kWh</span></div><div class="track"><div class="fill" style="width:78%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Refroidissement</span><span class="v">2,8 kWh</span></div><div class="track"><div class="fill" style="width:19%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Réseau + idle</span><span class="v">0,3 kWh</span></div><div class="track"><div class="fill" style="width:3%"></div></div></div>
+    <div class="bar-row" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)"><div class="lab"><span>Émissions Scope 2</span><span class="v">5 558 g</span></div><div class="track"><div class="fill" style="width:100%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Émissions Scope 3 (fabrication)</span><span class="v">412 g</span></div><div class="track"><div class="fill" style="width:7%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Latence p50</span><span class="v">2,1 s</span></div><div class="track"><div class="fill" style="width:42%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Qualité benchmark (MMLU)</span><span class="v">88,7 %</span></div><div class="track"><div class="fill" style="width:89%"></div></div></div>
+  </div>
+
+  <div class="dp b">
+    <h3>Mistral Large · profil détaillé</h3>
+    <div class="nm">Mistral Large</div>
+    <div class="op-line">Mistral AI · 123B params · Scaleway DC5 Paris · nucléaire FR majoritaire · PUE 1,15</div>
+
+    <div class="bar-row"><div class="lab"><span>Compute IT</span><span class="v">10,9 kWh</span></div><div class="track"><div class="fill" style="width:75%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Refroidissement</span><span class="v">1,6 kWh</span></div><div class="track"><div class="fill" style="width:11%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Réseau + idle</span><span class="v">0,3 kWh</span></div><div class="track"><div class="fill" style="width:3%"></div></div></div>
+    <div class="bar-row" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)"><div class="lab"><span>Émissions Scope 2</span><span class="v">717 g</span></div><div class="track"><div class="fill" style="width:13%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Émissions Scope 3 (fabrication)</span><span class="v">340 g</span></div><div class="track"><div class="fill" style="width:6%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Latence p50</span><span class="v">1,7 s</span></div><div class="track"><div class="fill" style="width:34%"></div></div></div>
+    <div class="bar-row"><div class="lab"><span>Qualité benchmark (MMLU)</span><span class="v">85,3 %</span></div><div class="track"><div class="fill" style="width:85%"></div></div></div>
+  </div>
+</div>
+
+<!-- Radar -->
+<div class="radar-block">
+  <div class="radar-head">
+    <h3>Profil multi-axes <i style="color:var(--lime)">·</i> performance × empreinte</h3>
+    <div class="legend"><span class="la">GPT-4o</span><span class="lb">Mistral Large</span></div>
+  </div>
+  <div class="radar-wrap">
+    <svg viewBox="0 0 320 320" width="320" height="320" style="display:block">
+      <defs>
+        <radialGradient id="rgA" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#c5f04a" stop-opacity=".25"/><stop offset="100%" stop-color="#c5f04a" stop-opacity=".05"/></radialGradient>
+        <radialGradient id="rgB" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#7eb6ff" stop-opacity=".25"/><stop offset="100%" stop-color="#7eb6ff" stop-opacity=".05"/></radialGradient>
+      </defs>
+      <polygon points="160,136 180.78460969082653,148 180.78460969082653,172 160,184 139.21539030917347,172 139.21539030917347,148 " fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1"/><polygon points="160,112 201.56921938165306,136 201.56921938165306,184 160,208 118.43078061834694,184 118.43078061834694,136 " fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1"/><polygon points="160,88 222.35382907247958,124 222.35382907247958,196 160,232 97.64617092752043,196.00000000000003 97.64617092752042,123.99999999999999 " fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1"/><polygon points="160,64 243.1384387633061,112 243.1384387633061,208 160,256 76.8615612366939,208.00000000000003 76.86156123669389,111.99999999999999 " fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1"/><polygon points="160,40 263.92304845413264,100 263.92304845413264,219.99999999999997 160,280 56.076951545867374,220.00000000000006 56.076951545867374,99.99999999999999 " fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1"/><line x1="160" y1="160" x2="160" y2="40" stroke="rgba(255,255,255,.06)"/><text x="160" y="26" text-anchor="middle" font-family="Geist" font-size="10" fill="#a5a39a" letter-spacing=".05em">Qualité</text><line x1="160" y1="160" x2="263.92304845413264" y2="100" stroke="rgba(255,255,255,.06)"/><text x="279.51150572225254" y="95" text-anchor="middle" font-family="Geist" font-size="10" fill="#a5a39a" letter-spacing=".05em">Latence</text><line x1="160" y1="160" x2="263.92304845413264" y2="219.99999999999997" stroke="rgba(255,255,255,.06)"/><text x="279.51150572225254" y="232.99999999999997" text-anchor="middle" font-family="Geist" font-size="10" fill="#a5a39a" letter-spacing=".05em">Sobr. CO₂</text><line x1="160" y1="160" x2="160" y2="280" stroke="rgba(255,255,255,.06)"/><text x="160" y="302" text-anchor="middle" font-family="Geist" font-size="10" fill="#a5a39a" letter-spacing=".05em">Sobr. eau</text><line x1="160" y1="160" x2="56.07695154586739" y2="220.00000000000006" stroke="rgba(255,255,255,.06)"/><text x="40.48849427774749" y="233.00000000000006" text-anchor="middle" font-family="Geist" font-size="10" fill="#a5a39a" letter-spacing=".05em">Coût</text><line x1="160" y1="160" x2="56.076951545867374" y2="99.99999999999999" stroke="rgba(255,255,255,.06)"/><text x="40.48849427774748" y="94.99999999999999" text-anchor="middle" font-family="Geist" font-size="10" fill="#a5a39a" letter-spacing=".05em">Souverain.</text><polygon points="160,53.2 220.27536810339694,125.2 175.5884572681199,169 160,198.4 116.3523196492643,185.20000000000002 154.80384757729337,157 " fill="url(#rgA)" stroke="#c5f04a" stroke-width="2"/><polygon points="160,58 228.58921197972754,120.4 255.60920457780202,215.2 160,253.60000000000002 89.33232705118981,200.80000000000004 61.27310396857399,102.99999999999999 " fill="url(#rgB)" stroke="#7eb6ff" stroke-width="2"/><circle cx="160" cy="53.2" r="4" fill="#c5f04a"/><circle cx="160" cy="58" r="4" fill="#7eb6ff"/><circle cx="220.27536810339694" cy="125.2" r="4" fill="#c5f04a"/><circle cx="228.58921197972754" cy="120.4" r="4" fill="#7eb6ff"/><circle cx="175.5884572681199" cy="169" r="4" fill="#c5f04a"/><circle cx="255.60920457780202" cy="215.2" r="4" fill="#7eb6ff"/><circle cx="160" cy="198.4" r="4" fill="#c5f04a"/><circle cx="160" cy="253.60000000000002" r="4" fill="#7eb6ff"/><circle cx="116.3523196492643" cy="185.20000000000002" r="4" fill="#c5f04a"/><circle cx="89.33232705118981" cy="200.80000000000004" r="4" fill="#7eb6ff"/><circle cx="154.80384757729337" cy="157" r="4" fill="#c5f04a"/><circle cx="61.27310396857399" cy="102.99999999999999" r="4" fill="#7eb6ff"/>
+    </svg>
+    <div style="font:400 13px/1.7 var(--font-ui);color:var(--ivory-2);max-width:520px">
+      <p style="margin:0 0 14px"><b style="color:var(--lime);font-weight:500">Mistral Large gagne sur 5 axes</b>, GPT-4o ne garde l'avance que sur la qualité MMLU brute (+3,4 pts).</p>
+      <p style="margin:0 0 14px;color:var(--ivory-3);font-style:italic">Pour de la rédaction longue, l'écart de qualité est imperceptible — l'écart d'empreinte ne l'est pas.</p>
+      <ul style="margin:0;padding-left:18px;color:var(--ivory-2);font-size:12px;line-height:1.8">
+        <li><b style="color:var(--ivory)">Souveraineté</b> : données hébergées en France · conformité RGPD natif</li>
+        <li><b style="color:var(--ivory)">Sobriété</b> : mix électrique 6,9× moins carboné</li>
+        <li><b style="color:var(--ivory)">Coût</b> : 53 % moins cher à l'API</li>
+        <li><b style="color:var(--ivory)">Latence</b> : 19 % plus rapide en p50</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Projection -->
+<div class="proj-block">
+  <div class="proj-head">
+    <h3>Projection annuelle <i>· passer de GPT-4o à Mistral Large</i></h3>
+    <span class="pill">scénario : volume actuel ×12 mois · 1 000 appels/jour</span>
+  </div>
+  <svg viewBox="0 0 920 200" width="100%" height="200" style="display:block">
+    <defs>
+      <linearGradient id="lgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f08c5a" stop-opacity=".4"/><stop offset="100%" stop-color="#f08c5a" stop-opacity="0"/></linearGradient>
+      <linearGradient id="lgB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c5f04a" stop-opacity=".4"/><stop offset="100%" stop-color="#c5f04a" stop-opacity="0"/></linearGradient>
+    </defs>
+    <line x1="30" y1="20" x2="910" y2="20" stroke="rgba(255,255,255,.04)"/><text x="22" y="24" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="#72706a">2k</text><line x1="30" y1="60" x2="910" y2="60" stroke="rgba(255,255,255,.04)"/><text x="22" y="64" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="#72706a">2k</text><line x1="30" y1="100" x2="910" y2="100" stroke="rgba(255,255,255,.04)"/><text x="22" y="104" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="#72706a">1k</text><line x1="30" y1="140" x2="910" y2="140" stroke="rgba(255,255,255,.04)"/><text x="22" y="144" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="#72706a">1k</text><line x1="30" y1="180" x2="910" y2="180" stroke="rgba(255,255,255,.04)"/><text x="22" y="184" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="#72706a">0k</text><path d="M 30 180 L 30 168.53218884120173 L 110 156.3090128755365 L 190 143.81115879828326 L 270 132.137339055794 L 350 121.28755364806867 L 430 109.47639484978541 L 509.99999999999994 96.7725321888412 L 590 83.51931330472104 L 670 69.09871244635193 L 750 53.71673819742489 L 830 37.37339055793993 L 910 20 L 910 180 Z" fill="url(#lgA)"/><path d="M 30 180 L 30 178.3519313304721 L 110 176.42918454935622 L 190 174.09442060085837 L 270 171.27896995708156 L 350 168.05150214592274 L 430 164.41201716738198 L 509.99999999999994 160.15450643776825 L 590 155.34763948497854 L 670 149.9914163090129 L 750 144.22317596566523 L 830 137.90557939914163 L 910 131.10729613733906 L 910 180 Z" fill="url(#lgB)"/><path d="M 30 168.53218884120173 L 110 156.3090128755365 L 190 143.81115879828326 L 270 132.137339055794 L 350 121.28755364806867 L 430 109.47639484978541 L 509.99999999999994 96.7725321888412 L 590 83.51931330472104 L 670 69.09871244635193 L 750 53.71673819742489 L 830 37.37339055793993 L 910 20" stroke="#f08c5a" stroke-width="2.5" fill="none"/><path d="M 30 178.3519313304721 L 110 176.42918454935622 L 190 174.09442060085837 L 270 171.27896995708156 L 350 168.05150214592274 L 430 164.41201716738198 L 509.99999999999994 160.15450643776825 L 590 155.34763948497854 L 670 149.9914163090129 L 750 144.22317596566523 L 830 137.90557939914163 L 910 131.10729613733906" stroke="#c5f04a" stroke-width="2.5" fill="none"/><circle cx="910" cy="20" r="5" fill="#f08c5a" stroke="#0f1210" stroke-width="2"/><circle cx="910" cy="131.10729613733906" r="5" fill="#c5f04a" stroke="#0f1210" stroke-width="2"/><text x="920" y="24" font-family="Instrument Serif" font-style="italic" font-size="16" fill="#f08c5a">2 460 kg</text><text x="920" y="135.10729613733906" font-family="Instrument Serif" font-style="italic" font-size="16" fill="#c5f04a">712 kg</text><text x="30" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Avr</text><text x="110" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Mai</text><text x="190" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Juin</text><text x="270" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Juil</text><text x="350" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Août</text><text x="430" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Sept</text><text x="509.99999999999994" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Oct</text><text x="590" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Nov</text><text x="670" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Déc</text><text x="750" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Jan</text><text x="830" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Fév</text><text x="910" y="198" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">Mars</text><line x1="895" y1="20" x2="895" y2="131.10729613733906" stroke="#c5f04a" stroke-width="1.5" stroke-dasharray="3 3"/><text x="888" y="79.55364806866953" text-anchor="end" font-family="Instrument Serif" font-style="italic" font-size="22" fill="#c5f04a">−1,75 t</text><text x="888" y="97.55364806866953" text-anchor="end" font-family="Geist" font-size="9" fill="#a5a39a" letter-spacing=".1em">SUR 12 MOIS</text>
+  </svg>
+</div>
+
+<!-- Equivalents -->
+<div class="eq-block">
+  <h3><i>−1,75 tonne</i> · ça représente quoi ?</h3>
+  <div class="sb">Quelques ordres de grandeur pour mettre en perspective l'écart annuel (sources ADEME 2024).</div>
+  <div class="eq-row">
+    <div class="eq"><div class="ic">🚗</div><div class="n">en voiture thermique</div><div class="v">9 120<span class="u">km</span></div></div>
+    <div class="eq"><div class="ic">✈</div><div class="n">en avion court-courrier</div><div class="v">3,2<span class="u">vols Paris-Madrid</span></div></div>
+    <div class="eq"><div class="ic">🌳</div><div class="n">arbres × 1 an de séquestration</div><div class="v">87<span class="u">arbres</span></div></div>
+    <div class="eq"><div class="ic">🍔</div><div class="n">équivalent steak haché</div><div class="v">175<span class="u">kg</span></div></div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta">
+  <div>
+    <h4>Prêt à basculer ?</h4>
+    <div class="s">On peut t'aider à migrer ton intégration. Tests A/B sur 5 % du trafic pour valider sans risque.</div>
+  </div>
+  <div class="btns">
+    <button class="btn">↗ Voir le guide de migration</button>
+    <button class="btn p">✓ Adopter Mistral Large</button>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+document.querySelectorAll('.task-bar .chip').forEach(c=>c.addEventListener('click',()=>{document.querySelectorAll('.task-bar .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');}));
+</script>
+</body></html>

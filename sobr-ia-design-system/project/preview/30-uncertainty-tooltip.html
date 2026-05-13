@@ -1,0 +1,106 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>UncertaintyTooltip</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body{margin:0;padding:32px;background:var(--ink);min-height:100vh;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:18px;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 500px 300px at 80% 15%,rgba(197,240,74,.05),transparent 60%),radial-gradient(ellipse 400px 300px at 15% 85%,rgba(126,182,255,.04),transparent 60%);filter:blur(20px);}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;gap:20px;}
+.head{display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.head .eye{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.head .eye::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime-glow);}
+.head .t{font:400 26px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.01em;}
+.head .grow{flex:1;}
+.head .meta{font:400 10px/1.3 var(--font-mono);color:var(--ivory-3);text-align:right;}
+.lblrow{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.lblrow::after{content:'';flex:1;height:1px;background:var(--border);}
+</style></head><body><div class="amb"></div><div class="wrap">
+<div class="head">
+  <span class="eye">Composant · Overlay tooltip</span>
+  <span class="t">UncertaintyTooltip</span>
+  <span class="grow"></span>
+  <span class="meta">Affiche P5/P50/P95 + sources<br>Hover 400 ms · clic pour épingler</span>
+</div>
+
+<div class="lblrow">Variantes</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
+
+<!-- Default -->
+<div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
+<div style="font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-4)">Default · hover sur chiffre</div>
+<div style="position:relative;padding:24px 0">
+<div style="background:rgba(15,18,16,.96);backdrop-filter:blur(20px);border:1px solid var(--border-hi);border-radius:var(--radius-md);padding:14px 16px;width:240px;box-shadow:0 12px 32px rgba(0,0,0,.5)">
+  <div style="font:500 9px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:6px">Énergie · 1 prompt</div>
+  <div style="font:400 32px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.02em">5,46<span style="font:400 13px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:5px">Wh</span></div>
+  <!-- Mini band viz -->
+  <svg viewBox="0 0 220 30" width="100%" height="30" style="margin-top:10px;display:block">
+    <rect x="20" y="14" width="180" height="3" fill="rgba(197,240,74,.15)" rx="1.5"/>
+    <rect x="50" y="14" width="120" height="3" fill="rgba(197,240,74,.5)" rx="1.5"/>
+    <circle cx="105" cy="15.5" r="4" fill="#c5f04a" filter="drop-shadow(0 0 4px #c5f04a)"/>
+    <text x="20" y="28" font-family="JetBrains Mono" font-size="9" fill="#72706a">4,71</text>
+    <text x="200" y="28" font-family="JetBrains Mono" font-size="9" fill="#72706a" text-anchor="end">6,21</text>
+    <text x="105" y="9" font-family="JetBrains Mono" font-size="9" fill="#c5f04a" text-anchor="middle">P50</text>
+  </svg>
+  <div style="font:400 10px/1.4 var(--font-mono);color:var(--ivory-3);margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">IC 90 % · 10 000 tirages MC<br>Sources : ADEME, RTE, OVH datasheet</div>
+</div>
+</div>
+</div>
+
+<!-- Compact -->
+<div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
+<div style="font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-4)">Compact · inline</div>
+<div style="position:relative;padding:24px 0">
+<div style="background:rgba(15,18,16,.96);backdrop-filter:blur(20px);border:1px solid var(--border-hi);border-radius:var(--radius-md);padding:10px 13px;width:180px;box-shadow:0 12px 32px rgba(0,0,0,.5)">
+  <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3)">CO₂eq</span><span style="font:400 11px var(--font-mono);color:var(--lime)">IC 90 %</span></div>
+  <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px">
+    <span style="font:400 9px var(--font-mono);color:var(--ivory-3)">P5</span><span style="font:400 13px var(--font-mono);color:var(--ivory-2)">1,68</span>
+    <span style="font:400 9px var(--font-mono);color:var(--lime)">P50</span><span style="font:400 18px var(--font-display);font-style:italic;color:var(--lime)">2,14</span>
+    <span style="font:400 9px var(--font-mono);color:var(--ivory-3)">P95</span><span style="font:400 13px var(--font-mono);color:var(--ivory-2)">2,74</span>
+  </div>
+  <div style="font:400 9px var(--font-mono);color:var(--ivory-4);margin-top:4px;text-align:right">g par prompt</div>
+</div>
+</div>
+</div>
+
+<!-- Pinned/expanded -->
+<div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
+<div style="font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-4)">Épinglé · clic + détails</div>
+<div style="position:relative;padding:24px 0">
+<div style="background:rgba(15,18,16,.96);backdrop-filter:blur(20px);border:1px solid rgba(197,240,74,.4);border-radius:var(--radius-md);padding:14px 16px;width:280px;box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 0 1px rgba(197,240,74,.2)">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+    <div style="font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3)">Eau · cumul mois<br><span style="color:var(--lime);text-transform:none;letter-spacing:0;font-family:var(--font-mono);font-size:9px">📌 épinglé</span></div>
+    <button style="background:transparent;border:none;color:var(--ivory-4);font-size:14px;cursor:pointer;line-height:1">×</button>
+  </div>
+  <div style="font:400 30px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.02em">2 870<span style="font:400 12px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:4px">L</span></div>
+  <table style="width:100%;margin-top:10px;border-collapse:collapse">
+    <tr><td style="padding:4px 0;font:400 10px var(--font-mono);color:var(--ivory-3)">P5</td><td style="text-align:right;font:400 11px var(--font-mono);color:var(--ivory-2)">2 100 L</td></tr>
+    <tr><td style="padding:4px 0;font:500 10px var(--font-mono);color:var(--lime);border-top:1px dashed var(--border)">P50 médiane</td><td style="text-align:right;font:500 12px var(--font-mono);color:var(--lime);border-top:1px dashed var(--border)">2 870 L</td></tr>
+    <tr><td style="padding:4px 0;font:400 10px var(--font-mono);color:var(--ivory-3);border-top:1px dashed var(--border)">P95</td><td style="text-align:right;font:400 11px var(--font-mono);color:var(--ivory-2);border-top:1px dashed var(--border)">3 950 L</td></tr>
+  </table>
+  <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);font:400 10px/1.5 var(--font-mono);color:var(--ivory-3)">
+    <div><b style="color:var(--ivory-2)">Sources cumulées</b></div>
+    <div>• ADEME 2024 (PUE)</div>
+    <div>• Schien et al. (eau/kWh)</div>
+    <div>• Mesure interne (1 240 sessions)</div>
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="lblrow" style="margin-top:8px">Règles d'apparition</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+  <div style="background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:var(--radius-md);padding:14px 16px">
+    <div style="font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--lime);margin-bottom:6px">→ Déclenchement</div>
+    <div style="font:400 12px/1.5 var(--font-ui);color:var(--ivory-2)">Hover 400 ms sur tout chiffre, ou focus clavier (Tab). Sur tactile : tap unique.</div>
+  </div>
+  <div style="background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:var(--radius-md);padding:14px 16px">
+    <div style="font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--lime);margin-bottom:6px">⤓ Positionnement</div>
+    <div style="font:400 12px/1.5 var(--font-ui);color:var(--ivory-2)">Toujours collé à la valeur ancre. Pivote auto si bord d'écran à &lt;200 px.</div>
+  </div>
+  <div style="background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:var(--radius-md);padding:14px 16px">
+    <div style="font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--lime);margin-bottom:6px">📌 Persistance</div>
+    <div style="font:400 12px/1.5 var(--font-ui);color:var(--ivory-2)">Clic = épingle. Esc ou × pour fermer. 3 max épinglés simultanément.</div>
+  </div>
+</div>
+</div></body></html>

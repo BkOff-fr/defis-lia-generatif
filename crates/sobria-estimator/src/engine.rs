@@ -6,7 +6,7 @@
 use chrono::Utc;
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256PlusPlus};
 use sobria_core::{
-    EstimationRequest, EstimationResult, Hypothesis, Indicator, IndicatorValue,
+    DistributionBins, EstimationRequest, EstimationResult, Hypothesis, Indicator, IndicatorValue,
     UncertaintyInterval, DEFAULT_SEED,
 };
 use tracing::debug;
@@ -17,6 +17,19 @@ use crate::{
 
 /// Nombre de tirages par défaut. Voir ADR-0004.
 pub const DEFAULT_N: u32 = 10_000;
+
+/// Nombre de bins par défaut pour `bin_samples()`. Voir C09 §3.2 (option A1).
+///
+/// 50 bins offrent une résolution suffisante pour distinguer la queue droite
+/// d'une distribution log-normale tout en gardant le payload audit léger
+/// (~200 octets par indicateur).
+pub const DEFAULT_BIN_COUNT: usize = 50;
+
+/// Seuil minimal de samples pour calculer un histogramme.
+///
+/// En-dessous (tests unitaires à N petit), on retourne `None` pour éviter
+/// les histogrammes peu significatifs.
+pub const MIN_SAMPLES_FOR_BINS: usize = 10;
 
 /// Moteur Monte-Carlo réutilisable.
 #[derive(Debug, Clone, Copy)]
@@ -105,6 +118,13 @@ impl MonteCarloEngine {
             water_samples.push(water_l);
         }
 
+        // Binning AVANT le tri en place pour quantile_interval. On le fait
+        // d'abord parce que `bin_samples` n'a pas besoin d'un slice trié et
+        // que `quantile_interval` modifie le slice via sort_by.
+        let co2eq_bins = bin_samples(&co2eq_samples, DEFAULT_BIN_COUNT);
+        let energy_bins = bin_samples(&energy_samples, DEFAULT_BIN_COUNT);
+        let water_bins = bin_samples(&water_samples, DEFAULT_BIN_COUNT);
+
         let co2eq_interval = quantile_interval(&mut co2eq_samples)?;
         let energy_interval = quantile_interval(&mut energy_samples)?;
         let water_interval = quantile_interval(&mut water_samples)?;
@@ -114,16 +134,19 @@ impl MonteCarloEngine {
                 indicator: Indicator::Co2Eq,
                 interval: co2eq_interval,
                 unit: Indicator::Co2Eq.default_unit().into(),
+                bins: co2eq_bins,
             },
             IndicatorValue {
                 indicator: Indicator::Energy,
                 interval: energy_interval,
                 unit: Indicator::Energy.default_unit().into(),
+                bins: energy_bins,
             },
             IndicatorValue {
                 indicator: Indicator::Water,
                 interval: water_interval,
                 unit: Indicator::Water.default_unit().into(),
+                bins: water_bins,
             },
         ];
 
@@ -182,6 +205,55 @@ fn percentile(sorted: &[f64], p: f64) -> f64 {
     } else {
         sorted[lo] * (1.0 - frac) + sorted[hi] * frac
     }
+}
+
+/// Construit un histogramme équi-width de `n_bins` bins à partir d'un slice
+/// de samples Monte-Carlo.
+///
+/// Retourne `None` si :
+/// - `samples.len() < MIN_SAMPLES_FOR_BINS` (typiquement tests à N petit),
+/// - `n_bins == 0`,
+/// - `min == max` (distribution dégénérée — toutes valeurs identiques),
+/// - une valeur n'est pas finie (NaN ou infinie).
+///
+/// Sinon, retourne `Some(DistributionBins { min, max, counts })` où :
+/// - `min` = plus petite valeur observée,
+/// - `max` = plus grande valeur observée,
+/// - `counts[i]` = nombre de samples dans `[min + i·step, min + (i+1)·step)`,
+///   sauf le dernier bin qui inclut `max` (intervalle fermé à droite).
+///
+/// Garantie : `counts.iter().sum::<u32>() as usize == samples.len()`.
+#[must_use]
+pub fn bin_samples(samples: &[f64], n_bins: usize) -> Option<DistributionBins> {
+    if samples.len() < MIN_SAMPLES_FOR_BINS || n_bins == 0 {
+        return None;
+    }
+    let mut min = f64::INFINITY;
+    let mut max = f64::NEG_INFINITY;
+    for &x in samples {
+        if !x.is_finite() {
+            return None;
+        }
+        if x < min {
+            min = x;
+        }
+        if x > max {
+            max = x;
+        }
+    }
+    if (max - min).abs() < f64::EPSILON {
+        return None;
+    }
+    let step = (max - min) / n_bins as f64;
+    let mut counts = vec![0_u32; n_bins];
+    for &x in samples {
+        // Index = floor((x - min) / step), capé à n_bins - 1 (le `max` tombe
+        // exactement à la borne supérieure → on le range dans le dernier bin).
+        let idx = ((x - min) / step).floor() as usize;
+        let idx = idx.min(n_bins - 1);
+        counts[idx] = counts[idx].saturating_add(1);
+    }
+    Some(DistributionBins { min, max, counts })
 }
 
 /// Construit la liste des hypothèses à partir des paramètres distributionnels.
@@ -351,6 +423,136 @@ mod tests {
                 prop_assert!(ind.interval.p5 <= ind.interval.p50);
                 prop_assert!(ind.interval.p50 <= ind.interval.p95);
             }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // bin_samples + intégration dans estimate()
+    // ─────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn bin_samples_classic_case_sums_to_n() {
+        // Tirages uniformes dans [0, 1] via Xoshiro déterministe
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(7);
+        let samples: Vec<f64> = (0..10_000)
+            .map(|_| {
+                use rand_xoshiro::rand_core::RngCore;
+                rng.next_u64() as f64 / u64::MAX as f64
+            })
+            .collect();
+        let bins = bin_samples(&samples, DEFAULT_BIN_COUNT).unwrap();
+        assert_eq!(bins.counts.len(), DEFAULT_BIN_COUNT);
+        let total: u64 = bins.counts.iter().map(|&c| u64::from(c)).sum();
+        assert_eq!(total, 10_000, "counts.sum() doit égaler N");
+        assert!(bins.min < bins.max);
+        assert!(bins.min >= 0.0);
+        assert!(bins.max <= 1.0);
+    }
+
+    #[test]
+    fn bin_samples_too_few_returns_none() {
+        let samples = vec![1.0, 2.0, 3.0];
+        assert!(bin_samples(&samples, DEFAULT_BIN_COUNT).is_none());
+    }
+
+    #[test]
+    fn bin_samples_all_identical_returns_none() {
+        let samples = vec![42.0; 10_000];
+        assert!(
+            bin_samples(&samples, DEFAULT_BIN_COUNT).is_none(),
+            "min==max doit retourner None"
+        );
+    }
+
+    #[test]
+    fn bin_samples_zero_bins_returns_none() {
+        let samples = vec![1.0; 100];
+        assert!(bin_samples(&samples, 0).is_none());
+    }
+
+    #[test]
+    fn bin_samples_rejects_nan() {
+        let samples = vec![1.0, 2.0, f64::NAN, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+        assert!(bin_samples(&samples, 50).is_none());
+    }
+
+    #[test]
+    fn estimate_attaches_bins_to_all_indicators() {
+        let engine = MonteCarloEngine::default();
+        let params = EstimationParams::conservative_default();
+        let res = engine
+            .estimate(&sample_request(100, 500), &params)
+            .unwrap();
+        for ind in &res.indicators {
+            let bins = ind
+                .bins
+                .as_ref()
+                .unwrap_or_else(|| panic!("bins manquant pour {:?}", ind.indicator));
+            assert_eq!(bins.counts.len(), DEFAULT_BIN_COUNT);
+            let total: u64 = bins.counts.iter().map(|&c| u64::from(c)).sum();
+            assert_eq!(
+                total,
+                u64::from(DEFAULT_N),
+                "counts.sum() doit égaler N pour {:?}",
+                ind.indicator
+            );
+            // Cohérence avec l'intervalle quantile : min ≤ p5, p95 ≤ max
+            // (à epsilon près — quantile fait une interpolation linéaire).
+            assert!(
+                bins.min <= ind.interval.p5 + 1e-9,
+                "bins.min ({}) > p5 ({}) pour {:?}",
+                bins.min,
+                ind.interval.p5,
+                ind.indicator
+            );
+            assert!(
+                ind.interval.p95 - 1e-9 <= bins.max,
+                "p95 ({}) > bins.max ({}) pour {:?}",
+                ind.interval.p95,
+                bins.max,
+                ind.indicator
+            );
+        }
+    }
+
+    #[test]
+    fn estimate_with_small_n_skips_bins() {
+        // N=5 < MIN_SAMPLES_FOR_BINS → bins == None pour tous les indicateurs
+        let engine = MonteCarloEngine::default().with_n(5);
+        let params = EstimationParams::conservative_default();
+        let res = engine
+            .estimate(&sample_request(10, 20), &params)
+            .unwrap();
+        for ind in &res.indicators {
+            assert!(
+                ind.bins.is_none(),
+                "bins doit être None pour N<10 ({:?})",
+                ind.indicator
+            );
+        }
+    }
+
+    #[test]
+    fn estimate_point_distributions_produces_no_bins() {
+        // Toutes les distributions sont Point → samples tous identiques → bins=None
+        let params = EstimationParams {
+            epsilon_prefill_mj_per_token: Distribution::Point { value: 1.0 },
+            epsilon_decode_mj_per_token: Distribution::Point { value: 2.0 },
+            pue: Distribution::Point { value: 1.3 },
+            if_electrical_g_per_kwh: Distribution::Point { value: 56.0 },
+            embodied_g_per_request: Distribution::Point { value: 0.02 },
+            wue_l_per_kwh: Distribution::Point { value: 1.5 },
+        };
+        let engine = MonteCarloEngine::new(42);
+        let res = engine
+            .estimate(&sample_request(100, 500), &params)
+            .unwrap();
+        for ind in &res.indicators {
+            assert!(
+                ind.bins.is_none(),
+                "Point distributions → bins None ({:?})",
+                ind.indicator
+            );
         }
     }
 }

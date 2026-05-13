@@ -256,6 +256,7 @@ mod tests {
                 indicator: Indicator::Co2Eq,
                 interval: UncertaintyInterval::new(1.0, 2.0, 3.0).unwrap(),
                 unit: "gCO2eq".into(),
+                bins: None,
             }],
             equivalents: vec![],
             hypotheses: vec![Hypothesis {

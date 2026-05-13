@@ -1,0 +1,362 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Sobr.ia · Onboarding 4 étapes</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ink);color:var(--ivory);font-family:var(--font-ui);min-height:100vh;overflow:hidden;display:grid;place-items:center;padding:32px;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 800px 500px at 70% 20%,rgba(197,240,74,.08),transparent 60%),radial-gradient(ellipse 600px 400px at 15% 85%,rgba(126,182,255,.05),transparent 60%);filter:blur(30px);animation:driftA 18s ease-in-out infinite alternate;}
+@keyframes driftA{0%{transform:translate(0,0)}100%{transform:translate(40px,-30px)}}
+
+.shell{position:relative;z-index:1;width:1180px;max-width:100%;height:760px;background:linear-gradient(160deg,rgba(255,255,255,.02),rgba(255,255,255,.005));border:1px solid var(--border);border-radius:24px;overflow:hidden;display:grid;grid-template-columns:340px 1fr;box-shadow:0 40px 120px rgba(0,0,0,.6);}
+
+/* Left aside */
+.aside{padding:32px 28px;border-right:1px solid var(--border);background:linear-gradient(180deg,rgba(15,18,16,.7),rgba(15,18,16,.4));display:flex;flex-direction:column;gap:24px;}
+.brand{display:inline-flex;align-items:center;gap:11px;font:500 18px/1 var(--font-ui);color:var(--ivory);letter-spacing:-.01em;}
+.brand::before{content:'';width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c5f04a,#5a7a1e);box-shadow:0 0 18px rgba(197,240,74,.5);}
+.brand small{color:var(--ivory-3);font-weight:400;}
+
+.steps{display:flex;flex-direction:column;gap:0;flex:1;position:relative;}
+/* Single continuous track behind all numbers */
+.steps::before{content:'';position:absolute;left:17px;top:18px;bottom:18px;width:2px;background:var(--border);z-index:0;}
+.steps .fill{position:absolute;left:17px;top:18px;width:2px;background:linear-gradient(180deg,#c5f04a,rgba(197,240,74,.4));z-index:0;transition:height 400ms ease;border-radius:1px;}
+.stp{display:grid;grid-template-columns:36px 1fr;gap:14px;padding:10px 0;cursor:pointer;position:relative;z-index:1;}
+.stp .num{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:400 16px var(--font-display);font-style:italic;color:var(--ivory-3);background:var(--ink);border:1.5px solid var(--border);transition:all 300ms;position:relative;z-index:2;}
+.stp.on .num{background:var(--lime);color:var(--ivory-inv);border-color:var(--lime);box-shadow:0 0 0 4px var(--ink),0 0 18px rgba(197,240,74,.45);}
+.stp.done .num{background:var(--ink);color:var(--lime);border-color:rgba(197,240,74,.55);box-shadow:0 0 0 3px var(--ink);}
+.stp.done .num::before{content:'✓';font-family:var(--font-ui);font-style:normal;font-weight:500;}
+.stp.done .num span{display:none;}
+.stp .meta{padding-top:1px;}
+.stp .lab{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-4);}
+.stp.on .lab,.stp.done .lab{color:var(--lime);}
+.stp .t{font:400 15px var(--font-display);font-style:italic;color:var(--ivory-2);margin-top:2px;letter-spacing:-.01em;}
+.stp.on .t{color:var(--ivory);}
+.stp .s{font:400 11px var(--font-ui);color:var(--ivory-4);margin-top:2px;}
+
+.qpill{font:400 10px/1.4 var(--font-mono);color:var(--ivory-3);padding:12px 14px;background:rgba(197,240,74,.04);border:1px dashed rgba(197,240,74,.2);border-radius:var(--radius-md);}
+.qpill b{color:var(--lime);font-weight:500;}
+
+/* Right panel */
+.panel{padding:36px 44px 28px;display:flex;flex-direction:column;overflow:hidden;}
+.panel-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;}
+.panel-head .eye{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.panel-head .eye::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px var(--lime);}
+.panel-head .prog{font:400 11px var(--font-mono);color:var(--ivory-3);}
+.panel-head .prog b{color:var(--lime);font:400 20px var(--font-display);font-style:italic;}
+.panel h1{font:400 44px/1.05 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.015em;margin:6px 0 8px;text-wrap:balance;}
+.panel .sub{font:400 14px/1.5 var(--font-ui);color:var(--ivory-3);font-style:italic;max-width:560px;margin-bottom:24px;}
+
+.body{flex:1;overflow:auto;display:flex;flex-direction:column;gap:18px;padding-right:6px;}
+
+/* Inputs / cards */
+.lbl{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.lbl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.cards-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.cards-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.card{background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;cursor:pointer;transition:all 200ms;position:relative;}
+.card:hover{border-color:rgba(197,240,74,.3);transform:translateY(-2px);background:rgba(197,240,74,.03);}
+.card.sel{border-color:var(--lime);background:rgba(197,240,74,.08);box-shadow:0 0 0 1px var(--lime),0 12px 32px rgba(197,240,74,.15);}
+.card.sel::before{content:'✓';position:absolute;top:14px;right:16px;width:22px;height:22px;border-radius:50%;background:var(--lime);color:var(--ivory-inv);display:grid;place-items:center;font:600 12px var(--font-ui);}
+.card .ic{font:400 28px var(--font-display);font-style:italic;color:var(--lime);margin-bottom:6px;line-height:1;}
+.card .t{font:400 18px var(--font-display);font-style:italic;color:var(--ivory);margin-bottom:3px;letter-spacing:-.01em;}
+.card .s{font:400 12px/1.4 var(--font-ui);color:var(--ivory-3);}
+
+.range-row{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;}
+.range-row .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.range-row .top .n{font:400 11px var(--font-ui);color:var(--ivory-2);}
+.range-row .top .v{font:400 24px var(--font-display);font-style:italic;color:var(--lime);}
+.range-row .top .v .u{font:400 10px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.range-row input[type=range]{width:100%;-webkit-appearance:none;background:transparent;height:24px;cursor:pointer;}
+.range-row input[type=range]::-webkit-slider-runnable-track{height:4px;background:rgba(255,255,255,.06);border-radius:2px;}
+.range-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#e0ff80,#c5f04a);box-shadow:0 0 12px rgba(197,240,74,.6),0 0 0 4px rgba(15,18,16,.9);margin-top:-7px;}
+.range-row input[type=range]::-moz-range-track{height:4px;background:rgba(255,255,255,.06);border-radius:2px;}
+.range-row input[type=range]::-moz-range-thumb{width:18px;height:18px;border:none;border-radius:50%;background:radial-gradient(circle at 30% 30%,#e0ff80,#c5f04a);box-shadow:0 0 12px rgba(197,240,74,.6);}
+.range-row .axis{display:flex;justify-content:space-between;font:400 9px var(--font-mono);color:var(--ivory-4);margin-top:2px;}
+
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius-pill);font:500 11px var(--font-ui);color:var(--ivory-2);cursor:pointer;transition:all 200ms;background:rgba(255,255,255,.02);}
+.chip:hover{border-color:rgba(197,240,74,.4);color:var(--ivory);}
+.chip.on{background:var(--lime);color:var(--ivory-inv);border-color:var(--lime);font-weight:600;}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 18px;}
+.toggle-row .n{font:400 13px var(--font-ui);color:var(--ivory-2);}
+.toggle-row .n b{display:block;color:var(--ivory);font-weight:500;margin-bottom:2px;}
+.toggle-row .n small{font:400 11px var(--font-mono);color:var(--ivory-4);}
+.toggle{width:38px;height:22px;background:rgba(255,255,255,.06);border-radius:11px;position:relative;cursor:pointer;transition:background 200ms;}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--ivory-3);transition:all 200ms;}
+.toggle.on{background:var(--lime);}
+.toggle.on::after{left:18px;background:var(--ivory-inv);}
+
+/* Step 4 — summary baseline */
+.baseline{background:linear-gradient(160deg,rgba(197,240,74,.06),rgba(197,240,74,.01));border:1px solid rgba(197,240,74,.25);border-radius:var(--radius-lg);padding:24px 28px;}
+.baseline-head{display:flex;align-items:baseline;gap:14px;}
+.baseline-head .e{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--lime);}
+.baseline-head .grow{flex:1;}
+.baseline-head .conf{font:400 10px var(--font-mono);color:var(--ivory-3);}
+.bn-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:14px;padding-top:14px;border-top:1px dashed rgba(197,240,74,.2);}
+.bn-cell .l{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:6px;}
+.bn-cell .v{font:400 30px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.02em;}
+.bn-cell .v .u{font:400 11px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.bn-cell .ci{font:400 9px var(--font-mono);color:var(--lime);margin-top:3px;}
+.bn-eqv{margin-top:16px;padding-top:14px;border-top:1px dashed rgba(197,240,74,.2);display:flex;justify-content:space-around;font:400 11px/1.4 var(--font-ui);color:var(--ivory-2);font-style:italic;}
+.bn-eqv b{font:400 18px var(--font-display);font-style:italic;color:var(--lime);font-style:italic;}
+
+.nextsteps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.nx{background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;transition:all 200ms;}
+.nx:hover{border-color:var(--lime);background:rgba(197,240,74,.04);border-style:solid;}
+.nx .ic{font:400 22px var(--font-display);font-style:italic;color:var(--lime);}
+.nx .t{font:500 12px var(--font-ui);color:var(--ivory);margin-top:6px;}
+.nx .s{font:400 10px var(--font-ui);color:var(--ivory-3);margin-top:2px;}
+
+/* Footer nav */
+.foot{display:flex;align-items:center;justify-content:space-between;padding:20px 0 0;margin-top:18px;border-top:1px solid var(--border);}
+.foot .lk{font:500 11px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;color:var(--ivory-3);background:transparent;border:none;cursor:pointer;}
+.foot .lk:hover{color:var(--ivory);}
+.foot .grow{flex:1;}
+.btn-prev{background:transparent;border:1px solid var(--border);color:var(--ivory-2);font:500 11px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;padding:11px 22px;border-radius:var(--radius-pill);cursor:pointer;margin-right:8px;}
+.btn-prev:hover{color:var(--ivory);border-color:var(--ivory-3);}
+.btn-next{background:var(--lime);color:var(--ivory-inv);font:600 11px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;padding:12px 24px;border-radius:var(--radius-pill);border:none;cursor:pointer;box-shadow:0 0 24px rgba(197,240,74,.3);}
+.btn-next:hover{box-shadow:0 0 32px rgba(197,240,74,.5);}
+.btn-next .ar{margin-left:6px;}
+
+.stepwrap{display:none;animation:fadeIn 400ms ease-out;}
+.stepwrap.on{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+<div class="amb"></div>
+
+<div class="shell">
+
+<!-- Left aside -->
+<aside class="aside">
+  <div class="brand">Sobr.ia <small>· bienvenue</small></div>
+
+  <div class="steps" id="stepsRail">
+    <div class="fill" id="railFill" style="height:0"></div>
+    <div class="stp on" data-s="1"><div class="num"><span>1</span></div><div class="meta"><div class="lab">Étape 1</div><div class="t">Profil</div><div class="s">Qui mesure-t-on ?</div></div></div>
+    <div class="stp" data-s="2"><div class="num"><span>2</span></div><div class="meta"><div class="lab">Étape 2</div><div class="t">Usage IA</div><div class="s">Tes habitudes</div></div></div>
+    <div class="stp" data-s="3"><div class="num"><span>3</span></div><div class="meta"><div class="lab">Étape 3</div><div class="t">Hypothèses</div><div class="s">Ajuste si tu veux</div></div></div>
+    <div class="stp" data-s="4"><div class="num"><span>4</span></div><div class="meta"><div class="lab">Étape 4</div><div class="t">Baseline</div><div class="s">Ta première mesure</div></div></div>
+  </div>
+
+  <div class="qpill"><b>↻ Aucune donnée n'est envoyée à un serveur.</b> Tout reste sur ta machine. Tu pourras exporter ou supprimer ton profil à tout moment.</div>
+</aside>
+
+<!-- Right panel -->
+<div class="panel">
+
+<!-- ─── STEP 1 ─── -->
+<div class="stepwrap on" data-s="1">
+  <div class="panel-head">
+    <div class="eye">Étape 1 sur 4 · Profil</div>
+    <div class="prog"><b>0</b> / 4 complétées</div>
+  </div>
+  <h1>Commençons par <i>qui tu es</i>.</h1>
+  <div class="sub">On adapte les hypothèses (mix électrique, ratio télétravail, type de modèles utilisés) à ton contexte. Tu peux modifier tout ça plus tard.</div>
+
+  <div class="body">
+
+  <div>
+    <div class="lbl">Tu mesures pour…</div>
+    <div class="cards-3">
+      <div class="card sel" data-prof="indiv"><div class="ic">◐</div><div class="t">Moi seul</div><div class="s">Mon usage perso au quotidien</div></div>
+      <div class="card" data-prof="team"><div class="ic">◑</div><div class="t">Mon équipe</div><div class="s">2 à 50 personnes</div></div>
+      <div class="card" data-prof="org"><div class="ic">◓</div><div class="t">Mon organisation</div><div class="s">+ de 50 personnes</div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="lbl">Secteur</div>
+    <div class="chip-row">
+      <span class="chip on">Tech / numérique</span>
+      <span class="chip">Recherche / éduc.</span>
+      <span class="chip">Conseil</span>
+      <span class="chip">Santé</span>
+      <span class="chip">Industrie</span>
+      <span class="chip">Public</span>
+      <span class="chip">Médias</span>
+      <span class="chip">Autre…</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="lbl">Pays principal · mix électrique de référence</div>
+    <div class="cards-2">
+      <div class="card sel"><div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:12px;border-radius:2px;background:linear-gradient(90deg,#0055A4 33%,#fff 33% 66%,#EF4135 66%);display:inline-block;border:1px solid var(--border)"></span><span><div class="t" style="margin:0">France</div><div class="s" style="margin-top:2px">56 g CO₂eq / kWh · RTE 2024</div></span></div></div>
+      <div class="card"><div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:12px;border-radius:2px;background:#9aa;display:inline-block"></span><span><div class="t" style="margin:0">Autre…</div><div class="s" style="margin-top:2px">15 pays disponibles</div></span></div></div>
+    </div>
+  </div>
+
+  </div>
+</div>
+
+<!-- ─── STEP 2 ─── -->
+<div class="stepwrap" data-s="2">
+  <div class="panel-head"><div class="eye">Étape 2 sur 4 · Usage IA</div><div class="prog"><b>1</b> / 4 complétées</div></div>
+  <h1>Combien tu <i>en consommes</i> ?</h1>
+  <div class="sub">Tes ordres de grandeur. On affinera automatiquement quand tu utiliseras l'app — pas besoin d'être précis.</div>
+
+  <div class="body">
+
+  <div>
+    <div class="lbl">Prompts par jour <span style="font-family:var(--font-mono);text-transform:none;letter-spacing:0;color:var(--ivory-4)">(estimation)</span></div>
+    <div class="range-row">
+      <div class="top"><span class="n">Texte (ChatGPT, Claude, Mistral…)</span><span class="v" id="v-prompts">30<span class="u">/ jour</span></span></div>
+      <input type="range" min="0" max="200" value="30" id="r-prompts" oninput="document.getElementById('v-prompts').innerHTML=this.value+'<span class=\'u\'>/ jour</span>'"/>
+      <div class="axis"><span>0</span><span>50</span><span>100</span><span>150</span><span>200+</span></div>
+    </div>
+  </div>
+
+  <div class="cards-2">
+    <div class="range-row">
+      <div class="top"><span class="n">Images générées</span><span class="v" id="v-img">3<span class="u">/ jour</span></span></div>
+      <input type="range" min="0" max="50" value="3" oninput="document.getElementById('v-img').innerHTML=this.value+'<span class=\'u\'>/ jour</span>'"/>
+      <div class="axis"><span>0</span><span>10</span><span>25</span><span>50</span></div>
+    </div>
+    <div class="range-row">
+      <div class="top"><span class="n">Code généré</span><span class="v" id="v-code">12<span class="u">/ jour</span></span></div>
+      <input type="range" min="0" max="100" value="12" oninput="document.getElementById('v-code').innerHTML=this.value+'<span class=\'u\'>/ jour</span>'"/>
+      <div class="axis"><span>0</span><span>25</span><span>50</span><span>100</span></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="lbl">Modèles principaux utilisés</div>
+    <div class="chip-row">
+      <span class="chip on">GPT-4o</span>
+      <span class="chip on">Claude Sonnet</span>
+      <span class="chip on">Mistral Large</span>
+      <span class="chip">GPT-4o-mini</span>
+      <span class="chip">DALL-E 3</span>
+      <span class="chip">Stable Diffusion</span>
+      <span class="chip">Whisper</span>
+      <span class="chip">Local (Ollama…)</span>
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <div class="n"><b>Suivi automatique</b><small>Détecte les conversations en local · respecte la vie privée</small></div>
+    <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+  </div>
+
+  </div>
+</div>
+
+<!-- ─── STEP 3 ─── -->
+<div class="stepwrap" data-s="3">
+  <div class="panel-head"><div class="eye">Étape 3 sur 4 · Hypothèses</div><div class="prog"><b>2</b> / 4 complétées</div></div>
+  <h1>Quelques hypothèses <i>par défaut</i>.</h1>
+  <div class="sub">Toutes les valeurs proviennent de sources officielles (ADEME, RTE, papers académiques). Tu peux les ajuster maintenant ou plus tard.</div>
+
+  <div class="body">
+
+  <div class="cards-3">
+    <div class="card"><div class="ic">⏚</div><div class="t">PUE datacenter</div><div class="s"><span style="font-family:var(--font-mono);color:var(--lime);font-size:18px;font-style:normal;font-weight:500">1,30</span><br><small style="color:var(--ivory-4)">ADEME 2024 · médiane EU</small></div></div>
+    <div class="card"><div class="ic">⚡</div><div class="t">Mix CO₂ FR</div><div class="s"><span style="font-family:var(--font-mono);color:var(--lime);font-size:18px;font-style:normal;font-weight:500">56 g/kWh</span><br><small style="color:var(--ivory-4)">RTE eCO2mix · live</small></div></div>
+    <div class="card"><div class="ic">💧</div><div class="t">Eau / kWh</div><div class="s"><span style="font-family:var(--font-mono);color:var(--lime);font-size:18px;font-style:normal;font-weight:500">1,8 L</span><br><small style="color:var(--ivory-4)">Schien et al. 2023</small></div></div>
+  </div>
+
+  <div class="cards-3">
+    <div class="card"><div class="ic">↶</div><div class="t">Wh / token entrée</div><div class="s"><span style="font-family:var(--font-mono);color:var(--lime);font-size:18px;font-style:normal;font-weight:500">0,0034</span><br><small style="color:var(--ivory-4)">moy. modèles 70-200B</small></div></div>
+    <div class="card"><div class="ic">↷</div><div class="t">Wh / token sortie</div><div class="s"><span style="font-family:var(--font-mono);color:var(--lime);font-size:18px;font-style:normal;font-weight:500">0,012</span><br><small style="color:var(--ivory-4)">moy. modèles 70-200B</small></div></div>
+    <div class="card"><div class="ic">◷</div><div class="t">Durée vie GPU</div><div class="s"><span style="font-family:var(--font-mono);color:var(--lime);font-size:18px;font-style:normal;font-weight:500">5 ans</span><br><small style="color:var(--ivory-4)">amortissement carbone</small></div></div>
+  </div>
+
+  <div class="toggle-row">
+    <div class="n"><b>Inclure les coûts de fabrication GPU (Scope 3)</b><small>Carbon embodied · amortissement linéaire sur durée de vie</small></div>
+    <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+  </div>
+
+  <div class="toggle-row">
+    <div class="n"><b>Incertitude Monte-Carlo</b><small>10 000 tirages · affiche P5/P50/P95 partout</small></div>
+    <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+  </div>
+
+  <div class="qpill" style="background:rgba(126,182,255,.04);border-color:rgba(126,182,255,.2);color:var(--ivory-2)">
+    <b style="color:#7eb6ff">↗ Tu peux tout réajuster plus tard</b> dans <i>Hypothèses</i> (rail latéral · M14). Chaque modification recalcule l'historique et te montre l'impact.
+  </div>
+
+  </div>
+</div>
+
+<!-- ─── STEP 4 ─── -->
+<div class="stepwrap" data-s="4">
+  <div class="panel-head"><div class="eye">Étape 4 sur 4 · Baseline</div><div class="prog"><b>3</b> / 4 complétées</div></div>
+  <h1>Voici ta <i>baseline</i>.</h1>
+  <div class="sub">Ton empreinte estimée pour le mois à venir, basée sur tes réponses. On affinera à mesure que tu utilises l'app.</div>
+
+  <div class="body">
+
+  <div class="baseline">
+    <div class="baseline-head">
+      <div>
+        <div class="e">Empreinte projetée · mois 1</div>
+        <div style="font:400 36px var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.02em;margin-top:4px">Faible à modérée</div>
+      </div>
+      <div class="grow"></div>
+      <div class="conf">IC 90 % · 10 000 tirages Monte-Carlo<br>basé sur 30 prompts/jour · GPT-4o + Claude + Mistral</div>
+    </div>
+    <div class="bn-grid">
+      <div class="bn-cell"><div class="l">Énergie</div><div class="v">4,9<span class="u">kWh</span></div><div class="ci">P5 3,8 ─ P95 6,3</div></div>
+      <div class="bn-cell"><div class="l">CO₂eq</div><div class="v">275<span class="u">g</span></div><div class="ci">P5 213 ─ P95 352</div></div>
+      <div class="bn-cell"><div class="l">Eau</div><div class="v">8,8<span class="u">L</span></div><div class="ci">P5 6,8 ─ P95 11,3</div></div>
+    </div>
+    <div class="bn-eqv">
+      <span>🚗 <b>1,4 km</b> en voiture</span>
+      <span>💡 <b>540 h</b> de LED 9W</span>
+      <span>🚿 <b>1,2 douches</b></span>
+    </div>
+  </div>
+
+  <div>
+    <div class="lbl">Prêt à explorer ?</div>
+    <div class="nextsteps">
+      <div class="nx"><div class="ic">⊞</div><div class="t">Tableau de bord</div><div class="s">Voir tes mesures en direct</div></div>
+      <div class="nx"><div class="ic">◊</div><div class="t">Simuler un changement</div><div class="s">"Et si je passais en GPT-4o-mini ?"</div></div>
+      <div class="nx"><div class="ic">⛁</div><div class="t">Comparer 2 modèles</div><div class="s">Choisis lequel utiliser</div></div>
+    </div>
+  </div>
+
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="foot">
+  <button class="lk" id="lkSkip">Passer ⤴</button>
+  <div class="grow"></div>
+  <button class="btn-prev" id="btnPrev" disabled style="opacity:.4">← Précédent</button>
+  <button class="btn-next" id="btnNext">Continuer <span class="ar">→</span></button>
+</div>
+
+</div>
+</div>
+
+<script>
+let step=1;const max=4;
+const railSt=document.querySelectorAll('.stp');
+const wraps=document.querySelectorAll('.stepwrap');
+const btnPrev=document.getElementById('btnPrev'),btnNext=document.getElementById('btnNext'),lkSkip=document.getElementById('lkSkip');
+
+function render(){
+  railSt.forEach(s=>{const n=+s.dataset.s;s.classList.remove('on','done');if(n<step)s.classList.add('done');if(n===step)s.classList.add('on');});
+  wraps.forEach(w=>w.classList.toggle('on',+w.dataset.s===step));
+  // Compute fill height: from center of first num to center of current num
+  const fill=document.getElementById('railFill');
+  const first=railSt[0].querySelector('.num'),cur=railSt[step-1].querySelector('.num');
+  const r=first.getBoundingClientRect(),c=cur.getBoundingClientRect();
+  fill.style.height=Math.max(0,(c.top+c.height/2)-(r.top+r.height/2))+'px';
+  btnPrev.disabled=step===1;btnPrev.style.opacity=step===1?.4:1;
+  btnNext.innerHTML=step===max?'Lancer Sobr.ia ✓':'Continuer <span class="ar">→</span>';
+  lkSkip.style.display=step===max?'none':'';
+}
+btnPrev.addEventListener('click',()=>{if(step>1){step--;render();}});
+btnNext.addEventListener('click',()=>{if(step<max){step++;render();}else{btnNext.style.transform='scale(.94)';setTimeout(()=>btnNext.style.transform='',150);}});
+railSt.forEach(s=>s.addEventListener('click',()=>{step=+s.dataset.s;render();}));
+document.querySelectorAll('.card[data-prof]').forEach(c=>c.addEventListener('click',()=>{document.querySelectorAll('.card[data-prof]').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');}));
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>c.classList.toggle('on')));
+render();
+</script>
+</body></html>

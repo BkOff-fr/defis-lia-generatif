@@ -1,0 +1,174 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Heatmap modèles × indicateurs</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body{margin:0;padding:24px;background:var(--ink);min-height:100vh;position:relative;overflow:hidden;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 500px 300px at 80% 15%,rgba(197,240,74,.05),transparent 60%),radial-gradient(ellipse 400px 300px at 15% 85%,rgba(126,182,255,.04),transparent 60%);filter:blur(20px);}
+.wrap{position:relative;z-index:1;}
+.head{display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:18px;}
+.head .eye{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.head .eye::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime-glow);}
+.head .t{font:400 26px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.01em;}
+.head .grow{flex:1;}
+.head .meta{font:400 10px/1.3 var(--font-mono);color:var(--ivory-3);text-align:right;}
+.card{background:linear-gradient(160deg,rgba(255,255,255,.025),rgba(255,255,255,.005));border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px 26px;position:relative;}
+.tip{position:fixed;pointer-events:none;background:rgba(10,13,11,.92);backdrop-filter:blur(20px);border:1px solid var(--border-hi);border-radius:var(--radius-md);padding:10px 13px;font:400 12px/1.4 var(--font-ui);color:var(--ivory);box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:99;max-width:280px;opacity:0;transition:opacity 120ms;}
+.tip.show{opacity:1;}
+.tip .k{color:var(--ivory-3);font-size:10px;text-transform:uppercase;letter-spacing:.14em;}
+.tip .v{font:400 18px/1 var(--font-display);font-style:italic;color:var(--ivory);margin:4px 0 2px;}
+.tip .v .u{font:400 11px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.tip .ci{font:400 11px/1.3 var(--font-mono);color:var(--lime);}
+.tip .src{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font:400 10px/1.3 var(--font-mono);color:var(--ivory-3);}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.toolbar .lbl{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);}
+.toolbar .grow{flex:1;}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px;gap:2px;}
+.seg button{background:transparent;border:none;color:var(--ivory-3);font:500 11px var(--font-ui);padding:6px 12px;border-radius:var(--radius-pill);cursor:pointer;transition:all 200ms;}
+.seg button.on{background:var(--lime);color:var(--ivory-inv);font-weight:600;}
+.seg button:hover:not(.on){color:var(--ivory);}
+.foot{font:400 11px/1.4 var(--font-mono);color:var(--ivory-4);margin-top:10px;display:flex;justify-content:space-between;}
+.foot a{color:var(--lime);border-bottom:1px dashed rgba(197,240,74,.4);}
+input[type=range]{appearance:none;background:transparent;height:18px;width:100%;}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--border-hi);border-radius:1px;}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;background:var(--lime);border:2px solid var(--ink);border-radius:50%;margin-top:-7px;cursor:pointer;box-shadow:0 0 8px var(--lime-glow);}
+input[type=range]::-moz-range-track{height:2px;background:var(--border-hi);}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--lime);border:2px solid var(--ink);border-radius:50%;cursor:pointer;}
+</style></head><body><div class="amb"></div><div class="wrap">
+<div class="head">
+  <span class="eye">Module M5 · Comparateur</span>
+  <span class="t">Heatmap · 6 modèles × 6 axes</span>
+  <span class="grow"></span>
+  <span class="meta">Normalisation min-max · 0 = sobre, 1 = vorace<br>Référentiel AFNOR SPEC 2314</span>
+</div>
+<div class="toolbar">
+  <span class="lbl">Normalisation</span>
+  <div class="seg" id="nrmSeg">
+    <button class="on" data-n="abs">Absolu</button>
+    <button data-n="rel">% du max</button>
+    <button data-n="dev">Écart médiane</button>
+  </div>
+  <span class="grow"></span>
+  <label style="display:inline-flex;align-items:center;gap:6px;font:500 11px var(--font-ui);color:var(--ivory-2);cursor:pointer">
+    <input type="checkbox" id="annot" checked style="accent-color:#c5f04a"/>Annoter valeurs
+  </label>
+</div>
+
+<div class="card">
+<div style="display:grid;grid-template-columns:1fr 240px;gap:24px;align-items:start">
+<div>
+<table id="hm" style="width:100%;border-collapse:separate;border-spacing:2px"></table>
+<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)">
+  <div style="font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:10px">Classement (score composite, plus bas = mieux)</div>
+  <ol id="rank" style="list-style:none;padding:0;margin:0"></ol>
+</div>
+</div>
+<aside style="border-left:1px dashed var(--border);padding-left:20px">
+  <div style="font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:14px">Pondération du score</div>
+  <div id="wts"></div>
+</aside>
+</div>
+</div>
+
+<style>
+#hm th,#hm td{padding:0;}
+#hm thead th{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);padding:8px 6px;text-align:center;border-bottom:1.5px solid var(--border-hi);cursor:pointer;user-select:none;transition:color 200ms;}
+#hm thead th:hover{color:var(--ivory);}
+#hm thead th.sorted{color:var(--lime);}
+#hm thead th.sorted::after{content:' ↓';font-size:10px;}
+#hm tbody td{padding:0;}
+#hm .mname{padding:10px 12px;font:400 16px/1.1 var(--font-display);font-style:italic;color:var(--ivory);text-align:left;background:rgba(255,255,255,.02);border-radius:6px;display:flex;flex-direction:column;}
+#hm .mname .prov{font:500 9px var(--font-ui);font-style:normal;text-transform:uppercase;letter-spacing:.12em;color:var(--ivory-3);margin-top:2px}
+.cell{display:grid;place-items:center;height:50px;border-radius:6px;font:500 12px var(--font-mono);transition:transform 150ms;cursor:pointer;position:relative;}
+.cell:hover{transform:scale(1.04);outline:1.5px solid var(--lime);z-index:2;}
+.cell.miss{background:repeating-linear-gradient(45deg,#1a1f1c,#1a1f1c 4px,#0e1310 4px,#0e1310 8px);color:#46443f;}
+.wt{margin-bottom:10px;}
+.wt .lab{display:flex;justify-content:space-between;align-items:baseline;font:500 11px var(--font-ui);color:var(--ivory-2);margin-bottom:3px}
+.wt .lab .v{font:500 12px var(--font-mono);color:var(--lime);}
+.rk{display:grid;grid-template-columns:30px 1fr 80px;align-items:baseline;padding:10px 0;border-bottom:1px dashed var(--border);gap:8px;}
+.rk:last-child{border:none;}
+.rk .pos{font:400 22px/1 var(--font-display);font-style:italic;color:var(--ivory-3);}
+.rk.gold .pos{color:var(--lime);}
+.rk .nm{font:400 16px var(--font-display);font-style:italic;color:var(--ivory);}
+.rk.gold .nm{color:var(--lime);}
+.rk .sc{font:500 14px var(--font-mono);text-align:right;color:var(--ivory-2);}
+</style>
+
+<script>
+const M=[
+  {n:'GPT-4o',          p:'OpenAI',    d:{ene:.82,co2:.91,eau:.78,emb:.64,cou:.95,lat:.42}},
+  {n:'GPT-4o-mini',     p:'OpenAI',    d:{ene:.12,co2:.14,eau:.20,emb:.28,cou:.08,lat:.18}},
+  {n:'Claude 3.5 Sonnet',p:'Anthropic',d:{ene:.79,co2:.85,eau:.74,emb:.52,cou:.80,lat:.48}},
+  {n:'Mistral Large 2', p:'Mistral',   d:{ene:.56,co2:.62,eau:.38,emb:.48,cou:.45,lat:.52}},
+  {n:'Llama 3.1 70B',   p:'Meta',      d:{ene:.40,co2:.44,eau:.32,emb:.51,cou:null,lat:.15}},
+  {n:'Llama 3.1 8B',    p:'Meta',      d:{ene:.08,co2:.10,eau:.15,emb:.22,cou:null,lat:.10}},
+];
+const AXES=[['ene','Énergie'],['co2','CO₂eq'],['eau','Eau'],['emb','Embodied'],['cou','Coût'],['lat','Latence']];
+let W={ene:25,co2:35,eau:10,emb:10,cou:15,lat:5},sort=null,norm='abs',annot=true;
+
+const wts=document.getElementById('wts');
+AXES.forEach(([k,lab])=>{
+  const div=document.createElement('div');div.className='wt';
+  div.innerHTML='<div class="lab"><span>'+lab+'</span><span class="v" id="wv-'+k+'">'+W[k]+'</span></div><input type="range" min="0" max="60" value="'+W[k]+'" data-k="'+k+'"/>';
+  wts.appendChild(div);
+});
+wts.querySelectorAll('input').forEach(i=>i.addEventListener('input',()=>{
+  W[i.dataset.k]=+i.value;document.getElementById('wv-'+i.dataset.k).textContent=i.value;render();
+}));
+
+function colorFor(v){
+  if(v==null)return null;
+  if(v<.2)return ['#1a3520','#a4dc4a'];
+  if(v<.4)return ['#3a4a2e','#c5f04a'];
+  if(v<.6)return ['#5a4a1e','#f5b769'];
+  if(v<.8)return ['#7a3a1e','#f08c5a'];
+  return ['#9a2a1e','#f06c5a'];
+}
+function render(){
+  const hm=document.getElementById('hm');
+  let h='<thead><tr><th style="text-align:left;padding-left:12px;width:170px">Modèle</th>';
+  AXES.forEach(([k,l])=>h+='<th data-k="'+k+'" '+(sort===k?'class="sorted"':'')+'>'+l+'</th>');
+  h+='</tr></thead><tbody>';
+  let rows=M.map((m,i)=>{
+    const score=AXES.reduce((s,[k])=>{const v=m.d[k];return v==null?s:s+v*(W[k]/100);},0);
+    return {m,score,i};
+  });
+  if(sort){
+    rows.sort((a,b)=>(a.m.d[sort]==null?2:a.m.d[sort])-(b.m.d[sort]==null?2:b.m.d[sort]));
+  }
+  const vals={};AXES.forEach(([k])=>{vals[k]=M.map(m=>m.d[k]).filter(v=>v!=null);});
+  rows.forEach(({m})=>{
+    h+='<tr><td><div class="mname">'+m.n+'<span class="prov">'+m.p+'</span></div></td>';
+    AXES.forEach(([k,l])=>{
+      const v=m.d[k];
+      if(v==null){h+='<td><div class="cell miss" title="Donnée manquante">—</div></td>';return;}
+      let disp=v,nv=v;
+      if(norm==='rel'){const mx=Math.max(...vals[k]);nv=v/mx;disp=(v/mx*100).toFixed(0)+'%';}
+      else if(norm==='dev'){const med=vals[k].sort()[Math.floor(vals[k].length/2)];nv=(v-med)/med+.5;disp=((v-med)/med*100).toFixed(0)+'%';}
+      else disp=v.toFixed(2).replace('.',',');
+      const [bg,fg]=colorFor(nv);
+      h+='<td><div class="cell" style="background:'+bg+';color:'+fg+'" title="'+m.n+' · '+l+' = '+v+'">'+(annot?disp:'')+'</div></td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody>';hm.innerHTML=h;
+  hm.querySelectorAll('thead th[data-k]').forEach(th=>th.addEventListener('click',()=>{
+    sort=sort===th.dataset.k?null:th.dataset.k;render();
+  }));
+  // rank
+  const ranked=[...rows].sort((a,b)=>a.score-b.score);
+  document.getElementById('rank').innerHTML=ranked.slice(0,3).map((r,i)=>
+    '<li class="rk '+(i===0?'gold':'')+'"><span class="pos">'+(i+1).toString().padStart(2,'0')+'</span><span class="nm">'+r.m.n+'</span><span class="sc">'+r.score.toFixed(3).replace('.',',')+'</span></li>'
+  ).join('');
+}
+document.getElementById('annot').addEventListener('change',e=>{annot=e.target.checked;render();});
+document.querySelectorAll('#nrmSeg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#nrmSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');norm=b.dataset.n;render();
+}));
+render();
+</script>
+
+<div class="foot">
+  <span>Llama : coût = donnée manquante (modèle ouvert · coût dépend de l'infra)</span>
+  <span>Cliquer sur entête de colonne pour trier</span>
+</div>
+</div><div class="tip" id="tip"></div></body></html>

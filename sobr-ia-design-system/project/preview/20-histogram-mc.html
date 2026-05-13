@@ -1,0 +1,171 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Histogramme Monte-Carlo</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body{margin:0;padding:24px;background:var(--ink);min-height:100vh;position:relative;overflow:hidden;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 500px 300px at 80% 15%,rgba(197,240,74,.05),transparent 60%),radial-gradient(ellipse 400px 300px at 15% 85%,rgba(126,182,255,.04),transparent 60%);filter:blur(20px);}
+.wrap{position:relative;z-index:1;}
+.head{display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:18px;}
+.head .eye{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.head .eye::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime-glow);}
+.head .t{font:400 26px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.01em;}
+.head .grow{flex:1;}
+.head .meta{font:400 10px/1.3 var(--font-mono);color:var(--ivory-3);text-align:right;}
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.toolbar .lbl{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-right:4px;}
+.toolbar .grow{flex:1;}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px;gap:2px;}
+.seg button{background:transparent;border:none;color:var(--ivory-3);font:500 11px/1 var(--font-ui);padding:6px 12px;border-radius:var(--radius-pill);cursor:pointer;transition:all 200ms;}
+.seg button.on{background:var(--lime);color:var(--ivory-inv);font-weight:600;}
+.seg button:hover:not(.on){color:var(--ivory);}
+.card{background:linear-gradient(160deg,rgba(255,255,255,.025),rgba(255,255,255,.005));border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px 26px;position:relative;}
+.foot{font:400 11px/1.4 var(--font-mono);color:var(--ivory-4);margin-top:10px;display:flex;justify-content:space-between;}
+.foot a{color:var(--lime);border-bottom:1px dashed rgba(197,240,74,.4);}
+.tip{position:fixed;pointer-events:none;background:rgba(10,13,11,.92);backdrop-filter:blur(20px);border:1px solid var(--border-hi);border-radius:var(--radius-md);padding:10px 13px;font:400 12px/1.4 var(--font-ui);color:var(--ivory);box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:99;max-width:260px;opacity:0;transition:opacity 120ms;}
+.tip.show{opacity:1;}
+.tip .k{color:var(--ivory-3);font-size:10px;text-transform:uppercase;letter-spacing:.14em;}
+.tip .v{font:400 18px/1 var(--font-display);font-style:italic;color:var(--ivory);margin:4px 0 2px;}
+.tip .v .u{font:400 11px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.tip .ci{font:400 11px/1.3 var(--font-mono);color:var(--lime);}
+.tip .src{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font:400 10px/1.3 var(--font-mono);color:var(--ivory-3);}
+</style></head><body><div class="amb"></div><div class="wrap">
+<div class="head">
+  <span class="eye">Module M2 · Distribution incertitude</span>
+  <span class="t">10 000 tirages Monte-Carlo</span>
+  <span class="grow"></span>
+  <span class="meta">Seed 42 · reproductible<br>Prompt GPT-4o-mini · 800/350 tok</span>
+</div>
+<div class="toolbar">
+  <span class="lbl">Indicateur</span>
+  <div class="seg" id="indSeg">
+    <button class="on" data-i="co2">CO₂eq · g</button>
+    <button data-i="ene">Énergie · Wh</button>
+    <button data-i="wat">Eau · mL</button>
+  </div>
+  <span class="grow"></span>
+  <button id="exp" class="seg" style="border-radius:var(--radius-md);padding:7px 14px;border:1px solid var(--border);background:transparent;color:var(--ivory-2);font:500 11px var(--font-ui);cursor:pointer;display:inline-flex;align-items:center;gap:8px;">↓ Exporter CSV (10 000 tirages)</button>
+</div>
+<div class="card">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px">
+    <div>
+      <div style="font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:6px">Médiane P50</div>
+      <div id="medVal" style="font:400 56px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.02em">2,14<span style="font:400 14px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:6px" id="medUnit">g CO₂eq</span></div>
+      <div id="medCi" style="font:400 11px var(--font-mono);color:var(--lime);margin-top:6px">P5 1,68 ─ P95 2,74 · IC 90%</div>
+    </div>
+    <div style="display:flex;gap:14px">
+      <div style="text-align:right"><div style="font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3)">Skewness</div><div style="font:400 18px var(--font-display);font-style:italic;color:var(--ivory)">+0,34</div></div>
+      <div style="text-align:right"><div style="font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3)">CV</div><div style="font:400 18px var(--font-display);font-style:italic;color:var(--ivory)">13 %</div></div>
+    </div>
+  </div>
+
+  <svg id="histSvg" viewBox="0 0 680 240" width="100%" style="display:block;height:auto">
+    <defs>
+      <linearGradient id="hbar" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="#c5f04a" stop-opacity=".85"/>
+        <stop offset="100%" stop-color="#c5f04a" stop-opacity=".18"/>
+      </linearGradient>
+    </defs>
+    <!-- P5-P95 band -->
+    <rect id="bandRect" x="0" y="0" height="200" fill="rgba(197,240,74,.07)"/>
+    <!-- grid -->
+    <g stroke="rgba(255,255,255,.05)" stroke-width="1">
+      <line x1="40" x2="660" y1="40" y2="40"/>
+      <line x1="40" x2="660" y1="100" y2="100"/>
+      <line x1="40" x2="660" y1="160" y2="160"/>
+      <line x1="40" x2="660" y1="200" y2="200" stroke="rgba(255,255,255,.15)"/>
+    </g>
+    <!-- y-axis labels -->
+    <g font-family="JetBrains Mono" font-size="9" fill="#72706a" text-anchor="end">
+      <text x="34" y="44">800</text>
+      <text x="34" y="104">400</text>
+      <text x="34" y="164">100</text>
+      <text x="34" y="204">0</text>
+    </g>
+    <g id="bars"></g>
+    <!-- P-lines -->
+    <line id="p5Line"  y1="20" y2="200" stroke="#c5f04a" stroke-dasharray="3 3"/>
+    <line id="p50Line" y1="20" y2="200" stroke="#c5f04a" stroke-width="1.5"/>
+    <line id="p95Line" y1="20" y2="200" stroke="#c5f04a" stroke-dasharray="3 3"/>
+    <g id="pLabels" font-family="JetBrains Mono" font-size="10" fill="#c5f04a" text-anchor="middle"></g>
+    <!-- x-axis ticks -->
+    <g id="xticks" font-family="JetBrains Mono" font-size="10" fill="#72706a" text-anchor="middle"></g>
+  </svg>
+  <div class="foot" style="margin-top:6px">
+    <span>Forme : log-normale légèrement asymétrique à droite</span>
+    <span>Hover : nombre de tirages dans la classe</span>
+  </div>
+</div>
+
+<script>
+const ind={
+  co2:{u:'g CO₂eq',med:2.14,p5:1.68,p95:2.74,min:1.4,max:3.4,unit:'g'},
+  ene:{u:'Wh',med:5.46,p5:4.71,p95:6.21,min:4.0,max:7.2,unit:'Wh'},
+  wat:{u:'mL',med:18.3,p5:13.2,p95:24.8,min:10,max:32,unit:'mL'},
+};
+function logn(med,sd,n,seed){
+  let s=seed;function r(){s=(s*1664525+1013904223)%4294967296;return s/4294967296;}
+  const out=[];const mu=Math.log(med),sigma=sd;
+  for(let i=0;i<n;i++){
+    const u1=r()||1e-9,u2=r();
+    const z=Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
+    out.push(Math.exp(mu+sigma*z));
+  }
+  return out;
+}
+const tip=document.getElementById('tip');
+function render(k){
+  const d=ind[k],bars=[];
+  const samples=logn(d.med,0.12,10000,42).filter(v=>v>=d.min&&v<=d.max);
+  const N=40,binW=(d.max-d.min)/N;const counts=new Array(N).fill(0);
+  samples.forEach(v=>{const i=Math.min(N-1,Math.floor((v-d.min)/binW));counts[i]++;});
+  const maxC=Math.max(...counts);
+  const xScale=v=>40+((v-d.min)/(d.max-d.min))*620;
+  const barsG=document.getElementById('bars');barsG.innerHTML='';
+  counts.forEach((c,i)=>{
+    const h=(c/maxC)*180;
+    const x=xScale(d.min+i*binW),w=xScale(d.min+(i+1)*binW)-x-1;
+    const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x',x);r.setAttribute('y',200-h);r.setAttribute('width',w);r.setAttribute('height',h);
+    r.setAttribute('fill','url(#hbar)');r.style.cursor='pointer';r.style.transition='opacity 150ms';
+    r.addEventListener('mouseenter',()=>{r.style.opacity='.6';});
+    r.addEventListener('mouseleave',()=>{r.style.opacity='1';tip.classList.remove('show');});
+    r.addEventListener('mousemove',e=>{
+      tip.innerHTML='<div class="k">Classe '+(i+1)+'/40</div><div class="v">'+c+'<span class="u">tirages</span></div><div class="ci">'+((d.min+i*binW).toFixed(2)+' – '+(d.min+(i+1)*binW).toFixed(2)).replace(/\./g,',')+' '+d.unit+'</div>';
+      tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';tip.classList.add('show');
+    });
+    barsG.appendChild(r);
+  });
+  // band
+  const br=document.getElementById('bandRect');
+  br.setAttribute('x',xScale(d.p5));br.setAttribute('width',xScale(d.p95)-xScale(d.p5));
+  // lines
+  ['p5','p50','p95'].forEach(k2=>{
+    const v={p5:d.p5,p50:d.med,p95:d.p95}[k2];
+    const ln=document.getElementById(k2+'Line');ln.setAttribute('x1',xScale(v));ln.setAttribute('x2',xScale(v));
+  });
+  // labels
+  const pl=document.getElementById('pLabels');pl.innerHTML='';
+  [['P5',d.p5,16],['P50',d.med,16],['P95',d.p95,16]].forEach(([lab,v,y])=>{
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',xScale(v));t.setAttribute('y',y);t.textContent=lab+' '+v.toFixed(2).replace('.',',');
+    pl.appendChild(t);
+  });
+  // xticks
+  const xt=document.getElementById('xticks');xt.innerHTML='';
+  for(let i=0;i<=5;i++){
+    const v=d.min+(d.max-d.min)*(i/5);
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',xScale(v));t.setAttribute('y',222);
+    t.textContent=v.toFixed(2).replace('.',',');xt.appendChild(t);
+  }
+  document.getElementById('medVal').firstChild.textContent=d.med.toFixed(2).replace('.',',');
+  document.getElementById('medUnit').textContent=d.u;
+  document.getElementById('medCi').textContent='P5 '+d.p5.toFixed(2).replace('.',',')+' ─ P95 '+d.p95.toFixed(2).replace('.',',')+' · IC 90%';
+}
+render('co2');
+document.querySelectorAll('#indSeg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#indSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');render(b.dataset.i);
+}));
+</script>
+</div><div class="tip" id="tip"></div></body></html>

@@ -94,7 +94,29 @@ impl UncertaintyInterval {
     }
 }
 
-/// Valeur d'un indicateur, accompagnée de son unité et de son incertitude.
+/// Histogramme de la distribution Monte-Carlo d'un indicateur.
+///
+/// `counts.len()` bins **équi-width** entre `min` et `max` (bornes
+/// incluses). Permet à l'UI de rendre une distribution fidèle plutôt
+/// qu'une approximation analytique depuis P5/P50/P95.
+///
+/// Présent dans l'audit ledger (sérialisé dans `EstimationResult`) pour
+/// que la traçabilité réglementaire CSRD inclue la distribution complète,
+/// pas uniquement les quantiles agrégés.
+///
+/// Voir `briefs/chantiers/C09-tauri-integration.md` (option A1).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+pub struct DistributionBins {
+    /// Borne basse de l'histogramme (≤ tous les samples).
+    pub min: f64,
+    /// Borne haute de l'histogramme (≥ tous les samples).
+    pub max: f64,
+    /// Comptes par bin. `counts.iter().sum() == N` (nombre de tirages).
+    pub counts: Vec<u32>,
+}
+
+/// Valeur d'un indicateur, accompagnée de son unité, de son incertitude
+/// et éventuellement de son histogramme distributionnel.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct IndicatorValue {
     /// Indicateur concerné.
@@ -103,6 +125,11 @@ pub struct IndicatorValue {
     pub interval: UncertaintyInterval,
     /// Unité humainement lisible.
     pub unit: String,
+    /// Histogramme de la distribution Monte-Carlo (optionnel).
+    ///
+    /// Absent pour les entrées d'audit antérieures à la v0.2 (rétro-compat).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bins: Option<DistributionBins>,
 }
 
 /// Équivalent parlant pour l'utilisateur final.

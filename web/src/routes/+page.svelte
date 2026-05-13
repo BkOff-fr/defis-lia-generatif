@@ -26,6 +26,7 @@
   import Composer from '$lib/components/Composer.svelte';
   import ResultBlock from '$lib/components/ResultBlock.svelte';
   import HypothesisBlock from '$lib/components/HypothesisBlock.svelte';
+  import { tick } from 'svelte';
 
   // ─── State ───────────────────────────────────────────────────────────
   let models = $state<ModelPresetDto[]>([]);
@@ -39,6 +40,9 @@
   let loading = $state(false);
   let bootstrapping = $state(true);
   let error = $state<{ code: IpcErrorCode; message: string } | null>(null);
+
+  // Ancre pour le scroll smooth post-estimation (cf. submitEstimation).
+  let resultAnchor: HTMLDivElement | undefined = $state();
 
   const tauriAvailable = $derived(isTauriContext());
 
@@ -89,6 +93,14 @@
         tokens_out_estimated: Math.max(1, tokensOut)
       });
       result = r;
+      // Scroll smooth vers le bloc résultat, après que le DOM ait été
+      // recalculé. Respecte `prefers-reduced-motion` via le param `behavior`.
+      await tick();
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      resultAnchor?.scrollIntoView({
+        behavior: reduced ? 'auto' : 'smooth',
+        block: 'start'
+      });
     } catch (err) {
       result = null;
       if (err instanceof SobriaIpcError) {
@@ -119,16 +131,19 @@
     return Repeat;
   }
 
-  function fmt(value: number, maxFrac = 2): string {
+  // Format FR avec N chiffres significatifs (cf. note dans ResultBlock.svelte).
+  function fmt(value: number, sig = 3): string {
+    if (!Number.isFinite(value)) return '—';
+    if (value === 0) return '0';
     return new Intl.NumberFormat('fr-FR', {
-      maximumFractionDigits: maxFrac
+      maximumSignificantDigits: sig,
+      minimumSignificantDigits: 1
     }).format(value);
   }
 
   // Découpe « 17 km en voiture thermique » → { head: '17 km', tail: 'en voiture …' }
   function splitEquivLabel(e: EquivalentDto): { head: string; tail: string } {
-    const formattedValue = fmt(e.value, e.value < 1 ? 3 : 1);
-    return { head: formattedValue, tail: e.label };
+    return { head: fmt(e.value), tail: e.label };
   }
 
   const errorTone = $derived.by<'info' | 'warn' | 'error'>(() => {
@@ -232,6 +247,7 @@
 
   <!-- ─── Résultat ─────────────────────────────────────────────── -->
   {#if result}
+    <div bind:this={resultAnchor} style="scroll-margin-top: 24px"></div>
     <ResultBlock {result} />
 
     <!-- Équivalents -->

@@ -5,11 +5,23 @@
   type Props = { result: EstimationResultDto };
   const { result }: Props = $props();
 
-  // Format FR : virgule décimale + précision adaptée à la magnitude.
-  function fmt(value: number, maxFrac = 2): string {
+  // Format FR : virgule décimale, **N chiffres significatifs** plutôt que
+  // N décimales fixes. Indispensable parce que les indicateurs Sobr.ia
+  // s'étalent sur 6 ordres de grandeur (de quelques nanogrammes de métaux
+  // critiques à plusieurs centaines de grammes de CO₂eq pour des gros
+  // modèles) — un `maximumFractionDigits: 2` afficherait « 0,00 » pour
+  // tout ce qui passe sous 5 mg.
+  //
+  // Edge cases :
+  //   - `value === 0`  → "0"
+  //   - non fini       → "—"
+  //   - sinon          → Intl avec `maximumSignificantDigits`.
+  function fmt(value: number, sig = 3): string {
+    if (!Number.isFinite(value)) return '—';
+    if (value === 0) return '0';
     return new Intl.NumberFormat('fr-FR', {
-      maximumFractionDigits: maxFrac,
-      minimumFractionDigits: value < 1 ? maxFrac : 0
+      maximumSignificantDigits: sig,
+      minimumSignificantDigits: 1
     }).format(value);
   }
 

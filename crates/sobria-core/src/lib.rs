@@ -31,7 +31,9 @@ pub use datacenter::Datacenter;
 pub use emission::EmissionFactor;
 pub use error::{SobriaError, SobriaResult};
 pub use estimation::{EstimationRequest, EstimationResult, Hypothesis};
-pub use indicators::{Equivalent, Indicator, IndicatorValue, UncertaintyInterval};
+pub use indicators::{
+    DistributionBins, Equivalent, Indicator, IndicatorValue, UncertaintyInterval,
+};
 pub use model::{Modality, Model, ModelProvider};
 pub use validation::{validate_country_iso, validate_year};
 

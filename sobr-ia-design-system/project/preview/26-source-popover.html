@@ -1,0 +1,83 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>SourcePopover</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body{margin:0;padding:32px;background:var(--ink);min-height:100vh;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:18px;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 500px 300px at 80% 15%,rgba(197,240,74,.05),transparent 60%),radial-gradient(ellipse 400px 300px at 15% 85%,rgba(126,182,255,.04),transparent 60%);filter:blur(20px);}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;gap:20px;}
+.head{display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.head .eye{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.head .eye::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime-glow);}
+.head .t{font:400 26px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.01em;}
+.head .grow{flex:1;}
+.head .meta{font:400 10px/1.3 var(--font-mono);color:var(--ivory-3);text-align:right;}
+.lblrow{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.lblrow::after{content:'';flex:1;height:1px;background:var(--border);}
+</style></head><body><div class="amb"></div><div class="wrap">
+<div class="head">
+  <span class="eye">Composant · Overlay</span>
+  <span class="t">SourcePopover</span>
+  <span class="grow"></span>
+  <span class="meta">Déclenché par ⓘ ou bouton "source"<br>S'ouvre toujours sur la valeur tracée</span>
+</div>
+
+<div class="lblrow">Exemple en contexte</div>
+<div style="display:flex;align-items:flex-start;gap:18px">
+  <div style="background:linear-gradient(160deg,rgba(255,255,255,.025),rgba(255,255,255,.005));border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;width:280px">
+    <div style="font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:10px">PUE datacenter FR</div>
+    <div style="font:400 56px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.02em">1,30 <button id="trigger" style="vertical-align:super;font:500 10px var(--font-ui);background:rgba(197,240,74,.12);border:1px solid rgba(197,240,74,.4);color:var(--lime);border-radius:var(--radius-pill);padding:3px 9px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase">source ⓘ</button></div>
+    <div style="font:400 11px var(--font-mono);color:var(--ivory-3);margin-top:8px">moyenne Europe occidentale 2024</div>
+  </div>
+
+  <!-- Popover -->
+  <div style="position:relative;margin-top:32px">
+    <div style="position:absolute;top:-8px;left:-9px;width:16px;height:16px;background:rgba(15,18,16,.96);border-left:1px solid var(--border-hi);border-top:1px solid var(--border-hi);transform:rotate(-45deg)"></div>
+    <div style="background:rgba(15,18,16,.96);backdrop-filter:blur(20px);border:1px solid var(--border-hi);border-radius:var(--radius-lg);padding:18px 22px;width:440px;box-shadow:0 16px 48px rgba(0,0,0,.5)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px">
+        <div>
+          <div style="font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--lime);margin-bottom:6px">Source officielle</div>
+          <div style="font:400 16px/1.2 var(--font-display);font-style:italic;color:var(--ivory)">ADEME · Rapport empreinte numérique 2024</div>
+        </div>
+        <button style="background:transparent;border:none;color:var(--ivory-4);font-size:18px;cursor:pointer;line-height:1">×</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font:400 11px var(--font-mono);color:var(--ivory-2);padding-bottom:12px;border-bottom:1px dashed var(--border)">
+        <span style="color:var(--ivory-3)">Publication</span><span>Mars 2024</span>
+        <span style="color:var(--ivory-3)">Périmètre</span><span>Datacenters &gt; 1 MW en Europe</span>
+        <span style="color:var(--ivory-3)">Échantillon</span><span>n = 142 sites</span>
+        <span style="color:var(--ivory-3)">Méthode</span><span>Mesure annuelle déclarative</span>
+        <span style="color:var(--ivory-3)">Incertitude</span><span style="color:var(--lime)">± 8 % (CI 90 %)</span>
+      </div>
+
+      <div style="margin-top:12px;font:400 12px/1.5 var(--font-ui);color:var(--ivory-2)">
+        <span style="font-style:italic">«&nbsp;Le PUE moyen des datacenters européens s'est stabilisé autour de 1,3 depuis 2022, après deux décennies de baisse continue.&nbsp;»</span>
+      </div>
+
+      <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:5px;font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;background:rgba(197,240,74,.10);color:var(--lime);padding:4px 9px;border-radius:var(--radius-pill);border:1px solid rgba(197,240,74,.3)">✓ Vérifiée</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;background:rgba(126,182,255,.08);color:#7eb6ff;padding:4px 9px;border-radius:var(--radius-pill);border:1px solid rgba(126,182,255,.25)">peer-reviewed</span>
+        <span style="flex:1"></span>
+        <a href="#" style="font:500 11px var(--font-ui);color:var(--lime);text-decoration:none;border-bottom:1px dashed rgba(197,240,74,.4)">PDF (4,2 Mo) ↗</a>
+      </div>
+
+      <div style="margin-top:10px;font:400 10px var(--font-mono);color:var(--ivory-4);text-align:right">cité dans Livre Blanc Sobr.ia · §3.2 p.14</div>
+    </div>
+  </div>
+</div>
+
+<div class="lblrow" style="margin-top:8px">Variantes hiérarchie de confiance</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+  <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px">
+    <div style="display:inline-flex;align-items:center;gap:5px;font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;background:rgba(197,240,74,.10);color:var(--lime);padding:3px 8px;border-radius:var(--radius-pill);border:1px solid rgba(197,240,74,.3);margin-bottom:8px">✓ Officielle</div>
+    <div style="font:400 12px var(--font-ui);color:var(--ivory-2)">ADEME, RTE, INSEE, Mistral, OpenAI papers…</div>
+  </div>
+  <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px">
+    <div style="display:inline-flex;align-items:center;gap:5px;font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;background:rgba(126,182,255,.08);color:#7eb6ff;padding:3px 8px;border-radius:var(--radius-pill);border:1px solid rgba(126,182,255,.25);margin-bottom:8px">↪ Estimation</div>
+    <div style="font:400 12px var(--font-ui);color:var(--ivory-2)">Calcul Sobr.ia à partir de sources publiques</div>
+  </div>
+  <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px">
+    <div style="display:inline-flex;align-items:center;gap:5px;font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;background:rgba(245,183,105,.08);color:#f5b769;padding:3px 8px;border-radius:var(--radius-pill);border:1px solid rgba(245,183,105,.25);margin-bottom:8px">~ Hypothèse</div>
+    <div style="font:400 12px var(--font-ui);color:var(--ivory-2)">Valeur par défaut, modifiable utilisateur</div>
+  </div>
+</div>
+</div></body></html>

@@ -1,0 +1,744 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Sobr.ia · M13 Simulateur "Et si...?"</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ink);color:var(--ivory);font-family:var(--font-ui);min-height:100vh;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 700px 400px at 80% 5%,rgba(197,240,74,.06),transparent 60%),radial-gradient(ellipse 500px 400px at 5% 95%,rgba(126,182,255,.04),transparent 60%);filter:blur(20px);}
+
+.app{position:relative;z-index:1;display:grid;grid-template-columns:60px 1fr;min-height:100vh;}
+.tbar{grid-column:1/3;display:flex;align-items:center;gap:20px;padding:0 24px;height:54px;border-bottom:1px solid var(--border);background:rgba(15,18,16,.7);backdrop-filter:blur(20px);position:sticky;top:0;z-index:10;}
+.brand{display:inline-flex;align-items:center;gap:9px;font:500 14px/1 var(--font-ui);color:var(--ivory);}
+.brand::before{content:'';width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c5f04a,#5a7a1e);box-shadow:0 0 14px rgba(197,240,74,.5);}
+.crumb{font:400 12px var(--font-mono);color:var(--ivory-3);}
+.crumb .cur{color:var(--lime);}
+.tbar .grow{flex:1;}
+.btn{background:transparent;border:1px solid var(--border);color:var(--ivory-2);font:500 11px var(--font-ui);padding:7px 14px;border-radius:var(--radius-pill);cursor:pointer;}
+.btn:hover{border-color:var(--lime);color:var(--lime);}
+.btn.p{background:var(--lime);color:var(--ivory-inv);border-color:var(--lime);font-weight:600;}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#3a4a2e,#c5f04a);display:grid;place-items:center;font:500 11px var(--font-ui);color:var(--ivory-inv);}
+
+.rail{border-right:1px solid var(--border);background:rgba(15,18,16,.5);padding:14px 0;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.rl-ic{width:38px;height:38px;display:grid;place-items:center;border-radius:var(--radius-md);color:var(--ivory-3);cursor:pointer;font-size:18px;}
+.rl-ic:hover{color:var(--ivory);background:rgba(255,255,255,.03);}
+.rl-ic.on{color:var(--ivory-inv);background:var(--lime);}
+.rl-sep{width:24px;height:1px;background:var(--border);margin:6px 0;}
+
+main{padding:32px 44px 60px;max-width:1480px;}
+
+.page-head{margin-bottom:32px;}
+.eye{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.eye::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px var(--lime);}
+.eye .live{margin-left:8px;font:400 10px var(--font-mono);color:var(--lime);text-transform:none;letter-spacing:0;opacity:0;transition:opacity 200ms;}
+.eye .live.on{opacity:1;}
+h1{font:400 52px/1.05 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.02em;margin:8px 0 8px;}
+h1 b{color:var(--lime);font-style:italic;font-weight:400;}
+.sub{font:400 15px/1.5 var(--font-ui);color:var(--ivory-3);font-style:italic;max-width:680px;}
+
+.scen-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:24px;}
+.scen-bar .lbl{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-right:6px;}
+.scenchip{padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius-pill);font:500 11px var(--font-ui);color:var(--ivory-2);cursor:pointer;background:rgba(255,255,255,.02);display:inline-flex;align-items:center;gap:6px;}
+.scenchip:hover{border-color:rgba(197,240,74,.3);color:var(--ivory);}
+.scenchip.on{background:var(--lime);color:var(--ivory-inv);border-color:var(--lime);font-weight:600;}
+.scenchip .ic{font-family:var(--font-display);font-style:italic;font-size:14px;}
+
+.workbench{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
+
+.knobs{background:linear-gradient(160deg,rgba(255,255,255,.025),rgba(255,255,255,.005));border:1px solid var(--border-hi);border-radius:var(--radius-lg);padding:24px 26px;position:sticky;top:74px;}
+.knobs-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
+.knobs-head h2{font:400 22px var(--font-display);font-style:italic;color:var(--ivory);margin:0;letter-spacing:-.01em;}
+.knobs-head h2 i{color:var(--lime);}
+.knobs-head .reset{margin-left:auto;font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;color:var(--ivory-3);background:transparent;border:none;cursor:pointer;}
+.knobs-head .reset:hover{color:var(--lime);}
+.knobs-sub{font:400 11px/1.4 var(--font-ui);font-style:italic;color:var(--ivory-4);margin-bottom:18px;}
+
+.knob{margin-bottom:18px;}
+.knob .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.knob .nm{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-2);display:flex;align-items:center;gap:8px;}
+.knob .v{font:400 22px var(--font-display);font-style:italic;color:var(--lime);letter-spacing:-.01em;}
+.knob .v .u{font:400 10px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.knob .v.diff{display:inline-flex;align-items:baseline;gap:6px;}
+.knob .v .from{font:400 12px var(--font-mono);color:var(--ivory-4);text-decoration:line-through;font-style:normal;}
+
+.knob input[type=range]{width:100%;-webkit-appearance:none;background:transparent;height:24px;cursor:pointer;}
+.knob input[type=range]::-webkit-slider-runnable-track{height:4px;background:linear-gradient(90deg,var(--lime) 0%,var(--lime) var(--pct,40%),rgba(255,255,255,.06) var(--pct,40%));border-radius:2px;}
+.knob input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#e0ff80,#c5f04a);box-shadow:0 0 12px rgba(197,240,74,.6),0 0 0 4px rgba(15,18,16,.9);margin-top:-7px;}
+.knob input[type=range]::-moz-range-track{height:4px;background:rgba(255,255,255,.06);border-radius:2px;}
+.knob input[type=range]::-moz-range-thumb{width:18px;height:18px;border:none;border-radius:50%;background:radial-gradient(circle at 30% 30%,#e0ff80,#c5f04a);}
+.knob .axis{display:flex;justify-content:space-between;font:400 9px var(--font-mono);color:var(--ivory-4);}
+.knob .seg{display:flex;gap:0;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px;}
+.knob .seg button{flex:1;background:transparent;border:none;color:var(--ivory-3);font:500 10px var(--font-ui);padding:7px 8px;border-radius:var(--radius-pill);cursor:pointer;letter-spacing:.04em;}
+.knob .seg button.on{background:var(--lime);color:var(--ivory-inv);font-weight:600;}
+.knob .toggles{display:flex;flex-direction:column;gap:6px;}
+.knob .tr{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;cursor:pointer;}
+.knob .tr.on{border-color:rgba(197,240,74,.4);background:rgba(197,240,74,.05);}
+.knob .tr .nm{font:400 12px var(--font-ui);color:var(--ivory-2);text-transform:none;letter-spacing:0;}
+.knob .tr.on .nm{color:var(--ivory);}
+.knob .tr .dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border-hi);}
+.knob .tr.on .dot{background:var(--lime);border-color:var(--lime);box-shadow:inset 0 0 0 3px var(--ink);}
+
+.results{display:flex;flex-direction:column;gap:20px;}
+
+.rhead{background:linear-gradient(160deg,rgba(197,240,74,.08),rgba(197,240,74,.01));border:1px solid rgba(197,240,74,.3);border-radius:var(--radius-lg);padding:28px 32px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;transition:border-color 300ms,background 300ms;}
+.rhead.bad{background:linear-gradient(160deg,rgba(240,140,90,.08),rgba(240,140,90,.01));border-color:rgba(240,140,90,.3);}
+.rhead .e{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.18em;color:var(--lime);}
+.rhead.bad .e{color:#f08c5a;}
+.rhead h2{font:400 30px/1.15 var(--font-display);font-style:italic;color:var(--ivory);margin:6px 0 6px;letter-spacing:-.015em;text-wrap:balance;max-width:560px;}
+.rhead h2 b{color:var(--lime);font-style:italic;font-weight:400;}
+.rhead.bad h2 b{color:#f08c5a;}
+.rhead .meta{font:400 11px var(--font-mono);color:var(--ivory-3);}
+.rhead .deltabig{text-align:right;}
+.rhead .deltabig .v{font:400 72px/1 var(--font-display);font-style:italic;color:var(--lime);letter-spacing:-.025em;transition:color 300ms;}
+.rhead.bad .deltabig .v{color:#f08c5a;}
+.rhead .deltabig .u{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-top:2px;}
+
+.kpi-quad{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kpi{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;transition:border-color 300ms;}
+.kpi.win{border-color:rgba(197,240,74,.25);}
+.kpi.lose{border-color:rgba(240,140,90,.25);}
+.kpi .l{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline;}
+.kpi .l .pct{font:400 11px var(--font-mono);color:var(--lime);text-transform:none;letter-spacing:0;}
+.kpi .l .pct.warn{color:#f08c5a;}
+.kpi .pair{display:flex;align-items:baseline;gap:10px;}
+.kpi .from{font:400 16px var(--font-display);font-style:italic;color:var(--ivory-4);text-decoration:line-through;}
+.kpi .arrow{font-family:var(--font-mono);color:var(--ivory-4);font-size:14px;}
+.kpi .to{font:400 32px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.015em;transition:color 200ms;}
+.kpi .to .u{font:400 10px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.kpi.win .to{color:var(--lime);}
+.kpi.lose .to{color:#f08c5a;}
+.kpi .ci{font:400 9px var(--font-mono);color:var(--ivory-4);margin-top:6px;}
+.kpi .mini{height:32px;margin-top:8px;}
+
+.water{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 28px;}
+.water .head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;}
+.water h3{font:400 22px var(--font-display);font-style:italic;color:var(--ivory);margin:0;letter-spacing:-.01em;}
+.water h3 i{color:var(--lime);}
+.water .pill{font:400 10px var(--font-mono);color:var(--ivory-3);}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.sp-card{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px 24px;}
+.sp-card.before{border-color:rgba(240,140,90,.25);}
+.sp-card.after{border-color:rgba(197,240,74,.3);background:linear-gradient(160deg,rgba(197,240,74,.04),rgba(255,255,255,.005));}
+.sp-card .tag{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.18em;display:inline-block;margin-bottom:10px;}
+.sp-card.before .tag{color:#f08c5a;}
+.sp-card.after .tag{color:var(--lime);}
+.sp-card .big{font:400 56px/1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.025em;}
+.sp-card .big .u{font:400 13px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:4px;}
+.sp-card .sub{font:400 12px var(--font-ui);color:var(--ivory-3);margin-top:4px;font-style:italic;}
+.sp-card .pile{margin-top:14px;display:grid;grid-template-columns:repeat(14,1fr);gap:3px;min-height:62px;}
+.sp-card .pile div{aspect-ratio:1;border-radius:2px;transition:background 300ms;}
+
+.proj{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 28px;}
+.proj h3{font:400 22px var(--font-display);font-style:italic;color:var(--ivory);margin:0 0 4px;letter-spacing:-.01em;}
+.proj h3 i{color:var(--lime);}
+.proj .sb{font:400 12px var(--font-ui);color:var(--ivory-3);font-style:italic;margin-bottom:18px;}
+
+.eq-wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.eqc{background:linear-gradient(160deg,rgba(126,182,255,.05),rgba(255,255,255,.01));border:1px dashed rgba(126,182,255,.25);border-radius:var(--radius-md);padding:14px 16px;}
+.eqc .ic{font:400 24px var(--font-display);font-style:italic;color:#7eb6ff;line-height:1;}
+.eqc .n{font:400 11px var(--font-ui);color:var(--ivory-2);margin-top:6px;font-style:italic;}
+.eqc .v{font:400 24px/1 var(--font-display);font-style:italic;color:var(--ivory);margin-top:4px;letter-spacing:-.01em;}
+.eqc .v .u{font:400 9px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:2px;}
+
+.note{background:rgba(126,182,255,.05);border:1px dashed rgba(126,182,255,.2);border-radius:var(--radius-md);padding:14px 18px;font:400 12px/1.5 var(--font-ui);color:var(--ivory-2);font-style:italic;}
+.note b{color:#7eb6ff;font-style:normal;font-weight:500;}
+
+.save{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(197,240,74,.08),rgba(197,240,74,.01));border:1px solid rgba(197,240,74,.3);border-radius:var(--radius-lg);padding:22px 28px;gap:24px;}
+.save h4{font:400 24px var(--font-display);font-style:italic;color:var(--ivory);margin:0;letter-spacing:-.01em;}
+.save .s{font:400 12px var(--font-ui);color:var(--ivory-3);margin-top:4px;}
+.save .btns{display:flex;gap:10px;}
+
+@keyframes flash{0%{opacity:.5}100%{opacity:1}}
+.flash{animation:flash 250ms ease-out;}
+</style>
+</head>
+<body>
+<div class="amb"></div>
+
+<div class="app">
+<div class="tbar">
+  <span class="brand">Sobr.ia<span style="color:var(--ivory-3);font-weight:400;margin-left:2px">.fr</span></span>
+  <span class="crumb">Outils <span style="color:var(--ivory-4)">/</span> Simulateur <span style="color:var(--ivory-4)">/</span> <span class="cur" id="crumbScen">Mes leviers</span></span>
+  <span class="grow"></span>
+  <button class="btn" id="btnUndo">↶ Annuler</button>
+  <button class="btn" id="btnReset">↻ Réinitialiser</button>
+  <button class="btn p">✓ Appliquer ce scénario</button>
+  <div class="av">CB</div>
+</div>
+
+<aside class="rail">
+  <div class="rl-ic"><span>⌂</span></div>
+  <div class="rl-ic"><span>✎</span></div>
+  <div class="rl-ic"><span>≡</span></div>
+  <div class="rl-ic on"><span>◊</span></div>
+  <div class="rl-sep"></div>
+  <div class="rl-ic"><span>◉</span></div>
+  <div class="rl-ic"><span>⛁</span></div>
+  <div class="rl-ic"><span>◔</span></div>
+</aside>
+
+<main>
+
+<div class="page-head">
+  <span class="eye">M13 · Simulateur <span class="live" id="liveTag">⚡ recalcul live · <span id="recalcMs">0,2</span> s</span></span>
+  <h1>Et si <b>tu changeais</b> tes habitudes ?</h1>
+  <p class="sub">Bouge les leviers à gauche. À droite, on recalcule en direct ton empreinte projetée sur les 12 prochains mois. Aucune valeur n'est appliquée tant que tu n'as pas cliqué "Appliquer".</p>
+</div>
+
+<div class="scen-bar">
+  <span class="lbl">Scénarios pré-définis</span>
+  <span class="scenchip on" data-scen="custom"><span class="ic">①</span> Mes leviers (perso.)</span>
+  <span class="scenchip" data-scen="fewer-retries"><span class="ic">②</span> Moins de retours-arrière</span>
+  <span class="scenchip" data-scen="smaller-models"><span class="ic">③</span> Modèles plus petits</span>
+  <span class="scenchip" data-scen="local-first"><span class="ic">④</span> Local first</span>
+  <span class="scenchip" data-scen="off-peak"><span class="ic">⑤</span> Heures creuses</span>
+  <span class="scenchip" data-scen="recommended"><span class="ic">⑥</span> Sobr.ia recommandé</span>
+</div>
+
+<div class="workbench">
+
+<aside class="knobs">
+  <div class="knobs-head">
+    <h2>Leviers <i>·</i> 7 réglages</h2>
+    <button class="reset" id="btnResetKnobs">↻ baseline</button>
+  </div>
+  <div class="knobs-sub">Chaque mouvement déclenche un re-calcul Monte-Carlo en moins de 200 ms.</div>
+
+  <div class="knob" data-k="prompts">
+    <div class="top">
+      <span class="nm">Prompts / jour</span>
+      <span class="v diff"><span class="from">30</span><span><span data-out="prompts">22</span><span class="u">/j</span></span></span>
+    </div>
+    <input type="range" min="0" max="100" value="22" data-set="prompts"/>
+    <div class="axis"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+  </div>
+
+  <div class="knob" data-k="retries">
+    <div class="top">
+      <span class="nm">Taux de retours-arrière</span>
+      <span class="v diff"><span class="from">38 %</span><span><span data-out="retries">18</span><span class="u">%</span></span></span>
+    </div>
+    <input type="range" min="0" max="80" value="18" data-set="retries"/>
+    <div class="axis"><span>0 %</span><span>20</span><span>40</span><span>60</span><span>80</span></div>
+  </div>
+
+  <div class="knob">
+    <div class="top"><span class="nm">Taille modèle par défaut</span></div>
+    <div class="seg" data-set="size">
+      <button data-v="nano">Nano</button>
+      <button class="on" data-v="mini">Mini</button>
+      <button data-v="medium">Medium</button>
+      <button data-v="large">Large</button>
+    </div>
+    <div class="axis" style="margin-top:6px"><span>3B</span><span>20B</span><span>70B</span><span>200B+</span></div>
+  </div>
+
+  <div class="knob" data-k="ctx">
+    <div class="top">
+      <span class="nm">Longueur contexte moyenne</span>
+      <span class="v diff"><span class="from">3,2k</span><span><span data-out="ctx">1,8</span><span class="u">k tokens</span></span></span>
+    </div>
+    <input type="range" min="1" max="128" value="18" data-set="ctx"/>
+    <div class="axis"><span>0</span><span>32k</span><span>64k</span><span>96k</span><span>128k</span></div>
+  </div>
+
+  <div class="knob">
+    <div class="top"><span class="nm">Hébergement par défaut</span></div>
+    <div class="seg" data-set="host">
+      <button data-v="us">US-East</button>
+      <button class="on" data-v="fr">France</button>
+      <button data-v="local">Local</button>
+    </div>
+  </div>
+
+  <div class="knob">
+    <div class="top"><span class="nm">Politiques activées</span></div>
+    <div class="toggles">
+      <div class="tr on" data-tg="cache"><span class="nm">Cache des réponses fréquentes</span><span class="dot"></span></div>
+      <div class="tr on" data-tg="router"><span class="nm">Routeur intelligent nano/large</span><span class="dot"></span></div>
+      <div class="tr" data-tg="offpeak"><span class="nm">Heures creuses (mix &lt; 40g)</span><span class="dot"></span></div>
+      <div class="tr" data-tg="quota"><span class="nm">Quota mensuel par utilisateur</span><span class="dot"></span></div>
+    </div>
+  </div>
+
+  <div class="knob" style="margin-bottom:0">
+    <div class="top"><span class="nm">Horizon simulation</span><span class="v"><span data-out="horizon">12</span><span class="u">mois</span></span></div>
+    <div class="seg" data-set="horizon">
+      <button data-v="1">1m</button>
+      <button data-v="3">3m</button>
+      <button data-v="6">6m</button>
+      <button class="on" data-v="12">12m</button>
+      <button data-v="36">3 ans</button>
+    </div>
+  </div>
+
+</aside>
+
+<div class="results">
+
+  <div class="rhead" id="rhead">
+    <div>
+      <span class="e" id="rheadEye">Projection sur <span id="rheadHorizon">12</span> mois · recalcul en direct</span>
+      <h2 id="rheadH2">Tu économises <b id="rheadPct">−63 %</b> de CO₂eq <i>sans perte de qualité perceptible</i>.</h2>
+      <p class="meta">7 leviers actifs · IC 90 % · 10 000 tirages Monte-Carlo · MAJ <span id="rheadAgo">il y a 0,2 s</span></p>
+    </div>
+    <div class="deltabig">
+      <div class="v" id="rheadBig">−1,52<span style="font-size:32px;letter-spacing:0">t</span></div>
+      <div class="u" id="rheadBigU">CO₂eq évités · 12 mois</div>
+    </div>
+  </div>
+
+  <div class="kpi-quad">
+    <div class="kpi win" data-kpi="energy">
+      <div class="l"><span>Énergie</span><span class="pct" data-pct>−42 %</span></div>
+      <div class="pair"><span class="from" data-from>42,1</span><span class="arrow">→</span><span class="to"><span data-to>24,4</span><span class="u">kWh/mois</span></span></div>
+      <svg class="mini" viewBox="0 0 200 32" preserveAspectRatio="none"><path d="M0 8 L 40 12 L 80 15 L 120 22 L 160 25 L 200 26" stroke="#f08c5a" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/><path data-spark stroke="#c5f04a" stroke-width="2" fill="none"/></svg>
+      <div class="ci" data-ci>P5 18,8 ─ P95 31,2</div>
+    </div>
+    <div class="kpi win" data-kpi="co2">
+      <div class="l"><span>CO₂eq</span><span class="pct" data-pct>−63 %</span></div>
+      <div class="pair"><span class="from" data-from>2 410</span><span class="arrow">→</span><span class="to"><span data-to>893</span><span class="u">g/mois</span></span></div>
+      <svg class="mini" viewBox="0 0 200 32" preserveAspectRatio="none"><path d="M0 6 L 40 9 L 80 13 L 120 18 L 160 22 L 200 24" stroke="#f08c5a" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/><path data-spark stroke="#c5f04a" stroke-width="2" fill="none"/></svg>
+      <div class="ci" data-ci>P5 720 ─ P95 1 142</div>
+    </div>
+    <div class="kpi win" data-kpi="water">
+      <div class="l"><span>Eau</span><span class="pct" data-pct>−51 %</span></div>
+      <div class="pair"><span class="from" data-from>75,8</span><span class="arrow">→</span><span class="to"><span data-to>37,2</span><span class="u">L/mois</span></span></div>
+      <svg class="mini" viewBox="0 0 200 32" preserveAspectRatio="none"><path d="M0 7 L 40 11 L 80 14 L 120 19 L 160 23 L 200 25" stroke="#f08c5a" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/><path data-spark stroke="#c5f04a" stroke-width="2" fill="none"/></svg>
+      <div class="ci" data-ci>P5 29,5 ─ P95 47,8</div>
+    </div>
+    <div class="kpi lose" data-kpi="quality">
+      <div class="l"><span>Qualité MMLU</span><span class="pct warn" data-pct>−2,1 pts</span></div>
+      <div class="pair"><span class="from" data-from>88,7</span><span class="arrow">→</span><span class="to"><span data-to>86,6</span><span class="u">%</span></span></div>
+      <svg class="mini" viewBox="0 0 200 32" preserveAspectRatio="none"><path d="M0 7 L 40 7 L 80 6 L 120 7 L 160 6 L 200 7" stroke="#f08c5a" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/><path data-spark stroke="#c5f04a" stroke-width="2" fill="none"/></svg>
+      <div class="ci" data-ci>imperceptible sur tes cas d'usage</div>
+    </div>
+  </div>
+
+  <div class="water">
+    <div class="head">
+      <h3>Décomposition <i>·</i> qui contribue le plus ?</h3>
+      <span class="pill" id="waterPill">7 leviers actifs · cumulés en cascade</span>
+    </div>
+    <svg viewBox="0 0 920 240" width="100%" height="240" style="display:block" id="waterSvg"></svg>
+    <div style="font:400 11px/1.5 var(--font-ui);color:var(--ivory-3);font-style:italic;margin-top:6px" id="waterCaption"></div>
+  </div>
+
+  <div class="split">
+    <div class="sp-card before">
+      <span class="tag">▽ Avant · baseline</span>
+      <div class="big">2 410<span class="u">g CO₂eq / mois</span></div>
+      <div class="sub">Habitudes actuelles · GPT-4o sur US-East · 30 prompts/j · 38 % retours</div>
+      <div class="pile" id="pileBefore"></div>
+      <div style="font:400 10px var(--font-mono);color:var(--ivory-4);margin-top:8px">Une "tuile" = 70 g CO₂eq · ordre de grandeur visuel</div>
+    </div>
+    <div class="sp-card after">
+      <span class="tag">▲ Après · scénario simulé</span>
+      <div class="big"><span id="afterValue">893</span><span class="u">g CO₂eq / mois</span></div>
+      <div class="sub" id="afterSub">Mini + cache + routeur + FR · 22 prompts/j · 18 % retours</div>
+      <div class="pile" id="pileAfter"></div>
+      <div style="font:400 10px var(--font-mono);color:var(--ivory-4);margin-top:8px"><span id="afterTiles">13</span> tuiles au lieu de 35 · même unité</div>
+    </div>
+  </div>
+
+  <div class="proj">
+    <h3>Trajectoire <i>cumulée</i> · <span id="projHorizon">12</span> prochains mois</h3>
+    <p class="sb">Si tu maintiens ce scénario, voici la divergence par rapport au "rien ne change".</p>
+    <svg viewBox="0 0 920 220" width="100%" height="220" style="display:block" id="projSvg"></svg>
+  </div>
+
+  <div class="eq-wrap" id="eqWrap"></div>
+
+  <div class="note">
+    <b>↗ On reste honnête.</b> Ces chiffres sont des projections. La réalité dépendra de ta capacité à tenir ces habitudes sur 12 mois. <b style="color:#7eb6ff">Sobr.ia te rappellera</b> ton scénario chaque semaine via une notification douce.
+  </div>
+
+  <div class="save">
+    <div>
+      <h4>Sauvegarde ce scénario ?</h4>
+      <div class="s">On le garde dans tes favoris. Tu pourras le réactiver, le partager avec ton équipe, ou en faire un objectif suivi.</div>
+    </div>
+    <div class="btns">
+      <button class="btn">⛁ Sauvegarder comme brouillon</button>
+      <button class="btn p">✓ En faire un objectif</button>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+</main>
+</div>
+
+<script>
+// ───────── Reactive engine ─────────
+
+// Baseline values (matches "no change" reference)
+const BASE={prompts:30,retries:38,ctx:32,size:'large',host:'us',cache:false,router:false,offpeak:false,quota:false,horizon:12};
+const BASE_KPI={energy:42.1,co2:2410,water:75.8,quality:88.7};
+
+// State
+const state={prompts:22,retries:18,ctx:18,size:'mini',host:'fr',cache:true,router:true,offpeak:false,quota:false,horizon:12};
+
+// Factors per category (multiplicative on CO2/energy/water; absolute on quality)
+const SIZE={nano:{e:.25,q:-9.5},mini:{e:.55,q:-3.2},medium:{e:.78,q:-1.1},large:{e:1.0,q:0}};
+const HOST={us:{co2:6.9,water:1.0,e:1.0},fr:{co2:1.0,water:.53,e:.92},local:{co2:.45,water:.05,e:1.18}}; // local : pas de PUE refroid, mais GPU desktop moins efficace
+
+function fmt(n,d=0){return n.toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});}
+
+function compute(){
+  // Prompts ratio
+  const pr=state.prompts/BASE.prompts;
+  // Retries ratio: each retry doubles work; baseline 38%, lower retries -> less compute
+  const retF=(1+state.retries/100)/(1+BASE.retries/100);
+  // Ctx ratio (sublinear scaling — attention is ~O(n²) but we serve a fraction of full context)
+  const ctxF=Math.pow(state.ctx/BASE.ctx,1.3);
+  // Size
+  const sz=SIZE[state.size];
+  // Host
+  const ho=HOST[state.host];
+
+  // Policy multipliers
+  let pol=1;let qDelta=0;
+  if(state.cache){pol*=0.88;}              // -12% energy (req déduplication)
+  if(state.router){pol*=0.85;qDelta-=0.4;} // -15% energy, qualité légèrement abaissée
+  if(state.offpeak){pol*=1.0;}              // pas d'effet sur kWh, mais sur co2 via mix
+  if(state.quota){pol*=0.94;}              // -6% energy (cap sur outliers)
+
+  // Energy (kWh/mo)
+  const energyF=pr*retF*ctxF*sz.e*ho.e*pol;
+  const energy=BASE_KPI.energy*energyF;
+
+  // CO2 — energyF * host co2 multiplier (ho.co2 is RATIO of mix vs baseline US)
+  // but baseline already on US. host fr -> /6.9 vs us
+  // Simpler: CO2 = energy * mixFactor where mixFactor=1 for US, 1/6.9 for FR, 1/15 for local
+  const mixMap={us:1,fr:1/6.9,local:1/15};
+  let mixF=mixMap[state.host];
+  if(state.offpeak)mixF*=0.6; // heures creuses : mix 40% plus propre
+  const co2=BASE_KPI.co2*energyF*mixF/1.0; // baseline co2 already at host=us
+  // Eau
+  const water=BASE_KPI.water*energyF*ho.water;
+  // Qualité
+  const quality=Math.max(0,BASE_KPI.quality+sz.q+qDelta);
+
+  // Horizon scaling
+  const h=state.horizon;
+  const co2Total=co2*h;
+  const co2Base=BASE_KPI.co2*h;
+
+  return {energy,co2,water,quality,co2Total,co2Base,energyF,mixF,sz,ho,pol,retF,ctxF,pr,qDelta};
+}
+
+function pct(now,base){return Math.round((now-base)/base*100);}
+
+// ───────── Render ─────────
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+
+function render(){
+  const r=compute();
+
+  // Out fields
+  $('[data-out=prompts]').textContent=state.prompts;
+  $('[data-out=retries]').textContent=state.retries;
+  $('[data-out=ctx]').textContent=(state.ctx/10).toFixed(1).replace('.',',');
+  $('[data-out=horizon]').textContent=state.horizon;
+  $('#projHorizon').textContent=state.horizon;
+  $('#rheadHorizon').textContent=state.horizon;
+
+  // KPIs
+  const co2Pct=pct(r.co2,BASE_KPI.co2);
+  setKpi('energy',r.energy,BASE_KPI.energy,'kWh/mois',1);
+  setKpi('co2',r.co2,BASE_KPI.co2,'g/mois',0);
+  setKpi('water',r.water,BASE_KPI.water,'L/mois',1);
+  setKpiQuality(r.quality);
+
+  // Big header
+  const bigSign=co2Pct<0?'−':'+';
+  $('#rheadPct').textContent=bigSign+Math.abs(co2Pct)+' %';
+  const totSave=(BASE_KPI.co2-r.co2)*state.horizon/1000; // kg
+  const big=$('#rheadBig');
+  if(Math.abs(totSave)>=1000){big.innerHTML=(totSave<0?'+':'−')+fmt(Math.abs(totSave)/1000,2).replace(',','.').replace('.',',')+'<span style="font-size:32px;letter-spacing:0">t</span>';}
+  else{big.innerHTML=(totSave<0?'+':'−')+fmt(Math.abs(totSave),0)+'<span style="font-size:32px;letter-spacing:0">kg</span>';}
+  $('#rheadBigU').textContent=(totSave>=0?'CO₂eq évités · ':'CO₂eq supplémentaires · ')+state.horizon+' mois';
+
+  // H2 prose
+  const h2=$('#rheadH2');
+  const rh=$('#rhead');
+  if(co2Pct<=-50){h2.innerHTML='Tu économises <b>'+bigSign+Math.abs(co2Pct)+' %</b> de CO₂eq <i>'+(r.quality>=85?'sans perte de qualité perceptible':'avec une baisse de qualité notable')+'</i>.';rh.classList.remove('bad');}
+  else if(co2Pct<=-10){h2.innerHTML='Gain modéré : <b>'+bigSign+Math.abs(co2Pct)+' %</b> de CO₂eq. <i>Tu peux pousser plus loin.</i>';rh.classList.remove('bad');}
+  else if(co2Pct<=10){h2.innerHTML='<b>'+bigSign+Math.abs(co2Pct)+' %</b> · l\'impact est <i>quasi-identique</i> à ta baseline.';rh.classList.remove('bad');}
+  else{h2.innerHTML='<b>+'+co2Pct+' %</b> de CO₂eq · <i>ce scénario est pire que ta baseline</i>.';rh.classList.add('bad');}
+
+  // Active levers count for caption
+  let activeCount=0;
+  if(state.prompts!==BASE.prompts)activeCount++;
+  if(state.retries!==BASE.retries)activeCount++;
+  if(state.ctx!==BASE.ctx)activeCount++;
+  if(state.size!==BASE.size)activeCount++;
+  if(state.host!==BASE.host)activeCount++;
+  ['cache','router','offpeak','quota'].forEach(k=>{if(state[k]!==BASE[k])activeCount++;});
+  $('#waterPill').textContent=activeCount+' levier'+(activeCount>1?'s':'')+' actif'+(activeCount>1?'s':'')+' · cumulés en cascade';
+
+  // Waterfall
+  renderWaterfall(r);
+  // Tiles
+  renderTiles(r);
+  // After card text
+  $('#afterValue').textContent=fmt(r.co2);
+  const sizeLab={nano:'Nano',mini:'Mini',medium:'Medium',large:'Large'}[state.size];
+  const hostLab={us:'US',fr:'FR',local:'Local'}[state.host];
+  const policies=[];if(state.cache)policies.push('cache');if(state.router)policies.push('routeur');if(state.offpeak)policies.push('off-peak');if(state.quota)policies.push('quota');
+  $('#afterSub').textContent=sizeLab+(policies.length?' + '+policies.join(' + '):'')+' + '+hostLab+' · '+state.prompts+' prompts/j · '+state.retries+' % retours';
+
+  // Projection
+  renderProjection(r);
+  // Equivalents
+  renderEquivalents(totSave);
+
+  // Live tag flash
+  const live=$('#liveTag');live.classList.add('on');clearTimeout(window.__liveT);window.__liveT=setTimeout(()=>live.classList.remove('on'),900);
+  $('#recalcMs').textContent=(0.15+Math.random()*0.1).toFixed(2).replace('.',',');
+  $('#rheadAgo').textContent='il y a 0,'+Math.floor(Math.random()*4+1)+' s';
+
+  // Sparklines
+  renderSparklines(r);
+}
+
+function setKpi(key,now,base,unit,dec){
+  const card=document.querySelector('[data-kpi="'+key+'"]');
+  const p=pct(now,base);
+  card.classList.toggle('win',p<0);card.classList.toggle('lose',p>0);
+  card.querySelector('[data-pct]').textContent=(p<0?'−':'+')+Math.abs(p)+' %';
+  card.querySelector('[data-pct]').classList.toggle('warn',p>0);
+  card.querySelector('[data-from]').textContent=fmt(base,dec);
+  card.querySelector('[data-to]').textContent=fmt(now,dec);
+  const lo=now*0.78,hi=now*1.28;
+  card.querySelector('[data-ci]').textContent='P5 '+fmt(lo,dec)+' ─ P95 '+fmt(hi,dec);
+}
+function setKpiQuality(now){
+  const card=document.querySelector('[data-kpi=quality]');
+  const delta=(now-BASE_KPI.quality).toFixed(1);
+  const isWorse=now<BASE_KPI.quality;
+  card.classList.toggle('lose',isWorse);card.classList.toggle('win',!isWorse);
+  card.querySelector('[data-pct]').textContent=(isWorse?'−':'+')+Math.abs(delta).toString().replace('.',',')+' pts';
+  card.querySelector('[data-pct]').classList.toggle('warn',isWorse);
+  card.querySelector('[data-from]').textContent=fmt(BASE_KPI.quality,1);
+  card.querySelector('[data-to]').textContent=fmt(now,1);
+  card.querySelector('[data-ci]').textContent= now>=85?'imperceptible sur tes cas d\'usage':now>=80?'perceptible sur tâches expertes':'baisse significative sur tâches complexes';
+}
+
+function renderSparklines(r){
+  // Energy
+  setSpark('energy',[8,12,15,22,25,26],r.energy/BASE_KPI.energy);
+  setSpark('co2',[6,9,13,18,22,24],r.co2/BASE_KPI.co2);
+  setSpark('water',[7,11,14,19,23,25],r.water/BASE_KPI.water);
+  setSpark('quality',[7,7,6,7,6,7],r.quality/BASE_KPI.quality);
+}
+function setSpark(key,base,ratio){
+  const path=document.querySelector('[data-kpi="'+key+'"] [data-spark]');
+  // Higher position number = lower on chart (chart y inverted). For wins (ratio<1), the line is HIGHER on the chart i.e. lower y value. Actually we want the line to be UP for low values? Reverse.
+  // The dashed line is the baseline going down to right (worse / accumulating). The lime line should be flatter.
+  // We'll scale base values by ratio
+  const xs=[0,40,80,120,160,200];
+  const pts=base.map((y,i)=>{const ny=32-((32-y)*ratio);return xs[i]+' '+ny;});
+  path.setAttribute('d','M '+pts.join(' L '));
+}
+
+function renderWaterfall(r){
+  const data=[];
+  const start=BASE_KPI.co2;
+  data.push({n:'Baseline',v:start,t:'start'});
+  let acc=start;
+  // each delta = effect of moving from BASE -> state for that lever, evaluated in current state context
+  function deltaApply(label,fn){
+    const before=acc;
+    const newVal=fn(before);
+    const d=newVal-before;
+    if(Math.abs(d)<5)return;
+    data.push({n:label,d,t:d<0?'down':'up'});
+    acc=newVal;
+  }
+  // Walk through levers in order
+  if(state.size!==BASE.size){deltaApply({nano:'Nano',mini:'Mini',medium:'Medium',large:'Large'}[state.size],v=>v*SIZE[state.size].e/SIZE[BASE.size].e);}
+  if(state.retries!==BASE.retries){deltaApply((state.retries<BASE.retries?'Moins':'Plus')+' de retours',v=>v*(1+state.retries/100)/(1+BASE.retries/100));}
+  if(state.ctx!==BASE.ctx){deltaApply('Contexte '+(state.ctx<BASE.ctx?'↓':'↑'),v=>v*Math.pow(state.ctx/BASE.ctx,1.3));}
+  if(state.prompts!==BASE.prompts){deltaApply('Prompts '+(state.prompts<BASE.prompts?'↓':'↑'),v=>v*state.prompts/BASE.prompts);}
+  if(state.host!==BASE.host){deltaApply('Hébergement '+{us:'US',fr:'FR',local:'Local'}[state.host],v=>v*{us:1,fr:1/6.9,local:1/15}[state.host]/{us:1,fr:1/6.9,local:1/15}[BASE.host]);}
+  if(state.cache)deltaApply('Cache',v=>v*0.88);
+  if(state.router)deltaApply('Routeur',v=>v*0.85);
+  if(state.offpeak)deltaApply('Heures creuses',v=>v*0.6);
+  if(state.quota)deltaApply('Quota',v=>v*0.94);
+  data.push({n:'Projeté',v:Math.max(0,r.co2),t:'end'});
+
+  const W=900,H=200,x0=20,y0=10;
+  const max=Math.max(start,r.co2,acc)*1.05;
+  const colW=W/data.length-12;
+  let svg='';
+  // baseline line
+  svg+='<line x1="'+x0+'" y1="'+(y0+H-(start/max)*H)+'" x2="'+(x0+W)+'" y2="'+(y0+H-(start/max)*H)+'" stroke="rgba(240,140,90,.3)" stroke-dasharray="4 4"/>';
+  svg+='<text x="'+(x0+W-4)+'" y="'+(y0+H-(start/max)*H-6)+'" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="rgba(240,140,90,.7)">baseline '+fmt(Math.round(start))+' g</text>';
+  let cur=0;
+  data.forEach((d,i)=>{
+    const x=x0+i*(colW+12);
+    let yTop,yBot,col,lbl;
+    if(d.t==='start'){yBot=y0+H;yTop=y0+H-(d.v/max)*H;col='#f08c5a';lbl=fmt(Math.round(d.v));cur=d.v;}
+    else if(d.t==='end'){yBot=y0+H;yTop=y0+H-(d.v/max)*H;col='#c5f04a';lbl=fmt(Math.round(d.v));}
+    else if(d.t==='down'){yTop=y0+H-(cur/max)*H;yBot=y0+H-((cur+d.d)/max)*H;col='#7a9a32';lbl=Math.round(d.d);cur+=d.d;}
+    else{yTop=y0+H-((cur+d.d)/max)*H;yBot=y0+H-(cur/max)*H;col='#f08c5a';lbl='+'+Math.round(d.d);cur+=d.d;}
+    svg+='<rect x="'+x+'" y="'+Math.min(yTop,yBot)+'" width="'+colW+'" height="'+Math.max(2,Math.abs(yBot-yTop))+'" fill="'+col+'" opacity="'+(d.t==='start'||d.t==='end'?.85:.7)+'" rx="3"/>';
+    svg+='<text x="'+(x+colW/2)+'" y="'+(Math.min(yTop,yBot)-6)+'" text-anchor="middle" font-family="Instrument Serif" font-style="italic" font-size="14" fill="'+(d.t==='up'?'#f08c5a':d.t==='down'?'#c5f04a':'#f0ece3')+'">'+lbl+'</text>';
+    svg+='<text x="'+(x+colW/2)+'" y="'+(y0+H+18)+'" text-anchor="middle" font-family="Geist" font-size="10" fill="#a5a39a">'+d.n+'</text>';
+  });
+  $('#waterSvg').innerHTML=svg;
+
+  // caption
+  const tops=data.filter(d=>d.t==='down').sort((a,b)=>a.d-b.d).slice(0,2);
+  if(tops.length>=2){
+    const totalDown=data.filter(d=>d.t==='down').reduce((s,d)=>s+d.d,0);
+    const p1=Math.round(tops[0].d/totalDown*100),p2=Math.round(tops[1].d/totalDown*100);
+    $('#waterCaption').textContent='Le plus gros levier : '+tops[0].n+' ('+p1+' % du gain). Le second : '+tops[1].n+' ('+p2+' % du gain).';
+  }else if(tops.length===1){$('#waterCaption').textContent='Un seul levier actif : '+tops[0].n+'.';}
+  else{$('#waterCaption').textContent='Aucun levier actif — déplace un curseur pour démarrer.';}
+}
+
+function renderTiles(r){
+  const tileSize=70;
+  const beforeCount=Math.round(BASE_KPI.co2/tileSize);
+  const afterCount=Math.max(0,Math.round(r.co2/tileSize));
+  const total=42;
+  let bh='',ah='';
+  for(let i=0;i<total;i++){bh+='<div style="background:'+(i<beforeCount?(i%5===0?'#7a3a1a':'#f08c5a'):'transparent')+';opacity:.75"></div>';}
+  for(let i=0;i<total;i++){ah+='<div style="background:'+(i<afterCount?'#c5f04a':'transparent')+';opacity:.85"></div>';}
+  $('#pileBefore').innerHTML=bh;
+  $('#pileAfter').innerHTML=ah;
+  $('#afterTiles').textContent=afterCount;
+}
+
+function renderProjection(r){
+  const months=Array.from({length:state.horizon},(_,i)=>'M+'+(i+1));
+  const A=[],B=[];let a=0,b=0;
+  for(let i=0;i<state.horizon;i++){a+=BASE_KPI.co2;b+=r.co2;A.push(a);B.push(b);}
+  const max=Math.max(A[A.length-1],B[B.length-1])*1.05;
+  const W=880,H=170,x0=30,y0=15;
+  const xs=i=>x0+(state.horizon<=1?W/2:i/(state.horizon-1)*W);
+  const ys=v=>y0+H-(v/max)*H;
+  let svg='';
+  for(let r2=0;r2<=4;r2++){const y=y0+r2/4*H;svg+='<line x1="'+x0+'" y1="'+y+'" x2="'+(x0+W)+'" y2="'+y+'" stroke="rgba(255,255,255,.04)"/>';svg+='<text x="'+(x0-8)+'" y="'+(y+4)+'" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="#72706a">'+fmt(Math.round((1-r2/4)*max/1000))+'k</text>';}
+  svg+='<defs><linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f08c5a" stop-opacity=".3"/><stop offset="100%" stop-color="#f08c5a" stop-opacity="0"/></linearGradient><linearGradient id="gB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c5f04a" stop-opacity=".35"/><stop offset="100%" stop-color="#c5f04a" stop-opacity="0"/></linearGradient></defs>';
+  if(state.horizon>1){
+    let pA='M '+xs(0)+' '+(y0+H);A.forEach((v,i)=>pA+=' L '+xs(i)+' '+ys(v));pA+=' L '+xs(state.horizon-1)+' '+(y0+H)+' Z';svg+='<path d="'+pA+'" fill="url(#gA)"/>';
+    let pB='M '+xs(0)+' '+(y0+H);B.forEach((v,i)=>pB+=' L '+xs(i)+' '+ys(v));pB+=' L '+xs(state.horizon-1)+' '+(y0+H)+' Z';svg+='<path d="'+pB+'" fill="url(#gB)"/>';
+    let lA='M '+xs(0)+' '+ys(A[0]);A.forEach((v,i)=>{if(i>0)lA+=' L '+xs(i)+' '+ys(v);});svg+='<path d="'+lA+'" stroke="#f08c5a" stroke-width="2.5" fill="none"/>';
+    let lB='M '+xs(0)+' '+ys(B[0]);B.forEach((v,i)=>{if(i>0)lB+=' L '+xs(i)+' '+ys(v);});svg+='<path d="'+lB+'" stroke="#c5f04a" stroke-width="2.5" fill="none"/>';
+  }
+  const last=state.horizon-1;
+  svg+='<circle cx="'+xs(last)+'" cy="'+ys(A[last])+'" r="5" fill="#f08c5a" stroke="#0f1210" stroke-width="2"/>';
+  svg+='<circle cx="'+xs(last)+'" cy="'+ys(B[last])+'" r="5" fill="#c5f04a" stroke="#0f1210" stroke-width="2"/>';
+  svg+='<text x="'+(xs(last)+10)+'" y="'+(ys(A[last])+4)+'" font-family="Instrument Serif" font-style="italic" font-size="16" fill="#f08c5a">'+fmt(A[last]/1000,1)+' kg</text>';
+  svg+='<text x="'+(xs(last)+10)+'" y="'+(ys(B[last])+4)+'" font-family="Instrument Serif" font-style="italic" font-size="16" fill="#c5f04a">'+fmt(B[last]/1000,1)+' kg</text>';
+  const yMid=(ys(A[last])+ys(B[last]))/2;
+  svg+='<line x1="'+(xs(last)-15)+'" y1="'+ys(A[last])+'" x2="'+(xs(last)-15)+'" y2="'+ys(B[last])+'" stroke="#c5f04a" stroke-width="1.5" stroke-dasharray="3 3"/>';
+  const tSave=(A[last]-B[last])/1000; // kg
+  let tLbl;
+  if(Math.abs(tSave)>=1000)tLbl=(tSave<0?'+':'−')+fmt(Math.abs(tSave)/1000,2)+' t';
+  else tLbl=(tSave<0?'+':'−')+fmt(Math.abs(tSave),0)+' kg';
+  svg+='<text x="'+(xs(last)-22)+'" y="'+(yMid+4)+'" text-anchor="end" font-family="Instrument Serif" font-style="italic" font-size="24" fill="#c5f04a">'+tLbl+'</text>';
+  const step=Math.max(1,Math.ceil(state.horizon/12));
+  months.forEach((m,i)=>{if(i%step===0||i===state.horizon-1)svg+='<text x="'+xs(i)+'" y="'+(y0+H+18)+'" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#72706a">'+m+'</text>';});
+  svg+='<rect x="'+(x0+10)+'" y="'+(y0+8)+'" width="180" height="38" rx="6" fill="rgba(15,18,16,.6)" stroke="rgba(255,255,255,.08)"/>';
+  svg+='<line x1="'+(x0+22)+'" y1="'+(y0+20)+'" x2="'+(x0+40)+'" y2="'+(y0+20)+'" stroke="#f08c5a" stroke-width="2.5"/>';
+  svg+='<text x="'+(x0+46)+'" y="'+(y0+24)+'" font-family="Geist" font-size="10" fill="#a5a39a">Si rien ne change</text>';
+  svg+='<line x1="'+(x0+22)+'" y1="'+(y0+38)+'" x2="'+(x0+40)+'" y2="'+(y0+38)+'" stroke="#c5f04a" stroke-width="2.5"/>';
+  svg+='<text x="'+(x0+46)+'" y="'+(y0+42)+'" font-family="Geist" font-size="10" fill="#a5a39a">Avec ce scénario</text>';
+  $('#projSvg').innerHTML=svg;
+}
+
+function renderEquivalents(saveKg){
+  const abs=Math.abs(saveKg);
+  const km=Math.round(abs*5.21);
+  const phones=Math.round(abs*24.4);
+  const trees=Math.round(abs/20);
+  // water saved (L) — proportional to retries+host effect; use water from compute
+  const r=compute();
+  const wSave=(BASE_KPI.water-r.water)*state.horizon;
+  $('#eqWrap').innerHTML=
+    '<div class="eqc"><div class="ic">🚗</div><div class="n">Évite l\'équivalent de</div><div class="v">'+fmt(km)+'<span class="u">km voiture</span></div></div>'+
+    '<div class="eqc"><div class="ic">📱</div><div class="n">soit</div><div class="v">'+fmt(phones*1000)+'<span class="u">recharges smartphone</span></div></div>'+
+    '<div class="eqc"><div class="ic">🌳</div><div class="n">ou</div><div class="v">'+fmt(trees)+'<span class="u">arbres × 1 an</span></div></div>'+
+    '<div class="eqc"><div class="ic">💧</div><div class="n">et</div><div class="v">'+fmt(Math.max(0,wSave),0)+'<span class="u">L d\'eau économisés</span></div></div>';
+}
+
+// ───────── Bindings ─────────
+function bindAll(){
+  // Sliders
+  $$('input[type=range][data-set]').forEach(r=>{
+    const k=r.dataset.set;
+    r.style.setProperty('--pct',(r.value/r.max*100)+'%');
+    r.addEventListener('input',()=>{
+      state[k]=+r.value;
+      r.style.setProperty('--pct',(r.value/r.max*100)+'%');
+      setActiveScen('custom');
+      render();
+    });
+  });
+  // Segments
+  $$('.seg[data-set]').forEach(s=>{
+    s.addEventListener('click',e=>{
+      const b=e.target.closest('button');if(!b)return;
+      s.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      const k=s.dataset.set;
+      const v=b.dataset.v;
+      state[k]=k==='horizon'?+v:v;
+      setActiveScen('custom');
+      render();
+    });
+  });
+  // Toggles
+  $$('.tr[data-tg]').forEach(t=>{
+    t.addEventListener('click',()=>{
+      const k=t.dataset.tg;
+      state[k]=!state[k];
+      t.classList.toggle('on',state[k]);
+      setActiveScen('custom');
+      render();
+    });
+  });
+  // Scenario chips
+  $$('.scenchip').forEach(c=>c.addEventListener('click',()=>{applyScenario(c.dataset.scen);}));
+  // Reset
+  $('#btnReset').addEventListener('click',()=>{Object.assign(state,JSON.parse(JSON.stringify(BASE)));syncControls();render();setActiveScen('custom');});
+  $('#btnResetKnobs').addEventListener('click',()=>{$('#btnReset').click();});
+}
+
+function setActiveScen(name){
+  $$('.scenchip').forEach(c=>c.classList.toggle('on',c.dataset.scen===name));
+  $('#crumbScen').textContent={custom:'Mes leviers','fewer-retries':'Moins de retours','smaller-models':'Modèles plus petits','local-first':'Local first','off-peak':'Heures creuses',recommended:'Sobr.ia recommandé'}[name]||'Mes leviers';
+}
+
+const SCENARIOS={
+  'fewer-retries':{prompts:30,retries:8,ctx:32,size:'large',host:'us',cache:false,router:false,offpeak:false,quota:false,horizon:12},
+  'smaller-models':{prompts:30,retries:38,ctx:32,size:'mini',host:'us',cache:false,router:false,offpeak:false,quota:false,horizon:12},
+  'local-first':{prompts:30,retries:38,ctx:32,size:'mini',host:'local',cache:false,router:false,offpeak:false,quota:false,horizon:12},
+  'off-peak':{prompts:30,retries:38,ctx:32,size:'large',host:'us',cache:false,router:false,offpeak:true,quota:false,horizon:12},
+  'recommended':{prompts:22,retries:18,ctx:18,size:'mini',host:'fr',cache:true,router:true,offpeak:true,quota:true,horizon:12},
+};
+function applyScenario(name){
+  if(name==='custom'){setActiveScen('custom');return;}
+  Object.assign(state,SCENARIOS[name]);
+  syncControls();render();setActiveScen(name);
+}
+
+function syncControls(){
+  $$('input[type=range][data-set]').forEach(r=>{r.value=state[r.dataset.set];r.style.setProperty('--pct',(r.value/r.max*100)+'%');});
+  $$('.seg[data-set]').forEach(s=>{const k=s.dataset.set;const v=k==='horizon'?String(state[k]):state[k];s.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));});
+  $$('.tr[data-tg]').forEach(t=>t.classList.toggle('on',state[t.dataset.tg]));
+}
+
+bindAll();
+render();
+</script>
+</body></html>

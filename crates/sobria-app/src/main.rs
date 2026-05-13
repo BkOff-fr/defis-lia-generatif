@@ -1,13 +1,101 @@
-//! Binaire de l'application Tauri Sobr.ia — voir ADR-0001.
+//! Binaire de l'application Tauri Sobr.ia — voir ADR-0001 et
+//! `briefs/chantiers/C09-tauri-integration.md`.
+//!
+//! Le runtime Tauri se contente d'enregistrer les commandes IPC et de
+//! charger le bundle frontend (SvelteKit produit par `web/`). Toute la
+//! logique métier vit dans `sobria_app::logic` et est testable sans Tauri.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![deny(unsafe_code)]
+#![warn(clippy::pedantic)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::doc_markdown)]
+
+use sobria_app::{
+    dto::{
+        AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto, IntegrityReportDto,
+        MetaInfo, ModelPresetDto,
+    },
+    logic, AppState, IpcResult,
+};
+use tauri::Manager;
+use tracing::info;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Commandes IPC — délégation pure vers `logic::*`
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn meta_info(state: tauri::State<'_, AppState>) -> IpcResult<MetaInfo> {
+    logic::meta_info(state.inner())
+}
+
+#[tauri::command]
+fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
+    logic::list_models()
+}
+
+#[tauri::command]
+fn estimate_prompt(
+    req: EstimationRequestDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<EstimationResultDto> {
+    logic::estimate_prompt(req, state.inner())
+}
+
+#[tauri::command]
+fn verify_audit(state: tauri::State<'_, AppState>) -> IpcResult<IntegrityReportDto> {
+    logic::verify_audit(state.inner())
+}
+
+#[tauri::command]
+fn list_audit_entries(
+    limit: u32,
+    offset: u32,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<AuditEntrySummaryDto>> {
+    logic::list_audit_entries(limit, offset, state.inner())
+}
+
+#[tauri::command]
+fn export_audit_ndjson(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<usize> {
+    logic::export_audit_ndjson(std::path::Path::new(&path), state.inner())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entrée principale
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn main() {
-    tracing_subscriber::fmt::init();
-    tracing::info!("Sobr.ia démarre — squelette S1");
-    // TODO(sobria-004): Tauri builder + commandes IPC en S6.
-    // tauri::Builder::default()
-    //     .invoke_handler(tauri::generate_handler![])
-    //     .run(tauri::generate_context!())
-    //     .expect("error while running tauri application");
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("sobria=info,info")),
+        )
+        .init();
+    info!("Sobr.ia démarre — v{}", logic::APP_VERSION);
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let state = AppState::init(None).map_err(|e| {
+                tracing::error!(error = %e, "AppState init failed");
+                Box::new(e) as Box<dyn std::error::Error>
+            })?;
+            app.manage(state);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            meta_info,
+            list_models,
+            estimate_prompt,
+            verify_audit,
+            list_audit_entries,
+            export_audit_ndjson,
+        ])
+        .run(tauri::generate_context!())
+        .expect("erreur lors du démarrage de Sobr.ia");
 }

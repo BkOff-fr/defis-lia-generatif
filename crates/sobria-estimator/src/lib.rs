@@ -43,7 +43,7 @@ pub mod params;
 pub mod validation;
 
 pub use distributions::Distribution;
-pub use engine::{MonteCarloEngine, DEFAULT_N};
+pub use engine::{bin_samples, MonteCarloEngine, DEFAULT_BIN_COUNT, DEFAULT_N, MIN_SAMPLES_FOR_BINS};
 pub use error::{EstimatorError, EstimatorResult};
 pub use model_presets::{
     available_models, find_preset, CalibrationStatus, ModelPreset, Openness, MODEL_REGISTRY,

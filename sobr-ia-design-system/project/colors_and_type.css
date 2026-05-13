@@ -1,0 +1,355 @@
+/* ============================================================================
+ * Sobr.ia — Design Tokens v2 (immersif)
+ * Aligné sur Sobria-immersif.html : ink + lime + ivory, Instrument Serif italic.
+ * ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ─── Ink (fonds profonds) ────────────────────────────────────────────── */
+  --ink:          #0a0d0b;     /* fond app */
+  --ink-2:        #0e1310;     /* surface ambiante */
+  --ink-3:        #131815;     /* surface élevée (modal, popover) */
+
+  /* Surfaces translucides (cartes en glassmorphisme léger) */
+  --surface:      rgba(255,255,255,.025);
+  --surface-hi:   rgba(255,255,255,.045);
+  --surface-2:    rgba(255,255,255,.07);
+
+  /* Borders hairline */
+  --border:       rgba(255,255,255,.07);
+  --border-soft:  rgba(255,255,255,.04);
+  --border-hi:    rgba(255,255,255,.14);
+
+  /* ─── Ivory (texte) ───────────────────────────────────────────────────── */
+  --ivory:        #f0ece3;     /* texte principal */
+  --ivory-2:      #b8b4ac;     /* texte secondaire */
+  --ivory-3:      #72706a;     /* tertiaire, placeholder */
+  --ivory-4:      #46443f;     /* disabled, watermarks */
+  --ivory-inv:    #0a0d0b;     /* texte sur fond lime */
+
+  /* ─── Lime (accent unique, signature de marque) ───────────────────────── */
+  --lime:         #c5f04a;
+  --lime-deep:    #88a83a;
+  --lime-soft:    rgba(197,240,74,.14);
+  --lime-glow:    rgba(197,240,74,.35);
+
+  /* ─── Couleurs sémantiques (usage parcimonieux) ───────────────────────── */
+  --amber:        #f5b769;     /* vigilance */
+  --coral:        #f06c5a;     /* alerte / erreur */
+  --blue:         #7eb6ff;     /* info neutre, lien */
+  --violet:       #b794f4;     /* scénario alternatif */
+
+  /* ─── Dataviz ─────────────────────────────────────────────────────────── */
+  --plot-band:        rgba(197,240,74,0.22);    /* P5–P95 lime */
+  --plot-band-amber:  rgba(245,183,105,0.20);
+  --plot-grid:        rgba(255,255,255,.06);
+  --plot-axis:        rgba(184,180,172,.55);
+
+  /* Échelle d'efficacité énergétique (A → F) */
+  --score-a: #c5f04a;
+  --score-b: #a4dc4a;
+  --score-c: #f5b769;
+  --score-d: #f08c5a;
+  --score-e: #f06c5a;
+  --score-f: #d8453a;
+
+  /* ─── Typographie ─────────────────────────────────────────────────────── */
+  --font-display: 'Instrument Serif', 'Cormorant Garamond', Georgia, serif;
+  --font-ui:      'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Échelle (display = serif italique, h1+ = Geist) */
+  --fs-display:    64px;   --lh-display:    1.05;
+  --fs-display-sm: 48px;   --lh-display-sm: 1.05;
+  --fs-h1:         28px;   --lh-h1:         36px;
+  --fs-h2:         20px;   --lh-h2:         28px;
+  --fs-h3:         16px;   --lh-h3:         24px;
+  --fs-body:       14px;   --lh-body:       20px;
+  --fs-body-sm:    13px;   --lh-body-sm:    18px;
+  --fs-caption:    12px;   --lh-caption:    16px;
+  --fs-eyebrow:    11px;   --lh-eyebrow:    14px;
+
+  /* Métrique éditoriale (chiffres en serif italique) */
+  --fs-metric-xl:  72px;   --lh-metric-xl:  1;
+  --fs-metric-lg:  48px;   --lh-metric-lg:  1;
+  --fs-metric-md:  28px;   --lh-metric-md:  1;
+  --fs-metric-sm:  22px;   --lh-metric-sm:  1;
+
+  /* ─── Espacement (grille 4 px) ────────────────────────────────────────── */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  40px;
+  --space-8:  64px;
+
+  /* ─── Rayons ──────────────────────────────────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:   12px;
+  --radius-lg:   18px;
+  --radius-xl:   28px;
+  --radius-pill: 9999px;
+
+  /* ─── Élévation (glow lime + ombre douce) ────────────────────────────── */
+  --shadow-soft:   0 8px 32px -12px rgba(0,0,0,.5);
+  --shadow-pop:    0 12px 40px -8px rgba(0,0,0,.55), 0 0 0 1px var(--border);
+  --shadow-modal:  0 24px 64px -8px rgba(0,0,0,.65);
+  --glow-lime:     0 0 0 4px rgba(197,240,74,.15), 0 8px 32px -8px rgba(197,240,74,.7);
+  --glow-lime-sm:  0 0 12px var(--lime-glow);
+
+  /* ─── Durées + easings ────────────────────────────────────────────────── */
+  --dur-fast:    150ms;
+  --dur-base:    200ms;
+  --dur-slow:    300ms;
+  --ease:        cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ─── Layout shell ────────────────────────────────────────────────────── */
+  --rail-w:      76px;
+  --statusbar-h: 36px;
+
+  /* ─── Alias retrocompat (v1 → v2) ─────────────────────────────────────── */
+  --bg:           var(--ink);
+  --fg-1:         var(--ivory);
+  --fg-2:         var(--ivory-2);
+  --fg-3:         var(--ivory-3);
+  --fg-inv:       var(--ivory-inv);
+  --accent-green: var(--lime);
+  --accent-amber: var(--amber);
+  --accent-red:   var(--coral);
+  --accent-blue:  var(--blue);
+  --accent-purple: var(--violet);
+
+  color-scheme: dark;
+}
+
+/* ─── Mode clair (opt-in — paper-light) ────────────────────────────────── */
+.theme-light, :root.theme-light {
+  --ink:          #f7f5ef;
+  --ink-2:        #f0ece3;
+  --ink-3:        #e7e2d5;
+  --surface:      rgba(0,0,0,.025);
+  --surface-hi:   rgba(0,0,0,.045);
+  --border:       rgba(0,0,0,.08);
+  --border-hi:    rgba(0,0,0,.18);
+  --ivory:        #1a1d18;
+  --ivory-2:      #4a4d44;
+  --ivory-3:      #7a786e;
+  --ivory-4:      #b0aea4;
+  --lime:         #6b8e1f;
+  --lime-deep:    #4d6915;
+  --lime-soft:    rgba(107,142,31,.12);
+  --lime-glow:    rgba(107,142,31,.28);
+  color-scheme: light;
+}
+
+/* ─── Reset + base ─────────────────────────────────────────────────────── */
+html, body {
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'ss01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ─── Hiérarchie typographique ─────────────────────────────────────────── */
+.display, .h-display {
+  font: 400 var(--fs-display)/var(--lh-display) var(--font-display);
+  font-style: italic;
+  letter-spacing: -0.02em;
+  color: var(--ivory);
+}
+.display em, .h-display em {
+  font-style: normal;
+  color: var(--lime);
+}
+
+h1, .h1 {
+  font: 500 var(--fs-h1)/var(--lh-h1) var(--font-ui);
+  letter-spacing: -0.015em; margin: 0; color: var(--ivory);
+}
+h2, .h2 { font: 500 var(--fs-h2)/var(--lh-h2) var(--font-ui); margin: 0; color: var(--ivory); }
+h3, .h3 { font: 500 var(--fs-h3)/var(--lh-h3) var(--font-ui); margin: 0; color: var(--ivory); }
+p       { font: 400 var(--fs-body)/var(--lh-body) var(--font-ui); margin: 0; color: var(--ivory-2); }
+
+.body-sm    { font: 400 var(--fs-body-sm)/var(--lh-body-sm) var(--font-ui); color: var(--ivory-2); }
+.caption    { font: 400 var(--fs-caption)/var(--lh-caption) var(--font-ui); color: var(--ivory-3); }
+.eyebrow {
+  font: 500 var(--fs-eyebrow)/var(--lh-eyebrow) var(--font-ui);
+  text-transform: uppercase; letter-spacing: 0.16em;
+  color: var(--ivory-3);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.eyebrow .pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--lime); box-shadow: 0 0 10px var(--lime-glow);
+}
+
+.label {
+  font: 500 10px/1 var(--font-ui);
+  text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--ivory-3);
+}
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Métriques éditoriales (chiffres en serif italique) */
+.metric-xl {
+  font: 400 var(--fs-metric-xl)/var(--lh-metric-xl) var(--font-display);
+  font-style: italic; color: var(--ivory); letter-spacing: -0.02em;
+}
+.metric-lg {
+  font: 400 var(--fs-metric-lg)/var(--lh-metric-lg) var(--font-display);
+  font-style: italic; color: var(--ivory); letter-spacing: -0.02em;
+}
+.metric {
+  font: 400 var(--fs-metric-md)/var(--lh-metric-md) var(--font-display);
+  font-style: italic; color: var(--ivory); letter-spacing: -0.01em;
+}
+.metric .u { font: 400 12px/1 var(--font-ui); font-style: normal; color: var(--ivory-3); margin-left: 4px; }
+
+.interval { font: 400 11px/1.3 var(--font-mono); color: var(--ivory-4); }
+.hash     { font: 400 12px/1 var(--font-mono); color: var(--lime); }
+
+a       { color: var(--lime); text-decoration: none; border-bottom: 1px dashed rgba(197,240,74,.4); transition: border-color var(--dur-base) var(--ease); }
+a:hover { border-bottom-color: var(--lime); }
+
+code, pre { font-family: var(--font-mono); font-size: 13px; color: var(--ivory); }
+
+/* ─── Composants atomiques ─────────────────────────────────────────────── */
+.card {
+  background: linear-gradient(160deg, var(--surface), rgba(255,255,255,.005));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: border-color var(--dur-slow) var(--ease), transform var(--dur-slow) var(--ease);
+}
+.card:hover { border-color: var(--border-hi); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 14px;
+  background: var(--lime-soft);
+  border: 1px solid rgba(197,240,74,.25);
+  border-radius: var(--radius-pill);
+  color: var(--lime);
+  font: 500 12px/1 var(--font-ui);
+}
+.pill .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--lime); box-shadow: 0 0 8px var(--lime);
+}
+
+/* Boutons */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 16px;
+  background: transparent;
+  color: var(--ivory-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font: 500 13px/1 var(--font-ui);
+  cursor: pointer;
+  transition: all var(--dur-base) var(--ease);
+}
+.btn:hover { border-color: var(--border-hi); color: var(--ivory); }
+.btn:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.btn[disabled] { opacity: 0.35; cursor: not-allowed; }
+.btn--primary {
+  background: var(--lime); border-color: var(--lime); color: var(--ivory-inv);
+  font-weight: 600;
+  box-shadow: 0 6px 24px -8px rgba(197,240,74,.6);
+}
+.btn--primary:hover { transform: translateY(-1px); box-shadow: var(--glow-lime); }
+.btn--ghost { border-color: transparent; }
+.btn--ghost:hover { background: var(--surface-hi); border-color: var(--border); }
+.btn--sm { height: 32px; padding: 0 12px; font-size: 12px; }
+
+.icon-btn {
+  width: 32px; height: 32px; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--ivory-2);
+  cursor: pointer; transition: all var(--dur-base) var(--ease);
+}
+.icon-btn:hover { background: var(--surface-hi); border-color: var(--border-hi); color: var(--ivory); }
+
+/* Champs */
+.input {
+  display: block; width: 100%;
+  height: 40px; padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--ivory);
+  font: 400 13px/1 var(--font-ui);
+  transition: border-color var(--dur-base) var(--ease);
+}
+.input:focus { outline: none; border-color: rgba(197,240,74,.4); background: var(--surface-hi); }
+.input::placeholder { color: var(--ivory-4); }
+textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; resize: vertical; min-height: 100px; }
+
+/* Badges & chips */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 22px; padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ivory-2);
+  font: 500 11px/1 var(--font-ui);
+}
+.badge--lime  { color: var(--lime);  border-color: rgba(197,240,74,.3); background: var(--lime-soft); }
+.badge--amber { color: var(--amber); border-color: rgba(245,183,105,.3); background: rgba(245,183,105,.10); }
+.badge--coral { color: var(--coral); border-color: rgba(240,108,90,.3); background: rgba(240,108,90,.10); }
+.badge--blue  { color: var(--blue);  border-color: rgba(126,182,255,.3); background: rgba(126,182,255,.10); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--ivory-2); font: 500 12px/1 var(--font-ui);
+  cursor: pointer; transition: all var(--dur-base) var(--ease);
+}
+.chip:hover { border-color: var(--border-hi); color: var(--ivory); }
+.chip.active { background: var(--lime-soft); border-color: rgba(197,240,74,.4); color: var(--lime); }
+
+/* Section eyebrow (remplace l'ancien ▣ pseudo-element) */
+.section-label {
+  display: flex; align-items: center; gap: 8px;
+  font: 500 var(--fs-eyebrow)/1 var(--font-ui);
+  text-transform: uppercase; letter-spacing: 0.16em;
+  color: var(--ivory-3);
+  margin-bottom: var(--space-4);
+}
+.section-label::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--lime); box-shadow: 0 0 10px var(--lime-glow);
+}
+
+/* ─── Ambient layer (mesh + grain) — opt-in via .with-ambient ──────────── */
+.with-ambient { position: relative; overflow: hidden; }
+.with-ambient::before {
+  content: ''; position: absolute; inset: -10%;
+  background:
+    radial-gradient(ellipse 600px 400px at 80% 12%, rgba(197,240,74,.08), transparent 60%),
+    radial-gradient(ellipse 500px 400px at 18% 88%, rgba(126,182,255,.05), transparent 65%);
+  filter: blur(20px); pointer-events: none; z-index: 0;
+}
+.with-ambient > * { position: relative; z-index: 1; }
+
+/* Accessibilité */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

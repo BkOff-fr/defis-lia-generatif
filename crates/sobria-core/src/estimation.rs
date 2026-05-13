@@ -123,6 +123,7 @@ mod tests {
                 indicator: Indicator::Co2Eq,
                 interval: UncertaintyInterval::new(1.68, 2.14, 2.74).unwrap(),
                 unit: "gCO2eq".into(),
+                bins: None,
             }],
             equivalents: vec![Equivalent {
                 label: "km en voiture thermique".into(),

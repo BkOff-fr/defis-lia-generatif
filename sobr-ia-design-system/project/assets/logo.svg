@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 64" fill="none">
+  
+  <g transform="translate(8, 12)">
+    
+    <path d="M20 4 C 8 4, 4 14, 4 24 C 4 32, 10 38, 18 38 C 30 38, 36 28, 36 16 C 36 10, 32 4, 20 4 Z" stroke="#3fb950" stroke-width="2" stroke-linejoin="round" fill="none"></path>
+    
+    <path d="M8 32 Q 18 26, 30 10" stroke="#3fb950" stroke-width="1.5" stroke-linecap="round" fill="none"></path>
+    
+    <circle cx="28" cy="18" r="2" fill="#3fb950"></circle>
+  </g>
+  
+  <text x="56" y="42" font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="28" letter-spacing="-0.02em" fill="#c9d1d9">sobr<tspan fill="#3fb950">.</tspan>ia</text>
+</svg>

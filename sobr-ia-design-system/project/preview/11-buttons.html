@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body{margin:0;padding:24px;background:var(--ink);position:relative;overflow:hidden;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 500px 300px at 80% 20%,rgba(197,240,74,.06),transparent 60%);filter:blur(20px);}
+.wrap{position:relative;z-index:1;}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.row .lbl{font:500 11px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);display:inline-flex;align-items:center;gap:8px;}
+.row .lbl::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime-glow);}
+.row .hint{font:400 11px/1.3 var(--font-ui);color:var(--ivory-4);margin-left:auto;font-family:var(--font-mono);}
+</style></head><body><div class="amb"></div><div class="wrap">
+<style>
+.row2{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.lab{font:500 10px/1 var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);width:90px;}
+</style>
+<div class="row"><span class="lbl">Boutons · primary · ghost · icon</span><span class="hint">40 px · radius-md</span></div>
+<div class="row2"><span class="lab">Primary</span>
+  <button class="btn btn--primary">Estimer</button>
+  <button class="btn btn--primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg>Confirmer</button>
+  <button class="btn btn--primary" disabled>Disabled</button>
+</div>
+<div class="row2"><span class="lab">Ghost</span>
+  <button class="btn">Annuler</button>
+  <button class="btn">Comparer</button>
+  <button class="btn btn--sm">Détail</button>
+</div>
+<div class="row2"><span class="lab">Icon</span>
+  <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
+  <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12a9 9 0 11-9-9c2.5 0 4.7.9 6.4 2.5L21 8"/></svg></button>
+  <span class="pill"><span class="dot"></span>Local</span>
+</div>
+</div></body></html>

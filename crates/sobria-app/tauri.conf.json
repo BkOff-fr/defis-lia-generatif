@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Sobr.ia",
+  "version": "0.2.0",
+  "identifier": "ia.sobr.app",
+  "build": {
+    "beforeDevCommand": "npm --prefix ../../web run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm --prefix ../../web run build",
+    "frontendDist": "../../web/build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Sobr.ia — empreinte environnementale des LLMs",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "category": "Education",
+    "shortDescription": "Mesurez l'impact environnemental de vos prompts.",
+    "longDescription": "Sobr.ia est une application native multi-plateforme qui mesure et visualise l'impact environnemental (CO₂eq, énergie, eau) de l'usage des LLMs, en s'appuyant sur les datasets officiels ComparIA et RTE IRIS, avec une méthodologie alignée sur AFNOR SPEC 2314."
+  }
+}

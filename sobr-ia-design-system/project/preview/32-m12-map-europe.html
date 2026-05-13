@@ -1,0 +1,605 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Sobr.ia · M12 Territoire — datacenters Europe</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ink);color:var(--ivory);font-family:var(--font-ui);min-height:100vh;overflow:hidden;}
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.amb::before{content:'';position:absolute;inset:-10%;background:radial-gradient(ellipse 700px 400px at 75% 10%,rgba(197,240,74,.06),transparent 60%),radial-gradient(ellipse 500px 400px at 10% 90%,rgba(126,182,255,.04),transparent 60%);filter:blur(20px);}
+
+.app{position:relative;z-index:1;display:grid;grid-template-columns:60px 1fr 360px;grid-template-rows:54px 1fr;height:100vh;}
+.tbar{grid-column:1/4;display:flex;align-items:center;gap:20px;padding:0 22px;border-bottom:1px solid var(--border);background:rgba(15,18,16,.7);backdrop-filter:blur(20px);}
+.brand{display:inline-flex;align-items:center;gap:9px;font:500 14px/1 var(--font-ui);color:var(--ivory);letter-spacing:-.01em;}
+.brand::before{content:'';width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c5f04a,#5a7a1e);box-shadow:0 0 14px rgba(197,240,74,.5);}
+.crumb{font:400 12px var(--font-mono);color:var(--ivory-3);display:flex;align-items:center;gap:8px;}
+.crumb .sep{color:var(--ivory-4);}
+.crumb .cur{color:var(--lime);}
+.tbar .grow{flex:1;}
+.syncpill{display:inline-flex;align-items:center;gap:7px;font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-2);background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius-pill);padding:5px 12px;}
+.syncpill::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime);animation:pulse 2.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+.btn{background:transparent;border:1px solid var(--border);color:var(--ivory-2);font:500 11px var(--font-ui);padding:6px 14px;border-radius:var(--radius-pill);cursor:pointer;}
+.btn:hover{border-color:var(--lime);color:var(--lime);}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#3a4a2e,#c5f04a);display:grid;place-items:center;font:500 11px var(--font-ui);color:var(--ivory-inv);}
+
+/* Mini-rail (icons only) */
+.rail{border-right:1px solid var(--border);background:rgba(15,18,16,.5);padding:14px 0;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.rl-ic{width:38px;height:38px;display:grid;place-items:center;border-radius:var(--radius-md);color:var(--ivory-3);cursor:pointer;transition:all 200ms;font-size:18px;position:relative;}
+.rl-ic:hover{color:var(--ivory);background:rgba(255,255,255,.03);}
+.rl-ic.on{color:var(--ivory-inv);background:var(--lime);}
+.rl-ic .lab{position:absolute;left:48px;top:50%;transform:translateY(-50%);background:rgba(10,13,11,.95);border:1px solid var(--border-hi);border-radius:var(--radius-md);padding:5px 10px;font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 150ms;z-index:60;}
+.rl-ic:hover .lab{opacity:1;}
+.rl-sep{width:24px;height:1px;background:var(--border);margin:6px 0;}
+
+/* Map area */
+.map-wrap{position:relative;overflow:hidden;min-height:0;min-width:0;}
+#map{position:absolute;inset:0;background:#0f1210;z-index:1;}
+.leaflet-container{background:#0a0d0b;font-family:var(--font-ui);}
+.leaflet-control-attribution{background:rgba(15,18,16,.85)!important;color:var(--ivory-4)!important;border:1px solid var(--border)!important;border-radius:var(--radius-pill)!important;padding:3px 9px!important;font:400 9px var(--font-mono)!important;}
+.leaflet-control-attribution a{color:var(--ivory-3)!important;}
+.leaflet-control-zoom{border:1px solid var(--border)!important;border-radius:var(--radius-md)!important;overflow:hidden;}
+.leaflet-control-zoom a{background:rgba(15,18,16,.85)!important;color:var(--ivory)!important;border:none!important;border-bottom:1px solid var(--border)!important;font-family:var(--font-display)!important;font-style:italic;}
+.leaflet-control-zoom a:hover{background:var(--lime)!important;color:var(--ivory-inv)!important;}
+
+/* Floating overlay panels */
+.fl{position:absolute;background:rgba(15,18,16,.85);backdrop-filter:blur(20px);border:1px solid var(--border-hi);border-radius:var(--radius-lg);padding:14px 18px;z-index:1000;box-shadow:0 12px 40px rgba(0,0,0,.5);pointer-events:auto;}
+.fl-title{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.fl-title::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime);}
+
+/* Top-left zoom indicator + page title */
+.fl-head{top:20px;left:20px;min-width:300px;padding:16px 22px;}
+.fl-head h1{font:400 22px/1.1 var(--font-display);font-style:italic;color:var(--ivory);margin:0 0 4px;letter-spacing:-.01em;}
+.fl-head .meta{font:400 11px var(--font-mono);color:var(--ivory-3);}
+.fl-head .zoom-pill{display:inline-flex;align-items:center;gap:6px;font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--lime);background:rgba(197,240,74,.08);border:1px solid rgba(197,240,74,.3);padding:3px 9px;border-radius:var(--radius-pill);margin-top:10px;}
+
+/* Controls bottom-left */
+.fl-ctrl{bottom:24px;left:20px;display:flex;gap:8px;flex-direction:column;}
+.fl-ctrl .seg{display:inline-flex;background:rgba(15,18,16,.85);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px;gap:2px;}
+.fl-ctrl .seg button{background:transparent;border:none;color:var(--ivory-3);font:500 11px var(--font-ui);padding:7px 14px;border-radius:var(--radius-pill);cursor:pointer;}
+.fl-ctrl .seg button.on{background:var(--lime);color:var(--ivory-inv);font-weight:600;}
+.fl-ctrl .seg button:hover:not(.on){color:var(--ivory);}
+
+/* Legend bottom-right */
+.fl-leg{bottom:24px;right:20px;min-width:220px;}
+.leg-row{display:flex;align-items:center;gap:8px;font:400 11px var(--font-mono);color:var(--ivory-2);padding:3px 0;}
+.leg-row .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+.leg-row .grow{flex:1;}
+.leg-row .v{color:var(--ivory-3);font-size:10px;}
+
+/* Side panel (right) */
+.side{border-left:1px solid var(--border);background:rgba(15,18,16,.5);overflow-y:auto;display:flex;flex-direction:column;}
+.sp-head{padding:18px 22px 14px;border-bottom:1px solid var(--border);}
+.sp-tabs{display:flex;gap:0;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px;margin-bottom:14px;}
+.sp-tab{flex:1;text-align:center;font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.12em;color:var(--ivory-3);padding:6px;border-radius:var(--radius-pill);cursor:pointer;}
+.sp-tab.on{background:var(--lime);color:var(--ivory-inv);font-weight:600;}
+
+.sp-body{flex:1;padding:18px 22px;}
+.eye{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);}
+.dc-name{font:400 26px/1.1 var(--font-display);font-style:italic;color:var(--ivory);letter-spacing:-.015em;margin:6px 0 4px;}
+.dc-op{font:400 11px var(--font-mono);color:var(--lime);}
+.dc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;}
+.tag{font:500 9px var(--font-ui);text-transform:uppercase;letter-spacing:.1em;padding:2px 8px;border-radius:var(--radius-pill);background:rgba(255,255,255,.03);color:var(--ivory-3);border:1px solid var(--border);}
+.tag.ai{background:rgba(197,240,74,.08);color:var(--lime);border-color:rgba(197,240,74,.3);}
+.tag.warn{background:rgba(240,140,90,.08);color:#f08c5a;border-color:rgba(240,140,90,.25);}
+.tag.blue{background:rgba(126,182,255,.08);color:#7eb6ff;border-color:rgba(126,182,255,.25);}
+
+.kpi-trio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0;}
+.k{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;}
+.k .l{font:500 8px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-4);}
+.k .v{font:400 22px/1 var(--font-display);font-style:italic;color:var(--ivory);margin:5px 0 1px;letter-spacing:-.01em;}
+.k .v .u{font:400 9px var(--font-ui);font-style:normal;color:var(--ivory-3);margin-left:3px;}
+.k .ci{font:400 9px var(--font-mono);color:var(--lime);}
+
+.sec-h{font:500 10px var(--font-ui);text-transform:uppercase;letter-spacing:.14em;color:var(--ivory-3);margin:18px 0 8px;display:flex;align-items:center;gap:8px;}
+.sec-h::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* Donut breakdown */
+.donut-wrap{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center;}
+.donut-leg div{display:grid;grid-template-columns:10px 1fr auto;gap:7px;align-items:center;font:400 11px var(--font-ui);color:var(--ivory-2);padding:3px 0;}
+.donut-leg div .sw{width:10px;height:10px;border-radius:3px;}
+.donut-leg div .pct{font:400 11px var(--font-mono);color:var(--lime);}
+
+/* Bar mini */
+.bars{display:flex;flex-direction:column;gap:6px;}
+.bar-row{font:400 11px var(--font-ui);color:var(--ivory-2);}
+.bar-row .lab{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;}
+.bar-row .lab .v{font:400 11px var(--font-mono);color:var(--lime);}
+.bar-track{height:6px;background:rgba(255,255,255,.04);border-radius:3px;overflow:hidden;}
+.bar-fill{height:100%;background:linear-gradient(90deg,#7a9a32,#c5f04a);border-radius:3px;}
+
+/* 24h heatmap */
+.heat24{display:grid;grid-template-columns:repeat(24,1fr);gap:1px;margin-top:6px;}
+.heat24 .cell{aspect-ratio:1;border-radius:2px;}
+.heat24-axis{display:flex;justify-content:space-between;font:400 8px var(--font-mono);color:var(--ivory-4);margin-top:3px;}
+
+.aggregate-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:6px;}
+.ag{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 11px;display:flex;flex-direction:column;gap:2px;}
+.ag .ln{font:400 11px var(--font-ui);color:var(--ivory-2);}
+.ag .nv{font:400 18px var(--font-display);font-style:italic;color:var(--ivory);}
+.ag .nv .u{font:400 9px var(--font-ui);font-style:normal;color:var(--ivory-3);}
+
+/* DC pin (svg marker via Leaflet divIcon) */
+.dc-pin{position:relative;cursor:pointer;transform-origin:center center;transition:transform 520ms cubic-bezier(.34,1.45,.4,1),opacity 360ms ease-out;}
+.dc-pin .core,.dc-pin .ring,.dc-pin .lbl{transition:transform 460ms cubic-bezier(.34,1.4,.4,1),opacity 360ms ease;}
+.dc-pin .ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(197,240,74,.5);animation:ringPulse 2s ease-out infinite;opacity:0;}
+.dc-pin .core{position:relative;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#e0ff80,#c5f04a 60%,#5a7a1e);box-shadow:0 0 14px rgba(197,240,74,.7),0 0 0 2px rgba(10,13,11,.6);}
+.dc-pin.warn .core{background:radial-gradient(circle at 30% 30%,#ffd580,#f08c5a 60%,#7a3a1a);box-shadow:0 0 14px rgba(240,140,90,.7),0 0 0 2px rgba(10,13,11,.6);}
+.dc-pin.warn .ring{border-color:rgba(240,140,90,.5);}
+.dc-pin.blue .core{background:radial-gradient(circle at 30% 30%,#cfe2ff,#7eb6ff 60%,#1e4a8a);box-shadow:0 0 14px rgba(126,182,255,.6),0 0 0 2px rgba(10,13,11,.6);}
+.dc-pin.blue .ring{border-color:rgba(126,182,255,.4);}
+.dc-pin.lg .core{width:26px;height:26px;}
+.dc-pin.lg .ring{inset:-8px;}
+.dc-pin.sm .core{width:12px;height:12px;}
+.dc-pin .lbl{position:absolute;left:24px;top:-1px;font:500 10px var(--font-ui);color:var(--ivory);white-space:nowrap;text-shadow:0 0 6px rgba(10,13,11,.9),0 0 6px rgba(10,13,11,.9);pointer-events:none;letter-spacing:-.005em;}
+.dc-pin .lbl small{font:400 9px var(--font-mono);color:var(--ivory-3);display:block;text-shadow:0 0 6px rgba(10,13,11,.9);}
+@keyframes ringPulse{0%{transform:scale(.6);opacity:.7;}100%{transform:scale(2.2);opacity:0;}}
+
+/* Country/region cluster bubble */
+.cluster{cursor:pointer;transform-origin:center center;transition:transform 520ms cubic-bezier(.34,1.5,.4,1),opacity 360ms ease-out;}
+.cluster .bub{position:relative;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(197,240,74,.9),rgba(122,154,50,.8) 60%,rgba(58,74,46,.7));border:2px solid rgba(15,18,16,.7);box-shadow:0 0 22px rgba(197,240,74,.4);display:grid;place-items:center;color:var(--ivory-inv);font:600 14px var(--font-ui);letter-spacing:-.01em;transition:transform 460ms cubic-bezier(.34,1.5,.4,1),box-shadow 400ms ease;}
+.cluster::after{content:'';position:absolute;inset:-10%;border-radius:50%;border:1px solid rgba(197,240,74,.25);animation:clusterPulse 2.6s ease-out infinite;opacity:0;pointer-events:none;}
+.cluster.warn::after{border-color:rgba(240,140,90,.25);}
+@keyframes clusterPulse{0%{transform:scale(.7);opacity:.6;}100%{transform:scale(1.4);opacity:0;}}
+
+/* ── Aggregation morph animations ── */
+.leaflet-marker-icon .dc-pin{opacity:0;transform:scale(.2);}
+.leaflet-marker-icon .cluster{opacity:0;transform:scale(.2);}
+.map-wrap.mode-site .dc-pin{opacity:1;transform:scale(1);}
+.map-wrap.mode-country .cluster{opacity:1;transform:scale(1);}
+.map-wrap.mode-region .cluster{opacity:1;transform:scale(.7);}
+.map-wrap.mode-region .dc-pin{opacity:.55;transform:scale(.7);}
+.map-wrap.mode-region .dc-pin .lbl{opacity:0;}
+/* Subtle staggered entrance — random per element via CSS variable */
+.leaflet-marker-icon .dc-pin,.leaflet-marker-icon .cluster{transition-delay:var(--sd,0ms);}
+.cluster .bub small{display:block;font:500 8px var(--font-ui);text-transform:uppercase;letter-spacing:.1em;color:rgba(15,18,16,.7);margin-top:-2px;}
+.cluster.warn .bub{background:radial-gradient(circle at 35% 30%,rgba(245,183,105,.9),rgba(190,120,60,.8) 60%,rgba(90,50,30,.7));box-shadow:0 0 22px rgba(240,140,90,.4);}
+
+/* Country choropleth fill via path style overrides set via JS */
+.leaflet-popup-content-wrapper{background:rgba(10,13,11,.95)!important;color:var(--ivory)!important;border:1px solid var(--border-hi);border-radius:var(--radius-md)!important;backdrop-filter:blur(20px);}
+.leaflet-popup-tip{background:rgba(10,13,11,.95)!important;}
+
+/* Empty state side */
+.empty-side{padding:40px 28px;text-align:center;color:var(--ivory-3);}
+.empty-side .ic{font:400 56px var(--font-display);font-style:italic;color:var(--lime);opacity:.6;}
+.empty-side .t{font:400 18px var(--font-display);font-style:italic;color:var(--ivory);margin:12px 0 6px;}
+.empty-side .s{font:400 12px/1.5 var(--font-ui);color:var(--ivory-3);font-style:italic;max-width:240px;margin:0 auto;}
+
+.country-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--border);cursor:pointer;}
+.country-row:hover{background:rgba(255,255,255,.02);}
+.country-row:last-child{border:none;}
+.country-row .flag{width:22px;height:14px;border-radius:2px;display:inline-block;background:#3a4a2e;border:1px solid var(--border);}
+.country-row .nm{font:400 13px var(--font-ui);color:var(--ivory);flex:1;margin-left:10px;}
+.country-row .n{font:400 13px var(--font-mono);color:var(--lime);}
+
+.fmt-mono{font-family:var(--font-mono);}
+</style>
+</head>
+<body>
+<div class="amb"></div>
+
+<div class="app">
+
+<!-- Top bar -->
+<div class="tbar">
+  <span class="brand">Sobr.ia<span style="color:var(--ivory-3);font-weight:400;margin-left:2px">.fr</span></span>
+  <span class="crumb"><span>Données</span><span class="sep">/</span><span>Territoire</span><span class="sep">/</span><span class="cur" id="crumbCur">Europe</span></span>
+  <span class="grow"></span>
+  <span class="syncpill">RTE · ENTSO-E · sync il y a 2 min</span>
+  <button class="btn">↓ Exporter dataset</button>
+  <button class="btn">⊕ Ajouter datacenter</button>
+  <div class="av">CB</div>
+</div>
+
+<!-- Icon rail -->
+<aside class="rail">
+  <div class="rl-ic"><span>⌂</span><span class="lab">Accueil</span></div>
+  <div class="rl-ic"><span>✎</span><span class="lab">Calculateur</span></div>
+  <div class="rl-ic"><span>≡</span><span class="lab">Livre de bord</span></div>
+  <div class="rl-ic"><span>◊</span><span class="lab">Simulateur</span></div>
+  <div class="rl-sep"></div>
+  <div class="rl-ic on"><span>◉</span><span class="lab">Territoire</span></div>
+  <div class="rl-ic"><span>⛁</span><span class="lab">Inventaire SI</span></div>
+  <div class="rl-ic"><span>◔</span><span class="lab">Hypothèses</span></div>
+  <div class="rl-sep"></div>
+  <div class="rl-ic"><span>?</span><span class="lab">Sources</span></div>
+</aside>
+
+<!-- Map area -->
+<div class="map-wrap">
+  <div id="map"></div>
+
+  <!-- Floating header -->
+  <div class="fl fl-head">
+    <div class="fl-title">M12 · Territoire</div>
+    <h1 id="flTitle">Datacenters <i>en Europe</i></h1>
+    <div class="meta" id="flMeta">186 sites recensés · 4,2 GW capacité · 18,4 TWh/an</div>
+    <div class="zoom-pill" id="zoomPill">▽ Vue continentale · zoom 5</div>
+  </div>
+
+  <!-- Bottom-left controls -->
+  <div class="fl-ctrl">
+    <div class="seg" id="layerSeg">
+      <button class="on" data-l="dc">Datacenters</button>
+      <button data-l="ai">Pression IA gen.</button>
+      <button data-l="mix">Mix électrique</button>
+      <button data-l="water">Stress hydrique</button>
+    </div>
+    <div class="seg" id="agSeg">
+      <button data-a="country">Pays</button>
+      <button data-a="region">Régions</button>
+      <button class="on" data-a="site">Sites</button>
+      <button data-a="auto">Auto-zoom</button>
+    </div>
+  </div>
+
+  <!-- Bottom-right legend -->
+  <div class="fl fl-leg">
+    <div class="fl-title" id="legTitle">Capacité datacenter</div>
+    <div id="legBody">
+      <div class="leg-row"><span class="dot" style="background:radial-gradient(circle at 30% 30%,#e0ff80,#c5f04a)"></span><span class="grow">Hyperscale (&gt; 50 MW)</span><span class="v">8 sites</span></div>
+      <div class="leg-row"><span class="dot" style="width:11px;height:11px;background:radial-gradient(circle at 30% 30%,#a4dc4a,#7a9a32)"></span><span class="grow">Large (10–50 MW)</span><span class="v">34 sites</span></div>
+      <div class="leg-row"><span class="dot" style="width:8px;height:8px;background:radial-gradient(circle at 30% 30%,#7a9a32,#5a7a1e)"></span><span class="grow">Standard (1–10 MW)</span><span class="v">144 sites</span></div>
+      <div class="leg-row" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)"><span class="dot" style="background:radial-gradient(circle at 30% 30%,#ffd580,#f08c5a)"></span><span class="grow">Spécialisé IA gen.</span><span class="v">+ halo orange</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Side panel -->
+<aside class="side">
+  <div class="sp-head">
+    <div class="sp-tabs">
+      <div class="sp-tab on" data-t="detail">Détail</div>
+      <div class="sp-tab" data-t="countries">Pays</div>
+      <div class="sp-tab" data-t="oper">Opérateurs</div>
+    </div>
+    <div class="eye">Sélection actuelle</div>
+    <div style="font:400 16px var(--font-display);font-style:italic;color:var(--ivory);margin-top:4px" id="spHead">Cliquez sur un site, une région ou un pays</div>
+  </div>
+  <div class="sp-body" id="spBody">
+    <div class="empty-side">
+      <div class="ic">↺</div>
+      <div class="t">Aucune sélection</div>
+      <div class="s">Explorez la carte. Zoom &gt; 6 = sites individuels, &lt; 6 = agrégation régionale/pays.</div>
+      <div class="sec-h" style="text-align:left">Top pays · capacité IA gen.</div>
+      <div class="country-row" data-c="FR"><span class="flag" style="background:linear-gradient(90deg,#0055A4 33%,#fff 33% 66%,#EF4135 66%)"></span><span class="nm">France</span><span class="n">1,2 TWh/an</span></div>
+      <div class="country-row" data-c="DE"><span class="flag" style="background:linear-gradient(180deg,#000 33%,#DD0000 33% 66%,#FFCE00 66%)"></span><span class="nm">Allemagne</span><span class="n">2,8 TWh/an</span></div>
+      <div class="country-row" data-c="NL"><span class="flag" style="background:linear-gradient(180deg,#AE1C28 33%,#fff 33% 66%,#21468B 66%)"></span><span class="nm">Pays-Bas</span><span class="n">1,9 TWh/an</span></div>
+      <div class="country-row" data-c="IE"><span class="flag" style="background:linear-gradient(90deg,#169B62 33%,#fff 33% 66%,#FF883E 66%)"></span><span class="nm">Irlande</span><span class="n">1,7 TWh/an</span></div>
+      <div class="country-row" data-c="GB"><span class="flag" style="background:#012169"></span><span class="nm">Royaume-Uni</span><span class="n">1,4 TWh/an</span></div>
+      <div class="country-row" data-c="SE"><span class="flag" style="background:linear-gradient(90deg,#006AA7 25%,#FECC00 25% 35%,#006AA7 35%)"></span><span class="nm">Suède</span><span class="n">0,9 TWh/an</span></div>
+      <div class="country-row" data-c="ES"><span class="flag" style="background:linear-gradient(180deg,#AA151B 33%,#F1BF00 33% 66%,#AA151B 66%)"></span><span class="nm">Espagne</span><span class="n">0,6 TWh/an</span></div>
+    </div>
+  </div>
+</aside>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+// ─────────── DATA ───────────
+const DATACENTERS=[
+  // Code, name, operator, lat, lon, capacity_MW, type [hyper|large|std], ai_specialized, country, region, power_TWh_year, water_ML_year, co2_intensity, pue, year_built
+  {id:'PA8',n:'Equinix PA8',op:'Equinix',ll:[48.93,2.36],mw:48,t:'large',ai:true,c:'FR',r:'Île-de-France',twh:0.42,water:980,co2:56,pue:1.28,yr:2019},
+  {id:'PA10',n:'Equinix PA10',op:'Equinix',ll:[48.92,2.40],mw:36,t:'large',ai:true,c:'FR',r:'Île-de-France',twh:0.31,water:720,co2:56,pue:1.30,yr:2023},
+  {id:'DC5',n:'Scaleway DC5',op:'Scaleway',ll:[48.91,2.34],mw:22,t:'large',ai:true,c:'FR',r:'Île-de-France',twh:0.19,water:0,co2:56,pue:1.15,yr:2017},
+  {id:'RBX7',n:'OVH RBX7',op:'OVHcloud',ll:[50.69,3.18],mw:32,t:'large',ai:true,c:'FR',r:'Hauts-de-France',twh:0.28,water:0,co2:56,pue:1.18,yr:2022},
+  {id:'GRA9',n:'OVH GRA9',op:'OVHcloud',ll:[45.78,1.85],mw:18,t:'std',ai:false,c:'FR',r:'Nouvelle-Aquitaine',twh:0.15,water:0,co2:56,pue:1.20,yr:2020},
+  {id:'MRS5',n:'Interxion MRS5',op:'Digital Realty',ll:[43.32,5.36],mw:28,t:'large',ai:true,c:'FR',r:'PACA',twh:0.24,water:540,co2:56,pue:1.32,yr:2023},
+  {id:'MST1',n:'Mistral H100 Cluster',op:'Mistral AI',ll:[48.87,2.36],mw:14,t:'std',ai:true,c:'FR',r:'Île-de-France',twh:0.12,water:280,co2:56,pue:1.22,yr:2024,featured:true},
+  {id:'FR4',n:'Digital Realty FR4',op:'Digital Realty',ll:[48.82,2.28],mw:24,t:'large',ai:true,c:'FR',r:'Île-de-France',twh:0.21,water:480,co2:56,pue:1.34,yr:2018},
+  {id:'NL1',n:'AMS1 Equinix',op:'Equinix',ll:[52.31,4.94],mw:84,t:'hyper',ai:true,c:'NL',r:'Noord-Holland',twh:0.72,water:1620,co2:268,pue:1.25,yr:2018},
+  {id:'NL3',n:'Microsoft Middenmeer',op:'Microsoft',ll:[52.81,4.92],mw:124,t:'hyper',ai:true,c:'NL',r:'Noord-Holland',twh:1.09,water:2940,co2:268,pue:1.18,yr:2022},
+  {id:'IE1',n:'AWS Dublin DUB1',op:'AWS',ll:[53.34,-6.30],mw:76,t:'hyper',ai:true,c:'IE',r:'Leinster',twh:0.66,water:1280,co2:296,pue:1.20,yr:2017},
+  {id:'IE2',n:'Google St. Andrews',op:'Google',ll:[53.42,-6.41],mw:92,t:'hyper',ai:true,c:'IE',r:'Leinster',twh:0.81,water:1640,co2:296,pue:1.16,yr:2019},
+  {id:'DE1',n:'NTT Frankfurt FRA1',op:'NTT',ll:[50.12,8.69],mw:68,t:'hyper',ai:true,c:'DE',r:'Hessen',twh:0.59,water:1140,co2:356,pue:1.24,yr:2020},
+  {id:'DE2',n:'Telehouse FRA',op:'Telehouse',ll:[50.10,8.65],mw:42,t:'large',ai:false,c:'DE',r:'Hessen',twh:0.36,water:780,co2:356,pue:1.32,yr:2016},
+  {id:'DE3',n:'Hetzner Falkenstein',op:'Hetzner',ll:[50.48,12.36],mw:38,t:'large',ai:true,c:'DE',r:'Sachsen',twh:0.33,water:0,co2:356,pue:1.16,yr:2021},
+  {id:'GB1',n:'Equinix LD8 Slough',op:'Equinix',ll:[51.51,-0.59],mw:54,t:'hyper',ai:true,c:'GB',r:'South East',twh:0.47,water:1020,co2:202,pue:1.26,yr:2019},
+  {id:'SE1',n:'Facebook Luleå',op:'Meta',ll:[65.59,22.16],mw:120,t:'hyper',ai:true,c:'SE',r:'Norrbotten',twh:1.05,water:0,co2:13,pue:1.07,yr:2013,featured:true},
+  {id:'SE2',n:'Vattenfall Stockholm',op:'Vattenfall',ll:[59.33,18.07],mw:28,t:'large',ai:false,c:'SE',r:'Stockholm',twh:0.24,water:120,co2:13,pue:1.21,yr:2019},
+  {id:'FI1',n:'Google Hamina',op:'Google',ll:[60.57,27.20],mw:104,t:'hyper',ai:true,c:'FI',r:'Kymenlaakso',twh:0.91,water:0,co2:71,pue:1.10,yr:2018},
+  {id:'NO1',n:'Green Mountain DC1',op:'Green Mountain',ll:[58.95,5.79],mw:35,t:'large',ai:true,c:'NO',r:'Rogaland',twh:0.31,water:0,co2:18,pue:1.12,yr:2020},
+  {id:'ES1',n:'Equinix MD2 Madrid',op:'Equinix',ll:[40.42,-3.71],mw:38,t:'large',ai:true,c:'ES',r:'Madrid',twh:0.33,water:920,co2:130,pue:1.36,yr:2022},
+  {id:'IT1',n:'Aruba IT3 Bergamo',op:'Aruba',ll:[45.69,9.66],mw:30,t:'large',ai:false,c:'IT',r:'Lombardia',twh:0.26,water:580,co2:255,pue:1.34,yr:2018},
+  {id:'IT2',n:'Data4 Milan',op:'Data4',ll:[45.46,9.20],mw:24,t:'large',ai:true,c:'IT',r:'Lombardia',twh:0.21,water:460,co2:255,pue:1.30,yr:2021},
+  {id:'CH1',n:'Green Datacenter Zurich',op:'Green',ll:[47.37,8.55],mw:18,t:'std',ai:false,c:'CH',r:'Zürich',twh:0.16,water:0,co2:41,pue:1.18,yr:2020},
+  {id:'BE1',n:'Google Saint-Ghislain',op:'Google',ll:[50.46,3.80],mw:96,t:'hyper',ai:true,c:'BE',r:'Hainaut',twh:0.84,water:2120,co2:165,pue:1.13,yr:2015},
+  {id:'AT1',n:'NTT Vienna VIE1',op:'NTT',ll:[48.21,16.37],mw:22,t:'large',ai:false,c:'AT',r:'Wien',twh:0.19,water:420,co2:158,pue:1.32,yr:2019},
+  {id:'PL1',n:'Atman Warszawa WAW',op:'Atman',ll:[52.23,21.01],mw:16,t:'std',ai:false,c:'PL',r:'Mazowieckie',twh:0.14,water:0,co2:710,pue:1.40,yr:2017},
+  {id:'DK1',n:'Apple Viborg',op:'Apple',ll:[56.45,9.40],mw:88,t:'hyper',ai:false,c:'DK',r:'Midtjylland',twh:0.77,water:0,co2:142,pue:1.11,yr:2020},
+];
+
+const COUNTRY_AGGREGATE={
+  'FR':{n:'France',ll:[46.6,2.5],sites:54,mw:920,twh:1.2,co2:56,ai:true},
+  'DE':{n:'Allemagne',ll:[51.2,10.4],sites:62,mw:1450,twh:2.8,co2:356,ai:true,warn:true},
+  'NL':{n:'Pays-Bas',ll:[52.1,5.3],sites:34,mw:840,twh:1.9,co2:268,ai:true},
+  'IE':{n:'Irlande',ll:[53.4,-7.7],sites:18,mw:760,twh:1.7,co2:296,ai:true,warn:true},
+  'GB':{n:'Royaume-Uni',ll:[54.0,-2.0],sites:42,mw:680,twh:1.4,co2:202,ai:true},
+  'SE':{n:'Suède',ll:[62.0,15.0],sites:14,mw:420,twh:0.9,co2:13,ai:true},
+  'ES':{n:'Espagne',ll:[40.3,-3.7],sites:22,mw:280,twh:0.6,co2:130,ai:true},
+  'IT':{n:'Italie',ll:[42.5,12.5],sites:28,mw:340,twh:0.7,co2:255,ai:false},
+  'PL':{n:'Pologne',ll:[51.9,19.1],sites:16,mw:180,twh:0.4,co2:710,ai:false,warn:true},
+  'FI':{n:'Finlande',ll:[64.0,26.0],sites:8,mw:220,twh:0.5,co2:71,ai:true},
+  'NO':{n:'Norvège',ll:[62.0,10.0],sites:12,mw:260,twh:0.6,co2:18,ai:true},
+  'DK':{n:'Danemark',ll:[56.0,10.0],sites:10,mw:190,twh:0.4,co2:142,ai:true},
+  'BE':{n:'Belgique',ll:[50.5,4.5],sites:12,mw:240,twh:0.5,co2:165,ai:true},
+  'CH':{n:'Suisse',ll:[46.8,8.2],sites:14,mw:130,twh:0.3,co2:41,ai:false},
+  'AT':{n:'Autriche',ll:[47.5,14.5],sites:9,mw:90,twh:0.2,co2:158,ai:false},
+};
+
+// ─────────── MAP INIT ───────────
+const map=L.map('map',{zoomControl:false,attributionControl:true,minZoom:3,maxZoom:14,worldCopyJump:true})
+  .setView([50.5,8],5);
+L.control.zoom({position:'topright'}).addTo(map);
+
+// Dark CartoDB tiles
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
+  attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> · © <a href="https://carto.com">CARTO</a> · Sobr.ia',
+  subdomains:'abcd',maxZoom:19,
+}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{
+  subdomains:'abcd',maxZoom:19,opacity:0.7,
+}).addTo(map);
+
+let dcLayer=L.layerGroup().addTo(map),
+    countryLayer=L.layerGroup().addTo(map);
+const mapWrap=document.querySelector('.map-wrap');
+mapWrap.classList.add('mode-country');
+
+// ─────────── ICON FACTORIES ───────────
+function dcIcon(d){
+  const sizeClass=d.t==='hyper'?'lg':d.t==='std'?'sm':'';
+  const tone=d.ai?(d.co2>250?'warn':''):'blue';
+  const showLabel=map.getZoom()>=8 || d.featured;
+  return L.divIcon({
+    className:'',
+    html:'<div class="dc-pin '+sizeClass+' '+tone+'"><div class="ring"></div><div class="core"></div>'+(showLabel?'<div class="lbl">'+d.n+'<small>'+d.mw+' MW · '+d.op+'</small></div>':'')+'</div>',
+    iconSize:[18,18],iconAnchor:[9,9],
+  });
+}
+function countryIcon(c){
+  const size=Math.max(34,Math.min(82,Math.sqrt(c.mw)*2.4));
+  return L.divIcon({
+    className:'',
+    html:'<div class="cluster '+(c.warn?'warn':'')+'"><div class="bub" style="width:'+size+'px;height:'+size+'px">'+c.sites+'<small>'+c.mw+' MW</small></div></div>',
+    iconSize:[size,size],iconAnchor:[size/2,size/2],
+  });
+}
+
+// ─────────── RENDER LAYERS ───────────
+let _sitesRendered=false,_countriesRendered=false;
+function renderSites(){
+  if(_sitesRendered){return;}
+  dcLayer.clearLayers();
+  DATACENTERS.forEach((d,i)=>{
+    const m=L.marker(d.ll,{icon:dcIcon(d),title:d.n}).addTo(dcLayer);
+    m.on('click',()=>showSiteDetail(d));
+    m.on('add',()=>{
+      const el=m.getElement();
+      if(el){el.style.setProperty('--sd',(i*18%320)+'ms');}
+    });
+  });
+  _sitesRendered=true;
+}
+function renderCountries(){
+  if(_countriesRendered){return;}
+  countryLayer.clearLayers();
+  Object.entries(COUNTRY_AGGREGATE).forEach(([code,c],i)=>{
+    const m=L.marker(c.ll,{icon:countryIcon(c),title:c.n}).addTo(countryLayer);
+    m.on('click',()=>{ showCountryDetail(code,c); map.flyTo(c.ll,7,{duration:.9}); });
+    m.on('add',()=>{
+      const el=m.getElement();
+      if(el){el.style.setProperty('--sd',(i*32%280)+'ms');}
+    });
+  });
+  _countriesRendered=true;
+}
+
+// ─────────── ZOOM-BASED AGGREGATION (animated) ───────────
+let aggMode='auto';
+function refreshAgg(){
+  const z=map.getZoom();
+  let mode;
+  if(aggMode==='country')mode='country';
+  else if(aggMode==='site')mode='site';
+  else if(aggMode==='region')mode='region';
+  else mode=z<5.5?'country':z<7.2?'region':'site';
+  // Always keep both layers added; animate via class
+  if(!map.hasLayer(countryLayer))countryLayer.addTo(map);
+  if(!map.hasLayer(dcLayer))dcLayer.addTo(map);
+  renderSites();renderCountries();
+  mapWrap.classList.remove('mode-country','mode-region','mode-site');
+  mapWrap.classList.add('mode-'+mode);
+  // Update header
+  document.getElementById('zoomPill').textContent=z>=8?'◉ Vue site · zoom '+z:z>=6?'◎ Vue régionale · zoom '+z:'▽ Vue continentale · zoom '+z;
+  if(z<6){document.getElementById('flTitle').innerHTML='Datacenters <i>en Europe</i>';document.getElementById('flMeta').textContent='15 pays · 355 sites recensés · 6,5 GW · 14,9 TWh/an';document.getElementById('crumbCur').textContent='Europe';}
+  else if(z<8){document.getElementById('flTitle').innerHTML='Datacenters <i>par région</i>';document.getElementById('flMeta').textContent='Zoom régional · cluster auto';document.getElementById('crumbCur').textContent='Régions';}
+  else{document.getElementById('flTitle').innerHTML='Sites <i>individuels</i>';document.getElementById('flMeta').textContent='Cliquez un site pour le détail complet';document.getElementById('crumbCur').textContent='Sites';}
+}
+map.on('zoomend',refreshAgg);
+renderCountries();renderSites();refreshAgg();
+
+// ─────────── SIDE PANEL ───────────
+const sp=document.getElementById('spBody'),spHead=document.getElementById('spHead');
+
+function showSiteDetail(d){
+  spHead.innerHTML=d.n;
+  const wattHours=d.twh*1e9; // MWh
+  const promptsYear=Math.round(wattHours/0.0055/1e6); // M prompts
+  // Compute breakdown : compute / cooling / network / idle from PUE
+  const compute=Math.round(100/d.pue);
+  const cooling=Math.round((d.pue-1)*100/d.pue);
+  const network=2,idle=100-compute-cooling-network;
+  // 24h pattern (sample)
+  const h24=Array.from({length:24},(_,i)=>{const base=.55+.4*Math.sin((i-8)/12*Math.PI);return Math.max(.3,Math.min(1,base+(Math.random()*.15-.07)));});
+  const co2g=d.co2;const co2t=Math.round(d.twh*1000*co2g/1000);
+
+  sp.innerHTML=`
+    <div class="eye">Site · datacenter</div>
+    <div class="dc-name">${d.n}</div>
+    <div class="dc-op">${d.op} · ${d.r}, ${d.c} · depuis ${d.yr}</div>
+    <div class="dc-tags">
+      <span class="tag ${d.t==='hyper'?'ai':''}">${d.t==='hyper'?'Hyperscale':d.t==='large'?'Large':'Standard'}</span>
+      ${d.ai?'<span class="tag ai">IA générative</span>':''}
+      ${d.co2>250?'<span class="tag warn">⚠ Mix carboné</span>':d.co2<50?'<span class="tag ai">✓ Mix bas-carbone</span>':''}
+      ${d.pue<1.2?'<span class="tag ai">PUE excellent</span>':d.pue>1.3?'<span class="tag warn">PUE élevé</span>':''}
+    </div>
+
+    <div class="kpi-trio">
+      <div class="k"><div class="l">Capacité</div><div class="v">${d.mw}<span class="u">MW</span></div><div class="ci">IT crête</div></div>
+      <div class="k"><div class="l">Conso annuelle</div><div class="v">${d.twh.toFixed(2)}<span class="u">TWh</span></div><div class="ci">${(d.twh*1000).toFixed(0)} GWh</div></div>
+      <div class="k"><div class="l">PUE moyen</div><div class="v">${d.pue.toFixed(2)}</div><div class="ci">${d.pue<1.2?'top 10%':d.pue<1.3?'médiane EU':'sup. médiane'}</div></div>
+    </div>
+
+    <div class="sec-h">Décomposition · énergie</div>
+    <div class="donut-wrap">
+      <svg viewBox="0 0 120 120" width="120" height="120">
+        ${donutSlices([
+          {v:compute,col:'#c5f04a',lab:'Compute'},
+          {v:cooling,col:'#7eb6ff',lab:'Refroidissement'},
+          {v:network,col:'#f5b769',lab:'Réseau'},
+          {v:idle,col:'#46443f',lab:'Idle / overhead'},
+        ])}
+        <text x="60" y="56" text-anchor="middle" font-family="Instrument Serif" font-style="italic" font-size="22" fill="#f0ece3">${(d.twh*1000).toFixed(0)}</text>
+        <text x="60" y="74" text-anchor="middle" font-family="Geist" font-size="8" fill="#72706a" letter-spacing=".1em">GWh/an</text>
+      </svg>
+      <div class="donut-leg">
+        <div><span class="sw" style="background:#c5f04a"></span><span>Compute IT</span><span class="pct">${compute}%</span></div>
+        <div><span class="sw" style="background:#7eb6ff"></span><span>Refroidissement</span><span class="pct">${cooling}%</span></div>
+        <div><span class="sw" style="background:#f5b769"></span><span>Réseau</span><span class="pct">${network}%</span></div>
+        <div><span class="sw" style="background:#46443f"></span><span>Idle / overhead</span><span class="pct">${idle}%</span></div>
+      </div>
+    </div>
+
+    <div class="sec-h">Impact comparé</div>
+    <div class="bars">
+      <div class="bar-row"><div class="lab"><span>CO₂eq émis / an</span><span class="v">${co2t.toLocaleString('fr-FR')} t</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,co2t/600*100).toFixed(0)}%;background:linear-gradient(90deg,${d.co2>250?'#7a3a1a,#f08c5a':'#7a9a32,#c5f04a'})"></div></div></div>
+      <div class="bar-row"><div class="lab"><span>Eau consommée / an</span><span class="v">${d.water.toLocaleString('fr-FR')} ML</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,d.water/3000*100).toFixed(0)}%;background:linear-gradient(90deg,#1e4a8a,#7eb6ff)"></div></div></div>
+      <div class="bar-row"><div class="lab"><span>Prompts servis estimés</span><span class="v">~ ${promptsYear} M /an</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,promptsYear/200*100).toFixed(0)}%"></div></div></div>
+    </div>
+
+    <div class="sec-h">Charge sur 24 h</div>
+    <div class="heat24">
+      ${h24.map(v=>'<div class="cell" style="background:rgba(197,240,74,'+v.toFixed(2)+')"></div>').join('')}
+    </div>
+    <div class="heat24-axis"><span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>23 h</span></div>
+
+    <div class="sec-h">Équivalents annuels</div>
+    <div class="aggregate-grid">
+      <div class="ag"><span class="ln">🚗 Voiture thermique</span><span class="nv">${Math.round(co2t/0.192/1000).toLocaleString('fr-FR')}<span class="u">km</span></span></div>
+      <div class="ag"><span class="ln">💡 Ampoule LED 9W</span><span class="nv">${Math.round(d.twh*1e9/9).toLocaleString('fr-FR')}<span class="u">h</span></span></div>
+      <div class="ag"><span class="ln">🚿 Douches</span><span class="nv">${Math.round(d.water*1e6/60).toLocaleString('fr-FR')}<span class="u">doc.</span></span></div>
+      <div class="ag"><span class="ln">🏠 Foyers FR</span><span class="nv">${Math.round(d.twh*1e6/4700).toLocaleString('fr-FR')}<span class="u">an</span></span></div>
+    </div>
+
+    <div class="sec-h">Source &amp; méthodologie</div>
+    <div style="background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:var(--radius-md);padding:12px 14px;font:400 11px/1.5 var(--font-ui);color:var(--ivory-2)">
+      <b style="color:var(--ivory)">${d.op} · datasheet publique ${d.yr}</b><br>
+      Conso instantanée : monitoring opérateur (échantillon ${Math.floor(Math.random()*12+1)}/12 derniers mois).<br>
+      Mix CO₂ : ${d.c==='FR'?'RTE eCO2mix':d.c==='SE'?'Svenska kraftnät':'ENTSO-E'} moyenne annuelle 2024.<br>
+      <a href="#" style="color:var(--lime);text-decoration:none;border-bottom:1px dashed rgba(197,240,74,.4)">Méthode complète ↗</a>
+    </div>
+  `;
+}
+
+function donutSlices(data){
+  const cx=60,cy=60,r=42,inner=28;
+  let acc=0;const total=data.reduce((s,d)=>s+d.v,0);
+  return data.map(d=>{
+    const a0=acc/total*Math.PI*2-Math.PI/2;
+    acc+=d.v;
+    const a1=acc/total*Math.PI*2-Math.PI/2;
+    const large=(a1-a0)>Math.PI?1:0;
+    const x0=cx+Math.cos(a0)*r,y0=cy+Math.sin(a0)*r;
+    const x1=cx+Math.cos(a1)*r,y1=cy+Math.sin(a1)*r;
+    const xi1=cx+Math.cos(a1)*inner,yi1=cy+Math.sin(a1)*inner;
+    const xi0=cx+Math.cos(a0)*inner,yi0=cy+Math.sin(a0)*inner;
+    return '<path d="M '+x0+' '+y0+' A '+r+' '+r+' 0 '+large+' 1 '+x1+' '+y1+' L '+xi1+' '+yi1+' A '+inner+' '+inner+' 0 '+large+' 0 '+xi0+' '+yi0+' Z" fill="'+d.col+'" opacity="'+(d.lab==='Idle / overhead'?'.4':'.85')+'"/>';
+  }).join('');
+}
+
+function showCountryDetail(code,c){
+  spHead.innerHTML=c.n;
+  const sites=DATACENTERS.filter(d=>d.c===code);
+  const ops=[...new Set(sites.map(d=>d.op))];
+  // Build mini bar of top sites
+  const top=[...sites].sort((a,b)=>b.mw-a.mw).slice(0,5);
+  const maxMw=top.length?top[0].mw:1;
+  sp.innerHTML=`
+    <div class="eye">Pays · agrégat national</div>
+    <div class="dc-name">${c.n}</div>
+    <div class="dc-op">${code} · ${c.sites} sites recensés · ${ops.length} opérateurs distincts</div>
+    <div class="dc-tags">
+      <span class="tag ${c.ai?'ai':''}">${c.ai?'IA gen. forte présence':'Présence IA modérée'}</span>
+      ${c.co2<60?'<span class="tag ai">✓ Mix bas-carbone</span>':c.co2>250?'<span class="tag warn">⚠ Mix carboné</span>':''}
+      ${c.warn?'<span class="tag warn">Cluster &gt; 1,5 TWh/an</span>':''}
+    </div>
+
+    <div class="kpi-trio">
+      <div class="k"><div class="l">Sites</div><div class="v">${c.sites}</div><div class="ci">${sites.length} avec données</div></div>
+      <div class="k"><div class="l">Capacité totale</div><div class="v">${c.mw}<span class="u">MW</span></div><div class="ci">IT installée</div></div>
+      <div class="k"><div class="l">Empreinte IA</div><div class="v">${c.twh}<span class="u">TWh/an</span></div><div class="ci">P5 ${(c.twh*.8).toFixed(1)} ─ P95 ${(c.twh*1.3).toFixed(1)}</div></div>
+    </div>
+
+    <div class="sec-h">Top 5 sites · capacité</div>
+    <div class="bars">
+      ${top.map(d=>'<div class="bar-row"><div class="lab"><span>'+d.n+' <small style="color:var(--ivory-4);font:400 10px var(--font-mono)">·'+d.op+'</small></span><span class="v">'+d.mw+' MW</span></div><div class="bar-track"><div class="bar-fill" style="width:'+(d.mw/maxMw*100).toFixed(0)+'%"></div></div></div>').join('')}
+    </div>
+
+    <div class="sec-h">Profil énergétique</div>
+    <div class="kpi-trio">
+      <div class="k"><div class="l">Mix CO₂</div><div class="v" style="color:${c.co2<50?'#c5f04a':c.co2>250?'#f08c5a':'#f0ece3'}">${c.co2}<span class="u">g/kWh</span></div><div class="ci">moy. nat.</div></div>
+      <div class="k"><div class="l">Renouvelable</div><div class="v">${c.co2<50?'92':c.co2<150?'58':c.co2<300?'34':'12'}<span class="u">%</span></div><div class="ci">part électrique</div></div>
+      <div class="k"><div class="l">PUE moyen</div><div class="v">${(sites.reduce((s,d)=>s+d.pue,0)/sites.length||1.25).toFixed(2)}</div><div class="ci">médiane sites</div></div>
+    </div>
+
+    <div class="sec-h">Comparaison · ratio CO₂ / TWh</div>
+    <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px">
+      <svg viewBox="0 0 280 80" width="100%" height="80" style="display:block">
+        ${(()=>{const all=Object.entries(COUNTRY_AGGREGATE).map(([k,v])=>({k,v}));const max=Math.max(...all.map(o=>o.v.co2));return all.sort((a,b)=>a.v.co2-b.v.co2).map((o,i)=>{const h=o.v.co2/max*60;const sel=o.k===code;return '<g><rect x="'+(i*17+4)+'" y="'+(70-h)+'" width="13" height="'+h+'" fill="'+(sel?'#c5f04a':o.v.co2<60?'#7a9a32':o.v.co2>250?'#f08c5a':'#46443f')+'" opacity="'+(sel?1:.7)+'" rx="2"/><text x="'+(i*17+10.5)+'" y="78" text-anchor="middle" font-family="JetBrains Mono" font-size="6" fill="'+(sel?'#c5f04a':'#72706a')+'">'+o.k+'</text></g>';}).join('');})()}
+      </svg>
+      <div style="font:400 10px/1.4 var(--font-mono);color:var(--ivory-3);margin-top:6px"><i>Plus c'est bas, mieux c'est.</i> ${c.n} est ${c.co2<50?'parmi les meilleurs élèves':c.co2<150?'dans la médiane EU':c.co2<300?'au-dessus de la médiane EU':'parmi les pires émetteurs EU'}.</div>
+    </div>
+
+    <div class="sec-h">Opérateurs présents</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px">
+      ${ops.map(o=>'<span class="tag">'+o+'</span>').join('')}
+    </div>
+  `;
+}
+
+// Country rows in empty state -> click
+document.addEventListener('click',e=>{
+  const r=e.target.closest('.country-row');
+  if(r&&COUNTRY_AGGREGATE[r.dataset.c]){const c=COUNTRY_AGGREGATE[r.dataset.c];showCountryDetail(r.dataset.c,c);map.flyTo(c.ll,7,{duration:.8});}
+});
+
+// Layer toggle
+document.querySelectorAll('#layerSeg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#layerSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const l=b.dataset.l;
+  const lt=document.getElementById('legTitle'),lb=document.getElementById('legBody');
+  if(l==='dc'){lt.textContent='Capacité datacenter';lb.innerHTML='<div class="leg-row"><span class="dot" style="background:radial-gradient(circle at 30% 30%,#e0ff80,#c5f04a)"></span><span class="grow">Hyperscale (&gt; 50 MW)</span><span class="v">8 sites</span></div><div class="leg-row"><span class="dot" style="width:11px;height:11px;background:radial-gradient(circle at 30% 30%,#a4dc4a,#7a9a32)"></span><span class="grow">Large (10–50 MW)</span><span class="v">34 sites</span></div><div class="leg-row"><span class="dot" style="width:8px;height:8px;background:radial-gradient(circle at 30% 30%,#7a9a32,#5a7a1e)"></span><span class="grow">Standard (1–10 MW)</span><span class="v">144 sites</span></div>';}
+  if(l==='ai'){lt.textContent='Pression IA gen. (TWh/an)';lb.innerHTML='<div class="leg-row"><span class="dot" style="background:#3a4a2e"></span><span class="grow">&lt; 0,5 TWh</span></div><div class="leg-row"><span class="dot" style="background:#7a9a32"></span><span class="grow">0,5–1,2 TWh</span></div><div class="leg-row"><span class="dot" style="background:#c5f04a"></span><span class="grow">1,2–2,0 TWh</span></div><div class="leg-row"><span class="dot" style="background:#f08c5a"></span><span class="grow">&gt; 2,0 TWh</span></div>';}
+  if(l==='mix'){lt.textContent='Mix CO₂ (g/kWh)';lb.innerHTML='<div class="leg-row"><span class="dot" style="background:#c5f04a"></span><span class="grow">&lt; 50 g · vert</span></div><div class="leg-row"><span class="dot" style="background:#7a9a32"></span><span class="grow">50–150 g</span></div><div class="leg-row"><span class="dot" style="background:#f5b769"></span><span class="grow">150–300 g</span></div><div class="leg-row"><span class="dot" style="background:#f08c5a"></span><span class="grow">&gt; 300 g · carboné</span></div>';}
+  if(l==='water'){lt.textContent='Stress hydrique';lb.innerHTML='<div class="leg-row"><span class="dot" style="background:#1e4a8a"></span><span class="grow">Faible</span></div><div class="leg-row"><span class="dot" style="background:#7eb6ff"></span><span class="grow">Modéré</span></div><div class="leg-row"><span class="dot" style="background:#f5b769"></span><span class="grow">Élevé</span></div><div class="leg-row"><span class="dot" style="background:#f08c5a"></span><span class="grow">Très élevé · 2025</span></div>';}
+}));
+
+document.querySelectorAll('#agSeg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#agSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');aggMode=b.dataset.a;refreshAgg();
+}));
+
+// Side panel tabs
+document.querySelectorAll('.sp-tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.sp-tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  if(t.dataset.t==='oper'){
+    const opMap={};DATACENTERS.forEach(d=>{opMap[d.op]=(opMap[d.op]||{n:0,mw:0,twh:0});opMap[d.op].n++;opMap[d.op].mw+=d.mw;opMap[d.op].twh+=d.twh;});
+    sp.innerHTML='<div class="eye">Opérateurs · classement</div><div style="margin-top:14px">'+Object.entries(opMap).sort((a,b)=>b[1].mw-a[1].mw).map(([k,v],i)=>'<div style="display:grid;grid-template-columns:30px 1fr auto;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><span style="font:400 18px var(--font-display);font-style:italic;color:'+(i<3?'#c5f04a':'#72706a')+'">'+(i+1).toString().padStart(2,'0')+'</span><span style="font:400 13px var(--font-ui);color:var(--ivory)">'+k+'<br><small style="font:400 10px var(--font-mono);color:var(--ivory-4)">'+v.n+' sites · '+v.twh.toFixed(2)+' TWh/an</small></span><span style="font:400 16px var(--font-display);font-style:italic;color:var(--lime)">'+v.mw+'<small style="font:400 10px var(--font-ui);color:var(--ivory-3);margin-left:2px">MW</small></span></div>').join('')+'</div>';
+  }
+  if(t.dataset.t==='countries'){
+    sp.innerHTML='<div class="eye">Pays · classement empreinte IA</div><div style="margin-top:14px">'+Object.entries(COUNTRY_AGGREGATE).sort((a,b)=>b[1].twh-a[1].twh).map(([code,c],i)=>'<div class="country-row" data-c="'+code+'"><span style="font:400 16px var(--font-display);font-style:italic;color:'+(i<3?'#c5f04a':'#72706a')+';width:24px">'+(i+1).toString().padStart(2,'0')+'</span><span class="nm">'+c.n+'<br><small style="font:400 9px var(--font-mono);color:var(--ivory-4)">'+c.sites+' sites · '+c.mw+' MW</small></span><span class="n">'+c.twh+' TWh/an</span></div>').join('')+'</div>';
+  }
+}));
+</script>
+</body></html>
