@@ -11,7 +11,12 @@
     Sparkles,
     Zap,
     Check,
-    AlertTriangle
+    AlertTriangle,
+    GraduationCap,
+    Code2,
+    Building2,
+    Landmark,
+    Microscope
   } from '@lucide/svelte';
   import { SobriaIpcError } from '$lib/api';
   import {
@@ -20,13 +25,23 @@
     defaultModulesFor,
     moduleDescription,
     moduleLabel,
-    personaEmoji,
     personaLabel,
     personaTagline,
     savePreferences,
     type ModuleId,
     type Persona
   } from '$lib/preferences';
+  import BrandMark from '$lib/components/BrandMark.svelte';
+
+  // Icônes Lucide associées aux 5 personas (mirror visuel du brief C10
+  // mais aligné design system, pas d'emoji système qui rend mal).
+  const PERSONA_ICONS: Record<Persona, typeof GraduationCap> = {
+    student: GraduationCap,
+    pro_tech: Code2,
+    enterprise: Building2,
+    public_sector: Landmark,
+    researcher: Microscope
+  };
 
   // ─── State (Svelte 5 runes) ──────────────────────────────────────────
   let step = $state<1 | 2 | 3 | 4>(1);
@@ -174,18 +189,11 @@
   {#if step === 1}
     <section class="splash" id="step1">
       <div class="brand-stage">
-        <svg class="brand-logo" viewBox="0 0 88 88" fill="none" aria-hidden="true">
-          <path
-            d="M 24 28 C 24 18, 64 18, 64 36 C 64 46, 24 46, 24 56 C 24 70, 64 70, 64 60"
-            stroke="#c5f04a"
-            stroke-width="4.5"
-            stroke-linecap="round"
-            fill="none"
-          />
-          <circle cx="64" cy="28" r="4.5" fill="#c5f04a" />
-        </svg>
+        <div class="brand-logo">
+          <BrandMark size={132} uid="onboarding" />
+        </div>
         <h1 id="wizard-title" class="brand-wordmark">
-          sobr<em>.</em>ia
+          Sobr<em>.</em>ia
         </h1>
       </div>
 
@@ -228,6 +236,7 @@
 
       <ul class="persona-grid">
         {#each ALL_PERSONAS as p, i (p)}
+          {@const Icon = PERSONA_ICONS[p]}
           <li>
             <button
               type="button"
@@ -237,7 +246,9 @@
               data-autofocus={i === 0 ? '' : undefined}
               data-persona={p}
             >
-              <span class="persona-emoji" aria-hidden="true">{personaEmoji(p)}</span>
+              <span class="persona-icon" aria-hidden="true">
+                <Icon size={26} strokeWidth={1.4} />
+              </span>
               <span class="persona-label">{personaLabel(p)}</span>
               <span class="persona-tagline">{personaTagline(p)}</span>
               <span class="persona-arrow" aria-hidden="true">
@@ -673,9 +684,12 @@
     z-index: -1;
   }
   .brand-logo {
-    width: 88px;
-    height: 88px;
+    width: 132px;
+    height: 132px;
+    display: grid;
+    place-items: center;
     animation: breath 4s ease-in-out infinite;
+    filter: drop-shadow(0 0 40px rgba(197, 240, 74, 0.45));
   }
   @keyframes breath {
     0%,
@@ -788,12 +802,24 @@
     color: var(--lime);
     transform: translateX(4px);
   }
-  .persona-emoji {
+  .persona-icon {
     grid-row: 1;
     grid-column: 1 / -1;
-    font-size: 26px;
-    line-height: 1;
-    margin-bottom: 6px;
+    width: 44px;
+    height: 44px;
+    display: inline-grid;
+    place-items: center;
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.28);
+    border-radius: var(--radius-md);
+    color: var(--lime);
+    margin-bottom: 8px;
+    transition: all 350ms var(--ease-spring);
+  }
+  .persona-card:hover .persona-icon,
+  .persona-card:focus-visible .persona-icon {
+    transform: scale(1.06) rotate(-3deg);
+    background: rgba(197, 240, 74, 0.18);
   }
   .persona-label {
     grid-row: 2;

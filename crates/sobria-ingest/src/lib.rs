@@ -35,4 +35,8 @@ pub use layer::{
 pub use lineage::{CopperRef, GoldLineage, SilverLineage};
 pub use manifest::{CopperManifest, ManifestFileEntry};
 pub use registry::{LayerRegistry, PipelineReport, StepResult};
-pub use sources::{ComparIASource, RteIrisSource};
+pub use sources::{
+    discover_datasets, fetch_industrial_sites, fetch_rte_mix, write_artifact_json, ComparIASource,
+    DatasetMatch, IndustrialSite, RegionMeta, RteIrisSource, RteMixArtifact, RteMixSourceTotals,
+    TerritoireFrArtifact,
+};

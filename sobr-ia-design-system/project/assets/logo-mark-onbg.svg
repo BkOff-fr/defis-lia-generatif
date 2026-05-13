@@ -1,8 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <rect width="48" height="48" rx="10" fill="#0d1117"></rect>
-  <g transform="translate(8, 8)">
-    <path d="M16 2 C 6 2, 2 11, 2 19 C 2 25, 7 30, 14 30 C 24 30, 30 22, 30 12 C 30 7, 26 2, 16 2 Z" stroke="#3fb950" stroke-width="2.2" stroke-linejoin="round" fill="none"></path>
-    <path d="M6 25 Q 14 20, 24 8" stroke="#3fb950" stroke-width="1.8" stroke-linecap="round" fill="none"></path>
-    <circle cx="22" cy="14" r="2" fill="#3fb950"></circle>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Sobr.ia">
+  <defs>
+    <radialGradient id="sob-bg" cx="30%" cy="25%" r="80%">
+      <stop offset="0%" stop-color="#1a1d18"/>
+      <stop offset="100%" stop-color="#0a0d0b"/>
+    </radialGradient>
+    <radialGradient id="sob-bg-glow" cx="70%" cy="80%" r="55%">
+      <stop offset="0%" stop-color="#c5f04a" stop-opacity=".18"/>
+      <stop offset="100%" stop-color="#c5f04a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sob-leaf-bg" x1="20" y1="15" x2="85" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e0ff80"/>
+      <stop offset="60%" stop-color="#c5f04a"/>
+      <stop offset="100%" stop-color="#7a9a32"/>
+    </linearGradient>
+    <linearGradient id="sob-vein-bg" x1="0" x2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c5f04a" stop-opacity=".25"/>
+      <stop offset="50%" stop-color="#c5f04a"/>
+      <stop offset="100%" stop-color="#c5f04a" stop-opacity=".25"/>
+    </linearGradient>
+    <radialGradient id="sob-node-bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#e0ff80"/>
+      <stop offset="100%" stop-color="#c5f04a"/>
+    </radialGradient>
+    <filter id="sob-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#sob-bg)"/>
+  <rect width="120" height="120" rx="28" fill="url(#sob-bg-glow)"/>
+  <g transform="translate(10 10)">
+    <g filter="url(#sob-glow)" opacity=".55">
+      <path d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84"
+            stroke="#c5f04a" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+    </g>
+    <path d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84"
+          stroke="url(#sob-leaf-bg)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+    <path d="M 22 84 C 30 70, 38 56, 48 50 C 60 42, 74 38, 84 52"
+          stroke="url(#sob-leaf-bg)" stroke-width="2.2" stroke-linecap="round" fill="none" opacity=".7"/>
+    <path d="M 22 80 Q 38 64, 48 50 T 80 28"
+          stroke="url(#sob-vein-bg)" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="6 4" fill="none"/>
+    <circle cx="32" cy="72" r="3.4" fill="url(#sob-node-bg)"/>
+    <circle cx="50" cy="52" r="4.2" fill="url(#sob-node-bg)"/>
+    <circle cx="74" cy="32" r="3"   fill="url(#sob-node-bg)"/>
+    <circle cx="82" cy="26" r="1.2" fill="#c5f04a"/>
   </g>
 </svg>

@@ -125,39 +125,36 @@ export function defaultModulesFor(persona: Persona | null): ModuleId[] {
 
 export interface PersonaInfo {
   id: Persona;
-  emoji: string;
   label: string;
   tagline: string;
 }
 
+// Catalogue des 5 personas — labels FR + taglines de l'ADR-0010 §"Personas v2".
+// Les icônes Lucide sont définies côté Svelte (cf. `onboarding/+page.svelte`
+// et `parametres/+page.svelte`) pour ne pas importer `@lucide/svelte` ici.
 const PERSONA_CATALOG: Record<Persona, PersonaInfo> = {
   student: {
     id: 'student',
-    emoji: '🎓',
     label: 'Étudiant·e / Curieux·se',
     tagline: 'Comprendre votre impact, apprendre les bons réflexes'
   },
   pro_tech: {
     id: 'pro_tech',
-    emoji: '🧑‍💻',
     label: 'Professionnel·le tech',
     tagline: 'Optimiser vos prompts, comparer les modèles, exporter pour votre équipe'
   },
   enterprise: {
     id: 'enterprise',
-    emoji: '🏢',
     label: 'Entreprise',
     tagline: 'Piloter votre scope 3 IA, rapport CSRD, forecast budget carbone'
   },
   public_sector: {
     id: 'public_sector',
-    emoji: '🏛️',
     label: 'Collectivité / Service public',
     tagline: 'Suivre votre empreinte territoriale, marchés publics frugaux'
   },
   researcher: {
     id: 'researcher',
-    emoji: '🔬',
     label: 'Chercheur·se / Journaliste',
     tagline: 'Reproductibilité, comparaisons inter-modèles, datasets publiables'
   }
@@ -169,10 +166,6 @@ export function personaLabel(p: Persona): string {
 
 export function personaTagline(p: Persona): string {
   return PERSONA_CATALOG[p].tagline;
-}
-
-export function personaEmoji(p: Persona): string {
-  return PERSONA_CATALOG[p].emoji;
 }
 
 // ─── Catalogue modules (CDC §4.1) ────────────────────────────────────────

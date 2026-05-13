@@ -1,7 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <g transform="translate(4, 4)">
-    <path d="M20 4 C 8 4, 4 14, 4 24 C 4 32, 10 38, 18 38 C 30 38, 36 28, 36 16 C 36 10, 32 4, 20 4 Z" stroke="#3fb950" stroke-width="2.5" stroke-linejoin="round" fill="none"></path>
-    <path d="M8 32 Q 18 26, 30 10" stroke="#3fb950" stroke-width="2" stroke-linecap="round" fill="none"></path>
-    <circle cx="28" cy="18" r="2.5" fill="#3fb950"></circle>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-label="Sobr.ia">
+  <defs>
+    <linearGradient id="sob-leaf" x1="20" y1="15" x2="85" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e0ff80"/>
+      <stop offset="60%" stop-color="#c5f04a"/>
+      <stop offset="100%" stop-color="#7a9a32"/>
+    </linearGradient>
+    <linearGradient id="sob-vein" x1="0" x2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c5f04a" stop-opacity=".25"/>
+      <stop offset="50%" stop-color="#c5f04a"/>
+      <stop offset="100%" stop-color="#c5f04a" stop-opacity=".25"/>
+    </linearGradient>
+    <radialGradient id="sob-node" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#e0ff80"/>
+      <stop offset="100%" stop-color="#c5f04a"/>
+    </radialGradient>
+  </defs>
+  <path d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84"
+        stroke="url(#sob-leaf)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M 22 84 C 30 70, 38 56, 48 50 C 60 42, 74 38, 84 52"
+        stroke="url(#sob-leaf)" stroke-width="2.2" stroke-linecap="round" fill="none" opacity=".7"/>
+  <path d="M 22 80 Q 38 64, 48 50 T 80 28"
+        stroke="url(#sob-vein)" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="6 4" fill="none"/>
+  <circle cx="32" cy="72" r="3.4" fill="url(#sob-node)"/>
+  <circle cx="50" cy="52" r="4.2" fill="url(#sob-node)"/>
+  <circle cx="74" cy="32" r="3"   fill="url(#sob-node)"/>
+  <circle cx="82" cy="26" r="1.2" fill="#c5f04a"/>
 </svg>

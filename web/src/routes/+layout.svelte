@@ -18,6 +18,7 @@
   import { isTauriContext, SobriaIpcError } from '$lib/api';
   import { loadPreferences, preferences } from '$lib/preferences';
   import type { ModuleId } from '$lib/preferences';
+  import BrandMark from '$lib/components/BrandMark.svelte';
 
   type Props = { children?: import('svelte').Snippet };
   let { children }: Props = $props();
@@ -126,16 +127,7 @@
   <div class="app">
     <nav class="rail" aria-label="Navigation principale">
       <a class="brand-mark" href="/" title="Sobr.ia" aria-label="Sobr.ia — accueil">
-        <svg viewBox="0 0 44 44" fill="none" aria-hidden="true">
-          <path
-            d="M 12 14 C 12 9, 32 9, 32 18 C 32 23, 12 23, 12 28 C 12 35, 32 35, 32 30"
-            stroke="#c5f04a"
-            stroke-width="2.4"
-            stroke-linecap="round"
-            fill="none"
-          />
-          <circle cx="32" cy="14" r="2.4" fill="#c5f04a" />
-        </svg>
+        <BrandMark size={44} uid="rail" />
       </a>
 
       {#each itemsCore as item (item.href)}
@@ -300,10 +292,6 @@
     position: relative;
     border-bottom: none;
     animation: breath 4s ease-in-out infinite;
-  }
-  .brand-mark svg {
-    width: 44px;
-    height: 44px;
   }
   .brand-mark::after {
     content: '';

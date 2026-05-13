@@ -18,7 +18,12 @@
     PlusCircle,
     Cpu,
     Dice5,
-    Folder
+    Folder,
+    GraduationCap,
+    Code2,
+    Building2,
+    Landmark,
+    Microscope
   } from '@lucide/svelte';
   import {
     isTauriContext,
@@ -35,7 +40,6 @@
     moduleCategory,
     moduleDescription,
     moduleLabel,
-    personaEmoji,
     personaLabel,
     personaTagline,
     preferences,
@@ -44,6 +48,15 @@
     type ModuleId,
     type Persona
   } from '$lib/preferences';
+
+  // Icônes Lucide par persona (mirror de /onboarding/+page.svelte).
+  const PERSONA_ICONS: Record<Persona, typeof GraduationCap> = {
+    student: GraduationCap,
+    pro_tech: Code2,
+    enterprise: Building2,
+    public_sector: Landmark,
+    researcher: Microscope
+  };
 
   // ─── State ───────────────────────────────────────────────────────────
   let meta = $state<MetaInfo | null>(null);
@@ -263,8 +276,11 @@
     </header>
 
     {#if currentPersona}
+      {@const CurrentIcon = PERSONA_ICONS[currentPersona]}
       <div class="persona-current">
-        <span class="emoji" aria-hidden="true">{personaEmoji(currentPersona)}</span>
+        <span class="persona-icon" aria-hidden="true">
+          <CurrentIcon size={22} strokeWidth={1.5} />
+        </span>
         <div class="persona-info">
           <div class="persona-name">{personaLabel(currentPersona)}</div>
           <div class="persona-line">{personaTagline(currentPersona)}</div>
@@ -290,6 +306,7 @@
     <ul class="persona-options">
       {#each ALL_PERSONAS as p (p)}
         {@const isCurrent = currentPersona === p}
+        {@const OptionIcon = PERSONA_ICONS[p]}
         <li>
           <button
             type="button"
@@ -299,7 +316,9 @@
             onclick={() => (confirmPersona = p)}
             data-persona={p}
           >
-            <span class="emoji" aria-hidden="true">{personaEmoji(p)}</span>
+            <span class="persona-icon" aria-hidden="true">
+              <OptionIcon size={20} strokeWidth={1.5} />
+            </span>
             <span class="persona-option-body">
               <span class="persona-option-name">{personaLabel(p)}</span>
               <span class="persona-option-line">{personaTagline(p)}</span>
@@ -755,8 +774,15 @@
     border-radius: var(--radius-md);
     margin-bottom: 14px;
   }
-  .persona-current .emoji {
-    font-size: 28px;
+  .persona-current .persona-icon {
+    width: 44px;
+    height: 44px;
+    display: inline-grid;
+    place-items: center;
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.32);
+    border-radius: var(--radius-md);
+    color: var(--lime);
   }
   .persona-info {
     display: flex;
@@ -822,8 +848,19 @@
   .persona-option:disabled {
     opacity: 0.6;
   }
-  .persona-option .emoji {
-    font-size: 22px;
+  .persona-option .persona-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-grid;
+    place-items: center;
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.25);
+    border-radius: var(--radius-sm);
+    color: var(--lime);
+    transition: all var(--dur-base) var(--ease);
+  }
+  .persona-option:hover:not(:disabled) .persona-icon {
+    background: rgba(197, 240, 74, 0.22);
   }
   .persona-option-body {
     display: flex;

@@ -68,7 +68,22 @@ if ! command -v quarto &>/dev/null; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. Hooks Git (pre-commit fmt + clippy)
+# 7. Téléchargement automatique des datasets officiels FR (M12 + M20)
+#    Données publiques Etalab 2.0 — ODRÉ / RTE — pas de clé API requise.
+# ─────────────────────────────────────────────────────────────────────────────
+if [ ! -f "$REPO_DIR/crates/sobria-geoloc/data/territoire_fr.json" ]; then
+    echo "→ Téléchargement ODRÉ — top 200 sites industriels FR…"
+    cargo run -q -p sobria-ingest -- fetch territoire-fr --limit 200 || \
+        echo "⚠ fetch territoire-fr en échec — relance manuelle possible"
+fi
+if [ ! -f "$REPO_DIR/crates/sobria-geoloc/data/rte_mix_fr.json" ]; then
+    echo "→ Téléchargement RTE eco2mix — mix électrique national 2023…"
+    cargo run -q -p sobria-ingest -- fetch rte-mix --year 2023 || \
+        echo "⚠ fetch rte-mix en échec — relance manuelle possible"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. Hooks Git (pre-commit fmt + clippy)
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -d .git ]; then
     cat > .git/hooks/pre-commit <<'HOOK'
@@ -85,7 +100,9 @@ echo ""
 echo "✅ Bootstrap terminé."
 echo ""
 echo "Commandes utiles (voir CLAUDE.md §10) :"
-echo "  cargo run -p sobria-app                      # lance l'app Tauri en dev"
-echo "  cargo run -p sobria-ingest -- pipeline run   # pipeline médaillon complet"
-echo "  cd web && npm run dev                        # SvelteKit en hot reload"
-echo "  cd extension && npm run dev                  # extension en dev"
+echo "  cargo run -p sobria-app                              # lance l'app Tauri en dev"
+echo "  cargo run -p sobria-ingest -- pipeline run           # pipeline médaillon complet"
+echo "  cargo run -p sobria-ingest -- fetch territoire-fr    # refresh sites industriels FR"
+echo "  cargo run -p sobria-ingest -- fetch rte-mix          # refresh mix élec national"
+echo "  cd web && npm run dev                                # SvelteKit en hot reload"
+echo "  cd extension && npm run dev                          # extension en dev"
