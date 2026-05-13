@@ -266,6 +266,28 @@ export interface CountryAggregateDto {
   centroid_lon: number;
 }
 
+// ─── Rapport CSRD / AGEC (C14 — M22) ─────────────────────────────────────
+
+export interface CsrdReportRequestDto {
+  /** ISO 8601 (`2026-01-01T00:00:00Z`). */
+  period_start: string;
+  period_end: string;
+  organization_name: string;
+  /** Locale UI — v1.0 : `"fr"`. */
+  locale: string;
+}
+
+export interface CsrdReportResultDto {
+  pdf_path: string;
+  provo_path: string;
+  pdf_sha256: string;
+  audit_entries_count: number;
+  total_requests: number;
+  total_co2eq_g_p50: number;
+  total_energy_wh_p50: number;
+  total_water_l_p50: number;
+}
+
 export interface SankeyDataDto {
   nodes: SankeyNodeDto[];
   links: SankeyLinkDto[];
@@ -291,7 +313,9 @@ export type IpcErrorCode =
   | 'internal'
   | 'tauri_unavailable'
   | 'data_not_ingested'
-  | 'not_found';
+  | 'not_found'
+  | 'empty_period'
+  | 'export_error';
 
 export class SobriaIpcError extends Error {
   readonly code: IpcErrorCode;
@@ -424,6 +448,17 @@ export function getDatacenterDetail(id: string): Promise<DatacenterDetailDto> {
 
 export function aggregateDatacentersByCountry(): Promise<CountryAggregateDto[]> {
   return call<CountryAggregateDto[]>('aggregate_datacenters_by_country');
+}
+
+// ─── Rapport CSRD/AGEC (C14 — M22) ───────────────────────────────────────
+
+export function exportCsrdReport(
+  req: CsrdReportRequestDto,
+  outputDir: string
+): Promise<CsrdReportResultDto> {
+  // Argument Rust = `output_dir` (snake_case) — Tauri 2 convertit
+  // automatiquement depuis camelCase JS.
+  return call<CsrdReportResultDto>('export_csrd_report', { req, outputDir });
 }
 
 // ─── Préférences utilisateur (C10 — ADR-0010) ────────────────────────────

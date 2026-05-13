@@ -327,7 +327,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Rapport CSRD / AGEC',
     description: 'PDF signé + bundle PROV-O conforme aux normes.',
     category: 'reporting',
-    href: null
+    href: '/rapport-csrd'
   },
   m23: {
     id: 'm23',
