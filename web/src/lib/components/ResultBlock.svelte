@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Leaf, Droplet, Hexagon } from '@lucide/svelte';
-  import type { EstimationResultDto, IndicatorDto } from '$lib/api';
+  import type { DistributionBins, EstimationResultDto, IndicatorDto } from '$lib/api';
 
   type Props = { result: EstimationResultDto };
   const { result }: Props = $props();
@@ -22,33 +22,77 @@
   const water = $derived(pick('water'));
   const metals = $derived(pick('critical_metals'));
 
-  // Synthèse de la distribution Monte-Carlo à partir des percentiles P5/P50/P95.
-  // Approximation Gaussienne sur l'axe linéaire (suffisante pour la UI ; la
-  // vraie distribution log-normale est dans le ledger d'audit).
-  function distributionPath(p5: number, p50: number, p95: number): string {
-    if (!isFinite(p5) || !isFinite(p95) || p95 <= p5) {
-      return 'M 0 74 L 600 74 Z';
+  // ─── Distribution Monte-Carlo ───────────────────────────────────────────
+  //
+  // Quand l'indicateur transporte un histogramme (`bins`, option A1 du brief
+  // C09), on en restitue la forme log-normale réelle — la queue droite est
+  // précisément ce qu'on veut donner à voir (worst-case CSRD).
+  //
+  // En l'absence (entrées d'audit antérieures à v0.2 ou N trop faible), on
+  // retombe sur une approximation gaussienne depuis P5/P50/P95 — visuel
+  // uniquement, méthodologie le signale via le drawer d'hypothèses.
+
+  /** Domaine de l'axe x = [xMin, xMax], en unités de l'indicateur. */
+  function axisDomain(ind: IndicatorDto): { xMin: number; xMax: number } {
+    if (ind.bins) {
+      return { xMin: ind.bins.min, xMax: ind.bins.max };
     }
+    const span = ind.p95 - ind.p5;
+    return { xMin: ind.p5 - span * 0.2, xMax: ind.p95 + span * 0.2 };
+  }
+
+  /** Chemin SVG du polygone de distribution (viewBox 0 0 600 80). */
+  function distributionPath(ind: IndicatorDto): string {
+    return ind.bins ? binsPath(ind.bins) : gaussianPath(ind.p5, ind.p50, ind.p95);
+  }
+
+  function binsPath(b: DistributionBins): string {
+    if (b.counts.length === 0 || b.max <= b.min) return 'M 0 74 L 600 74 Z';
+    const maxCount = b.counts.reduce((acc, c) => (c > acc ? c : acc), 0);
+    if (maxCount === 0) return 'M 0 74 L 600 74 Z';
+    const n = b.counts.length;
+    const segs: string[] = ['M 0 74'];
+    for (let i = 0; i < n; i++) {
+      const x = ((i + 0.5) / n) * 600;
+      const count = b.counts[i] ?? 0;
+      const y = 74 - (count / maxCount) * 64;
+      segs.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
+    }
+    segs.push('L 600 74 Z');
+    return segs.join(' ');
+  }
+
+  function gaussianPath(p5: number, p50: number, p95: number): string {
+    if (!isFinite(p5) || !isFinite(p95) || p95 <= p5) return 'M 0 74 L 600 74 Z';
     const n = 40;
     const span = p95 - p5;
     const xMin = p5 - span * 0.2;
     const xMax = p95 + span * 0.2;
     const sigma = span / 3.3;
-    const points: Array<[number, number]> = [];
+    const pts: Array<[number, number]> = [];
     for (let i = 0; i < n; i++) {
       const x = xMin + ((xMax - xMin) * i) / (n - 1);
       const yGauss = Math.exp(-Math.pow(x - p50, 2) / (2 * sigma * sigma));
-      points.push([(i / (n - 1)) * 600, 74 - yGauss * 64]);
+      pts.push([(i / (n - 1)) * 600, 74 - yGauss * 64]);
     }
-    const first = points[0];
+    const first = pts[0];
     if (!first) return 'M 0 74 L 600 74 Z';
-    const head = `M ${first[0]} 74`;
-    const body = points.map(([x, y]) => `L ${x} ${y}`).join(' ');
-    const tail = `L 600 74 Z`;
-    return `${head} ${body} ${tail}`;
+    return `M ${first[0]} 74 ${pts.map(([x, y]) => `L ${x} ${y}`).join(' ')} L 600 74 Z`;
   }
 
-  const distPath = $derived(co2 ? distributionPath(co2.p5, co2.p50, co2.p95) : 'M 0 74 L 600 74 Z');
+  /** Position SVG (0..600) d'une valeur indicateur sur l'axe. */
+  function xPos(v: number, dom: { xMin: number; xMax: number }): number {
+    if (dom.xMax === dom.xMin) return 300;
+    const t = (v - dom.xMin) / (dom.xMax - dom.xMin);
+    return Math.max(0, Math.min(600, t * 600));
+  }
+
+  const co2Dom = $derived(co2 ? axisDomain(co2) : { xMin: 0, xMax: 1 });
+  const distPath = $derived(co2 ? distributionPath(co2) : 'M 0 74 L 600 74 Z');
+  const x5 = $derived(co2 ? xPos(co2.p5, co2Dom) : 0);
+  const x50 = $derived(co2 ? xPos(co2.p50, co2Dom) : 300);
+  const x95 = $derived(co2 ? xPos(co2.p95, co2Dom) : 600);
+  const isMcRendered = $derived(!!co2?.bins);
 </script>
 
 <section class="result-block" aria-label="Résultat de l'estimation">
@@ -95,32 +139,32 @@
             filter="url(#glow)"
           />
           <!-- Médiane -->
-          <line x1="300" y1="0" x2="300" y2="78" stroke="#c5f04a" stroke-width="2" />
-          <circle cx="300" cy="8" r="3.5" fill="#c5f04a" />
-          <text x="306" y="14" font-family="JetBrains Mono" font-size="9" fill="#c5f04a"
+          <line x1={x50} y1="0" x2={x50} y2="78" stroke="#c5f04a" stroke-width="2" />
+          <circle cx={x50} cy="8" r="3.5" fill="#c5f04a" />
+          <text x={x50 + 6} y="14" font-family="JetBrains Mono" font-size="9" fill="#c5f04a"
             >MÉDIANE</text
           >
           <!-- P5 / P95 ticks -->
           <line
-            x1="170"
+            x1={x5}
             y1="50"
-            x2="170"
+            x2={x5}
             y2="78"
             stroke="rgba(197,240,74,0.4)"
             stroke-width="1"
             stroke-dasharray="2 3"
           />
           <line
-            x1="430"
+            x1={x95}
             y1="56"
-            x2="430"
+            x2={x95}
             y2="78"
             stroke="rgba(197,240,74,0.4)"
             stroke-width="1"
             stroke-dasharray="2 3"
           />
           <text
-            x="170"
+            x={x5}
             y="48"
             font-family="JetBrains Mono"
             font-size="8"
@@ -128,7 +172,7 @@
             text-anchor="middle">P5</text
           >
           <text
-            x="430"
+            x={x95}
             y="54"
             font-family="JetBrains Mono"
             font-size="8"
@@ -138,11 +182,21 @@
         </svg>
       </div>
       <div class="dist-axis" aria-hidden="true">
-        <span>{fmt(co2.p5 * 0.85)}</span>
+        <span>{fmt(co2Dom.xMin)}</span>
         <span>{fmt(co2.p5)}</span>
         <span>{fmt(co2.p50)}</span>
         <span>{fmt(co2.p95)}</span>
-        <span>{fmt(co2.p95 * 1.15)}</span>
+        <span>{fmt(co2Dom.xMax)}</span>
+      </div>
+      <div
+        class="dist-meta"
+        title={isMcRendered
+          ? 'Distribution Monte-Carlo réelle (10⁴ tirages, 50 bins équi-width)'
+          : 'Approximation gaussienne — distribution réelle absente du résultat'}
+      >
+        {isMcRendered
+          ? 'distribution Monte-Carlo · 10⁴ tirages'
+          : 'approximation gaussienne (P5/P50/P95)'}
       </div>
     {/if}
   </article>
@@ -325,6 +379,14 @@
     font: 400 10px/1 var(--font-mono);
     color: var(--ivory-4);
     padding: 0 2px;
+  }
+  .dist-meta {
+    margin-top: 6px;
+    font: 400 10px/1 var(--font-mono);
+    color: var(--ivory-3);
+    letter-spacing: 0.04em;
+    text-transform: lowercase;
+    cursor: help;
   }
 
   .side-metrics {

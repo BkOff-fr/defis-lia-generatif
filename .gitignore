@@ -64,3 +64,9 @@ tmp/
 # Audits
 audit-report.json
 *.sbom.json
+
+# Playwright (rapports + artefacts de test)
+web/test-results/
+web/playwright-report/
+web/blob-report/
+web/playwright/.cache/

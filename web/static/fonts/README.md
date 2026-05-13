@@ -5,8 +5,8 @@ Polices auto-hébergées pour respecter la CSP `default-src 'self'` de Tauri
 
 Toutes ces polices sont publiées sous **SIL Open Font License 1.1** —
 redistribution autorisée, modification autorisée, vente interdite seule.
-Le fichier de licence complet est dans `docs/LICENSES-FONTS.md` à
-l'implémentation finale (TODO).
+Texte intégral + copyrights par famille + SHA-256 de chaque WOFF2 :
+voir [`docs/LICENSES-FONTS.md`](../../../docs/LICENSES-FONTS.md).
 
 ## Inventaire
 

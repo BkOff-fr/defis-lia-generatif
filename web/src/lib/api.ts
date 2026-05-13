@@ -47,12 +47,29 @@ export interface EstimationRequestDto {
   datacenter_id?: string;
 }
 
+// Histogramme équi-width de la distribution Monte-Carlo d'un indicateur.
+// Mirroir de `sobria_core::DistributionBins` (cf. crates/sobria-core/src/
+// indicators.rs). `counts.length` bins entre `min` et `max` ; chaque count
+// est un u32 (≤ N tirages, 10⁴ par défaut).
+export interface DistributionBins {
+  min: number;
+  max: number;
+  counts: number[];
+}
+
 export interface IndicatorDto {
   indicator: IndicatorName;
   p5: number;
   p50: number;
   p95: number;
   unit: string;
+  /**
+   * Histogramme Monte-Carlo (équi-width). Absent pour les entrées d'audit
+   * antérieures à v0.2 ou si le moteur a tourné avec N trop faible. Quand
+   * absent, le frontend retombe sur une approximation gaussienne depuis
+   * P5/P50/P95 (visuel uniquement, non scientifique).
+   */
+  bins?: DistributionBins;
 }
 
 export interface EquivalentDto {

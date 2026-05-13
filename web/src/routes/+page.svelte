@@ -80,7 +80,9 @@
     loading = true;
     error = null;
     try {
-      const tokensIn = Math.max(1, Math.ceil(prompt.length / 4));
+      // Même heuristique que Composer (3,3 chars/token FR). Cf. note dans
+      // Composer.svelte — tokenizer réel en v0.3 (chantier outillage).
+      const tokensIn = Math.max(1, Math.ceil(prompt.length / 3.3));
       const r = await estimatePrompt({
         model_id: selectedModelId,
         tokens_in: tokensIn,

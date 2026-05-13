@@ -39,10 +39,13 @@
 
   const selectedModel = $derived(models.find((m) => m.id === selectedModelId) ?? null);
 
-  // Heuristique simple : ~4 caractères / token (cf. OpenAI tokenizer
-  // typique). Pour une mesure exacte il faudrait BPE côté Rust — c'est
-  // l'objet du chantier futur EF-M2-01.
-  const tokensIn = $derived(Math.max(1, Math.ceil(prompt.length / 4)));
+  // Heuristique : ~3,3 caractères / token en français (plage 3,0-3,5 selon
+  // corpus, accents UTF-8 + agglutinations), ~4 en anglais. On adopte 3,3
+  // comme ratio FR par défaut. Pour une mesure exacte il faudra brancher
+  // un tokenizer BPE (tiktoken-wasm ou équivalent) côté Rust — chantier
+  // outillage C10/C11.
+  const CHARS_PER_TOKEN_FR = 3.3;
+  const tokensIn = $derived(Math.max(1, Math.ceil(prompt.length / CHARS_PER_TOKEN_FR)));
 
   const calibrationLabel: Record<Calibration, string> = {
     validated: 'Validé',
@@ -168,9 +171,13 @@
       aria-describedby="prompt-meta"
     ></textarea>
     <div class="prompt-meta" id="prompt-meta">
-      <span class="item">
+      <span
+        class="item"
+        title="Estimation heuristique (~3,3 caractères/token en FR, ~4 en EN). Tokenizer réel en v0.3 — chantier outillage."
+      >
         <ArrowDownToLine size={12} strokeWidth={1.8} />Tokens entrée
         <b>{tokensIn}</b>
+        <span class="hint-mark" aria-hidden="true">?</span>
       </span>
       <span class="item">
         <ArrowUpFromLine size={12} strokeWidth={1.8} />Tokens sortie estimés
@@ -470,6 +477,18 @@
     color: var(--ivory);
     font-weight: 600;
     margin-left: 2px;
+  }
+  .hint-mark {
+    display: inline-grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
+    border: 1px solid var(--border-hi);
+    border-radius: 50%;
+    color: var(--ivory-3);
+    font: 500 9px/1 var(--font-ui);
+    cursor: help;
   }
   .prompt-meta .item.muted {
     cursor: default;
