@@ -14,7 +14,7 @@
 use sobria_app::{
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto,
-        IntegrityReportDto, MetaInfo, ModelPresetDto,
+        IntegrityReportDto, MetaInfo, ModelPresetDto, SimulationRequestDto, SimulationResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -78,6 +78,14 @@ fn set_app_preferences(
     logic::set_app_preferences(prefs, state.inner())
 }
 
+#[tauri::command]
+fn simulate_scenarios(
+    req: SimulationRequestDto,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<SimulationResultDto> {
+    logic::simulate_scenarios(req, state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -110,6 +118,7 @@ fn main() {
             export_audit_ndjson,
             get_app_preferences,
             set_app_preferences,
+            simulate_scenarios,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");

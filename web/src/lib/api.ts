@@ -226,3 +226,49 @@ export function listAuditEntries(limit: number, offset: number): Promise<AuditEn
 export function exportAuditNdjson(path: string): Promise<number> {
   return call<number>('export_audit_ndjson', { path });
 }
+
+// ─── Préférences utilisateur (C10 — ADR-0010) ────────────────────────────
+
+export type Persona = 'student' | 'pro_tech' | 'enterprise' | 'public_sector' | 'researcher';
+
+// Liste fermée 24 IDs (M4 réservé en v1.3, cf. sobria_core::ModuleId).
+export type ModuleId =
+  | 'm1'
+  | 'm2'
+  | 'm3'
+  | 'm5'
+  | 'm6'
+  | 'm7'
+  | 'm8'
+  | 'm9'
+  | 'm10'
+  | 'm11'
+  | 'm12'
+  | 'm13'
+  | 'm14'
+  | 'm15'
+  | 'm16'
+  | 'm17'
+  | 'm18'
+  | 'm19'
+  | 'm20'
+  | 'm21'
+  | 'm22'
+  | 'm23'
+  | 'm24'
+  | 'm25';
+
+export interface AppPreferencesDto {
+  persona: Persona | null;
+  enabled_modules: ModuleId[];
+  onboarded: boolean;
+  lang: 'fr' | 'en';
+}
+
+export function getAppPreferences(): Promise<AppPreferencesDto> {
+  return call<AppPreferencesDto>('get_app_preferences');
+}
+
+export async function setAppPreferences(prefs: AppPreferencesDto): Promise<void> {
+  await call<null>('set_app_preferences', { prefs });
+}

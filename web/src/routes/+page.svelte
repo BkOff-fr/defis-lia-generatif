@@ -12,7 +12,8 @@
     AlertTriangle,
     Info,
     PlugZap,
-    Scale
+    Scale,
+    Settings2
   } from '@lucide/svelte';
   import {
     estimatePrompt,
@@ -24,10 +25,69 @@
     type IpcErrorCode,
     type ModelPresetDto
   } from '$lib/api';
+  import { preferences, moduleLabel, type ModuleId } from '$lib/preferences';
   import Composer from '$lib/components/Composer.svelte';
   import ResultBlock from '$lib/components/ResultBlock.svelte';
   import HypothesisBlock from '$lib/components/HypothesisBlock.svelte';
   import { tick } from 'svelte';
+
+  // ─── Garde de route M1 (C10 — ADR-0010) ──────────────────────────
+  // M1 fait partie de tous les bundles persona par défaut. Mais
+  // l'utilisateur peut le désactiver manuellement dans /parametres.
+  const MODULE_ID: ModuleId = 'm1';
+  $effect(() => {
+    if (
+      $preferences.loaded &&
+      !$preferences.enabled_modules.includes(MODULE_ID) &&
+      typeof window !== 'undefined' &&
+      !window.location.search.includes('disabled=')
+    ) {
+      // Cas extrême : l'utilisateur a manuellement décoché M1 dans
+      // /parametres. On affiche le bandeau via l'URL `?disabled=m1`.
+      window.location.replace('/?disabled=' + MODULE_ID);
+    }
+  });
+
+  // ─── Bandeau « module désactivé » : ?disabled=mXX ───────────────
+  // L'URL n'est posée que par la garde de route d'un module désactivé
+  // (cf. simuler/+page.svelte). On affiche le bandeau dès que le param
+  // est présent et qu'il référence un ID de module connu.
+  const KNOWN_MODULE_IDS: ReadonlySet<ModuleId> = new Set([
+    'm1',
+    'm2',
+    'm3',
+    'm5',
+    'm6',
+    'm7',
+    'm8',
+    'm9',
+    'm10',
+    'm11',
+    'm12',
+    'm13',
+    'm14',
+    'm15',
+    'm16',
+    'm17',
+    'm18',
+    'm19',
+    'm20',
+    'm21',
+    'm22',
+    'm23',
+    'm24',
+    'm25'
+  ]);
+  let disabledModuleId = $state<ModuleId | null>(null);
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = new URLSearchParams(window.location.search).get('disabled');
+    if (raw && KNOWN_MODULE_IDS.has(raw as ModuleId)) {
+      disabledModuleId = raw as ModuleId;
+    } else {
+      disabledModuleId = null;
+    }
+  });
 
   // ─── State ───────────────────────────────────────────────────────────
   let models = $state<ModelPresetDto[]>([]);
@@ -220,6 +280,21 @@
       pour estimer l'énergie, le CO₂, l'eau et les métaux — avec un intervalle d'incertitude P5–P95.
     </p>
   </section>
+
+  <!-- ─── Bannière module désactivé (C10 — redirection /?disabled=mXX) ── -->
+  {#if disabledModuleId}
+    <div class="disabled-banner" role="status" data-disabled-module={disabledModuleId}>
+      <span class="disabled-ico" aria-hidden="true">
+        <Settings2 size={15} strokeWidth={1.8} />
+      </span>
+      <span class="disabled-body">
+        Le module <strong>{disabledModuleId.toUpperCase()} · {moduleLabel(disabledModuleId)}</strong
+        >
+        n'est pas activé.
+        <a href="/parametres">→ Activer dans Paramètres</a>
+      </span>
+    </div>
+  {/if}
 
   <!-- ─── Bannière erreur globale ──────────────────────────────── -->
   {#if error}
@@ -479,6 +554,46 @@
     color: var(--ivory-2);
     max-width: 560px;
     margin: 0;
+  }
+
+  /* ─── Bannière module désactivé (coral discret) ──────────────── */
+  .disabled-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: rgba(240, 108, 90, 0.06);
+    border: 1px dashed rgba(240, 108, 90, 0.35);
+    border-radius: var(--radius-md);
+    color: var(--coral);
+    margin-bottom: 16px;
+    font: 400 13px/1.4 var(--font-ui);
+  }
+  .disabled-ico {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(240, 108, 90, 0.08);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+  }
+  .disabled-body {
+    color: var(--ivory-2);
+    flex: 1;
+  }
+  .disabled-body strong {
+    color: var(--coral);
+    font-weight: 500;
+  }
+  .disabled-body a {
+    color: var(--lime);
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(197, 240, 74, 0.4);
+    margin-left: 6px;
+  }
+  .disabled-body a:hover {
+    border-bottom-color: var(--lime);
   }
 
   /* ─── Banner erreur ────────────────────────────────────────── */

@@ -14,7 +14,7 @@ use tracing::{debug, info};
 use crate::{
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, EstimationRequestDto, EstimationResultDto,
-        IntegrityReportDto, MetaInfo, ModelPresetDto,
+        IntegrityReportDto, MetaInfo, ModelPresetDto, SimulationRequestDto, SimulationResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     preferences_store::StoredPreferences,
@@ -135,6 +135,45 @@ pub fn list_audit_entries(
         out.push(AuditEntrySummaryDto::from_entry(&entry));
     }
     Ok(out)
+}
+
+/// Lance une simulation « Et si...? » (M13 / C11).
+///
+/// Étapes :
+/// 1. Validation modèle baseline.
+/// 2. Conversion DTO → types Rust internes (avec timestamp baseline).
+/// 3. `sobria_estimator::simulate(...)`.
+/// 4. Journalisation **du seul baseline** dans le ledger (cf. brief C11 §3).
+/// 5. Retourne le DTO complet (baseline avec audit_id, scénarios sans).
+pub fn simulate_scenarios(
+    req: SimulationRequestDto,
+    state: &AppState,
+) -> IpcResult<SimulationResultDto> {
+    if find_preset(&req.baseline.model_id).is_none() {
+        return Err(IpcError::from(AppError::UnknownModel(
+            req.baseline.model_id.clone(),
+        )));
+    }
+    let sim_core = req.into_core(Utc::now());
+    let result = sobria_estimator::simulate(&state.estimator, &sim_core).map_err(AppError::from)?;
+
+    // Journalise UNIQUEMENT le baseline (les scénarios sont exploratoires).
+    let mut ledger = state
+        .ledger
+        .lock()
+        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
+    let entry = ledger.append(&result.baseline).map_err(AppError::from)?;
+    let audit_id = entry.id;
+    drop(ledger);
+
+    info!(
+        baseline_model = %result.baseline.request.model_id,
+        scenarios = result.scenarios.len(),
+        forecast = result.forecast.is_some(),
+        audit_id,
+        "simulate_scenarios: ok"
+    );
+    Ok(SimulationResultDto::from_result(&result, audit_id))
 }
 
 /// Exporte le ledger en NDJSON vers `path`. Retourne le nombre de lignes.
@@ -494,6 +533,139 @@ mod tests {
                 "M1 manquant dans le bundle {p:?}"
             );
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // simulation — C11 / M13
+    // ─────────────────────────────────────────────────────────────────────
+
+    use crate::dto::{
+        ForecastConfigDto, ParamOverridesDto, ScenarioDto, SimulationRequestDto,
+    };
+
+    fn baseline_dto() -> EstimationRequestDto {
+        EstimationRequestDto {
+            model_id: "gpt-4o-mini".into(),
+            tokens_in: 100,
+            tokens_out_estimated: 500,
+            datacenter_id: None,
+        }
+    }
+
+    #[test]
+    fn simulate_baseline_only_journalises_baseline() {
+        let (_tmp, state) = fresh_state();
+        let req = SimulationRequestDto {
+            baseline: baseline_dto(),
+            scenarios: vec![],
+            forecast: None,
+        };
+        let res = simulate_scenarios(req, &state).unwrap();
+        assert!(res.baseline.audit_id >= 1, "baseline doit être journalisé");
+        assert_eq!(res.scenarios.len(), 0);
+        assert!(res.forecast.is_none());
+    }
+
+    #[test]
+    fn simulate_with_scenarios_returns_outcomes_with_deltas() {
+        let (_tmp, state) = fresh_state();
+        let req = SimulationRequestDto {
+            baseline: baseline_dto(),
+            scenarios: vec![
+                ScenarioDto {
+                    label: "PUE bas".into(),
+                    overrides: ParamOverridesDto {
+                        pue: Some(1.05),
+                        ..Default::default()
+                    },
+                },
+                ScenarioDto {
+                    label: "PUE haut".into(),
+                    overrides: ParamOverridesDto {
+                        pue: Some(1.6),
+                        ..Default::default()
+                    },
+                },
+            ],
+            forecast: None,
+        };
+        let res = simulate_scenarios(req, &state).unwrap();
+        assert_eq!(res.scenarios.len(), 2);
+        assert_eq!(res.scenarios[0].label, "PUE bas");
+        assert_eq!(res.scenarios[0].result.audit_id, 0, "scenarios non journalisés");
+        assert!(res.scenarios[0].delta_co2eq_g.is_finite());
+        // PUE 1.05 doit donner un delta négatif (moins que baseline avec PUE
+        // uniforme [1.1, 1.4]).
+        assert!(
+            res.scenarios[0].delta_co2eq_g < 0.0,
+            "PUE 1.05 doit baisser CO2eq, got {}",
+            res.scenarios[0].delta_co2eq_g
+        );
+    }
+
+    #[test]
+    fn simulate_unknown_baseline_model_returns_unknown_model() {
+        let (_tmp, state) = fresh_state();
+        let req = SimulationRequestDto {
+            baseline: EstimationRequestDto {
+                model_id: "ce-modele-existe-pas".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: None,
+            },
+            scenarios: vec![],
+            forecast: None,
+        };
+        let err = simulate_scenarios(req, &state).unwrap_err();
+        assert_eq!(err.code, "unknown_model");
+    }
+
+    #[test]
+    fn simulate_with_forecast_returns_monthly_series() {
+        let (_tmp, state) = fresh_state();
+        let req = SimulationRequestDto {
+            baseline: baseline_dto(),
+            scenarios: vec![],
+            forecast: Some(ForecastConfigDto {
+                months: 12,
+                monthly_growth_pct: 5.0,
+                base_volume_per_day: 100.0,
+            }),
+        };
+        let res = simulate_scenarios(req, &state).unwrap();
+        let f = res.forecast.unwrap();
+        assert_eq!(f.months, 12);
+        assert_eq!(f.baseline_monthly_co2eq_g.len(), 12);
+        assert!(f.baseline_annual_co2eq_g > 0.0);
+        // Série géométrique croissante
+        for i in 1..f.baseline_monthly_co2eq_g.len() {
+            assert!(
+                f.baseline_monthly_co2eq_g[i] > f.baseline_monthly_co2eq_g[i - 1],
+                "série doit croître à 5%/mois"
+            );
+        }
+    }
+
+    #[test]
+    fn simulate_duplicate_scenario_labels_returns_error() {
+        let (_tmp, state) = fresh_state();
+        let req = SimulationRequestDto {
+            baseline: baseline_dto(),
+            scenarios: vec![
+                ScenarioDto {
+                    label: "même nom".into(),
+                    overrides: ParamOverridesDto::default(),
+                },
+                ScenarioDto {
+                    label: "même nom".into(),
+                    overrides: ParamOverridesDto::default(),
+                },
+            ],
+            forecast: None,
+        };
+        let err = simulate_scenarios(req, &state).unwrap_err();
+        // Erreur propagée depuis estimator → mappée en estimator_error.
+        assert_eq!(err.code, "estimator_error");
     }
 
     #[test]

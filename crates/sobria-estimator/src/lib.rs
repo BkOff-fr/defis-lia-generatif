@@ -40,6 +40,7 @@ pub mod equivalents;
 pub mod error;
 pub mod model_presets;
 pub mod params;
+pub mod scenarios;
 pub mod validation;
 
 pub use distributions::Distribution;
@@ -49,6 +50,10 @@ pub use model_presets::{
     available_models, find_preset, CalibrationStatus, ModelPreset, Openness, MODEL_REGISTRY,
 };
 pub use params::EstimationParams;
+pub use scenarios::{
+    simulate, ForecastConfig, ForecastResult, ParamOverrides, Scenario, ScenarioOutcome,
+    SimulationRequest, SimulationResult, MAX_FORECAST_MONTHS, MAX_SCENARIOS,
+};
 pub use validation::{
     run_all_plausibility, run_all_reproduction, run_plausibility, run_reproduction, Expectation,
     PlausibilityCase, ReproductionCase, ValidationKind, ValidationReport,

@@ -7,6 +7,49 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+### Added — Chantier C10 : Onboarding personas + module gating (S6 / S7) — `v0.3.0-onboarding`
+
+> ADR-0010 « Personas et gating modulaire par préférences utilisateur ». Brief `briefs/chantiers/C10-onboarding-personas.md`. Bundle Tauri + frontend.
+
+#### Backend Rust (par Cowork — déjà mergé en `feat(app): C09 Estimer screen + C10 personas/gating IPC`)
+
+- `sobria-core::preferences` : enums `Persona` (5 valeurs : `student`, `pro_tech`, `enterprise`, `public_sector`, `researcher`) et `ModuleId` (24 valeurs `m1..m25` sans `m4` réservé) sérialisables JSON. `Persona::default_modules` mirror des bundles ADR-0010. 12 tests garantissent : M1 dans tous les bundles, pas de doublons, M4 absent, serde round-trip, bundles ⊆ `ModuleId::all`.
+- `sobria-app::dto::AppPreferencesDto` (persona + enabled_modules + onboarded + lang) + `defaults()` = bundle `ProTech` (cf. ADR-0010 §"Onboarding non-bloquant").
+- Table `app_preferences` créée dans `referentiel.sqlite` (4 clés : `persona`, `enabled_modules`, `onboarded`, `lang`).
+- 2 commandes IPC : `get_app_preferences` (renvoie defaults si vide) et `set_app_preferences` (validation persona/modules/lang + UPSERT transactionnel).
+
+#### Frontend SvelteKit (chantier C10.2)
+
+- `web/src/lib/api.ts` : ajout `Persona`, `ModuleId`, `AppPreferencesDto` (types snake_case mirroir Rust) + `getAppPreferences()` / `setAppPreferences(prefs)`.
+- `web/src/lib/preferences.ts` : store typé strict `writable<PreferencesState>` avec flag `loaded`, `loadPreferences()` au boot, `savePreferences()` optimistic + rollback IPC, helpers `defaultModulesFor`, `moduleLabel`, `moduleDescription`, `moduleCategory`, `personaLabel`, `personaTagline`, `personaEmoji`. Catalogue des 24 modules + 5 personas, sans persistance LocalStorage (CLAUDE.md §13).
+- **Route `/onboarding` (4 étapes, Svelte 5 runes)** :
+  1. _Splash_ — logo + tagline italique + mission ; auto-advance 3 s ou clic « Continuer ».
+  2. _Persona picker_ — 5 cartes (`student`, `pro_tech`, `enterprise`, `public_sector`, `researcher`) + lien « choisir à la carte ».
+  3. _Bundle_ — checkboxes pré-cochées du persona (8-11 mod.) + section collapsable « + Plus de modules disponibles » (24 - bundle), compteur live.
+  4. _Premier prompt_ — aperçu illustré de l'atelier M1 avec tooltip lime animé sur le sélecteur de modèle, bouton « Terminer » (set `onboarded=true` + `window.location.replace('/')`) + lien discret « Passer cette étape ».
+- **Garde de layout** dans `+layout.svelte` : `onMount` → `loadPreferences()` ; si `!onboarded && pathname !== '/onboarding'` → `window.location.replace('/onboarding')`. Hors Tauri (IPC indisponible), pas de redirection — le rail reste affiché avec tous les modules (mode coque).
+- **Rail filtré par `enabled_modules`** : chaque entrée du rail porte un `data-module-id` (m1..m25). `visible()` masque les entrées non activées une fois les préférences chargées. Bouton « + Ajouter des modules » lime persistant en bas du rail → `/parametres`.
+- **Route `/parametres` réécrite** : 5 sections — _Persona courant_ (avec sélecteur 5 boutons + dialog de confirmation `aria-modal` avant remplacement du bundle), _Modules activés_ groupés par catégorie (Estimation / Visualisation / Reporting / Pédagogie), _Modules disponibles_ non cochés, _Réinitialiser & langue_ (bouton « Refaire l'onboarding » + radio FR/EN pour préparer C12), _Runtime_ (lecture seule via `meta_info`). Toutes les écritures passent par `savePreferences` (optimistic + rollback).
+- **Gardes de route**  posées sur M1 (`/`) et M13 (`/simuler`) : `$effect` réactif au store ; si `preferences.loaded && !enabled_modules.includes(MODULE_ID)` → `window.location.replace('/?disabled=mXX')`.
+- **Bandeau « module désactivé »** sur `/` : `?disabled=mXX` → coral dashed avec lien « → Activer dans Paramètres ».
+- **Correctif `/simuler`** : `moduleId` mis à jour de `M4` (réservé) vers `M13` (Simulateur « Et si...? »), libellé chantier passé à C11.
+
+#### Vérifications
+
+- `npm run check` : 0 erreurs (1 warning préexistant sur types `node`).
+- `npm run lint` (Prettier + ESLint) : propre.
+- 4 tests Playwright `tests/onboarding.spec.ts` (contrat no-mock, contexte navigateur) : splash → persona picker → bundle Étudiant pré-coché à 8 modules, dépliage « + Plus de modules » sur bundle Enterprise (M22/CSRD coché), tentative « Terminer » hors Tauri affiche la bannière d'erreur, garde de route `/?disabled=m13` affiche le bandeau coral.
+- `tests/parametres.spec.ts` mis à jour pour la nouvelle UI (persona/modules/runtime) + stub `/simuler` désormais M13 au lieu de M4.
+
+#### Non-objectifs (différés)
+
+- Bundle « partager mon bundle avec un collègue » → C11+.
+- Traduction EN complète → C12.
+- Tutoriel interactif au-delà du tooltip étape 4 → backlog v1.1.
+- Mode multi-utilisateurs → backlog v1.1.
+
+---
+
 ### Added — Chantier C09 : Intégration Tauri + UI desktop v0.2 (S6) — `v0.2.0-estimer`
 
 #### Wrapper IPC + design system v2

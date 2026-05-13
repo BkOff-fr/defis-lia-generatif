@@ -1,5 +1,6 @@
 <script lang="ts">
   import '../app.css';
+  import { onMount } from 'svelte';
   import {
     Zap,
     Layers,
@@ -10,13 +11,18 @@
     Download,
     ShieldCheck,
     BookOpen,
-    Settings2
+    Settings2,
+    Plus
   } from '@lucide/svelte';
+  import { get } from 'svelte/store';
+  import { isTauriContext, SobriaIpcError } from '$lib/api';
+  import { loadPreferences, preferences } from '$lib/preferences';
+  import type { ModuleId } from '$lib/preferences';
 
   type Props = { children?: import('svelte').Snippet };
   let { children }: Props = $props();
 
-  type RailItem = { label: string; icon: typeof Zap; href: string };
+  type RailItem = { label: string; icon: typeof Zap; href: string; moduleId: ModuleId };
 
   // Pathname réactif, autonome (évite `$app/stores` qui ne résout pas dans
   // le tsconfig SvelteKit généré — voir .svelte-kit/tsconfig.json).
@@ -30,121 +36,187 @@
     return () => window.removeEventListener('popstate', update);
   });
 
-  // Le rail référence des routes futures (Workbench, Comparer, …). Les liens
-  // sont posés pour que SvelteKit calcule l'état actif via $page.url.pathname,
-  // mais seul `/` (Estimer) existe à ce jour.
-  const items: RailItem[] = [
-    { label: 'Estimer', icon: Zap, href: '/' },
-    { label: 'Workbench', icon: Layers, href: '/workbench' },
-    { label: 'Comparer', icon: Scale, href: '/comparer' },
-    { label: 'Simuler', icon: TrendingUp, href: '/simuler' }
+  // ─── Garde d'onboarding (C10 — ADR-0010) ───────────────────────────────
+  // - hors Tauri : on n'a pas de préférences et l'IPC échoue → on laisse
+  //   l'app shell s'afficher tel quel, sans redirection. Les pages métier
+  //   affichent leur propre bannière `tauri_unavailable` (cf. estimate.spec.ts).
+  // - en Tauri : on charge les préférences. Si l'utilisateur n'a jamais fait
+  //   l'onboarding (`onboarded === false`) et n'est pas déjà sur la route
+  //   `/onboarding`, on redirige.
+  onMount(() => {
+    void (async () => {
+      if (!isTauriContext()) {
+        // Hors Tauri : pas d'IPC, on laisse le rail en mode "tous visibles"
+        // (cf. flag `loaded` du store). L'utilisateur peut naviguer la coque.
+        return;
+      }
+      try {
+        await loadPreferences();
+      } catch (e) {
+        // Toute autre erreur IPC : on log mais on ne crashe pas la coque.
+        // Les pages métier captureront leurs erreurs spécifiques.
+        if (e instanceof SobriaIpcError) {
+          console.error('[layout] preferences load failed:', e.code, e.message);
+        }
+        return;
+      }
+      // Redirige une seule fois après chargement réussi des préférences.
+      const prefs = get(preferences);
+      if (!prefs.onboarded && pathname !== '/onboarding') {
+        // `window.location.replace` plutôt que `goto`/`$app/navigation`
+        // car le tsconfig SvelteKit généré n'expose pas `$app/navigation`
+        // (cf. .svelte-kit/tsconfig.json — même contrainte que le pathname
+        // réactif autonome ci-dessus).
+        window.location.replace('/onboarding');
+      }
+    })();
+  });
+
+  // Le rail référence les modules visibles selon `enabled_modules`. Tant que
+  // le store n'est pas chargé (premier paint, hors Tauri), on montre tout.
+  const itemsCore: RailItem[] = [
+    { label: 'Estimer', icon: Zap, href: '/', moduleId: 'm1' },
+    { label: 'Workbench', icon: Layers, href: '/workbench', moduleId: 'm2' },
+    { label: 'Comparer', icon: Scale, href: '/comparer', moduleId: 'm3' },
+    { label: 'Simuler', icon: TrendingUp, href: '/simuler', moduleId: 'm13' }
   ];
   const itemsIO: RailItem[] = [
-    { label: 'Importer', icon: Upload, href: '/importer' },
-    { label: 'Géolocaliser', icon: Globe, href: '/territoire' },
-    { label: 'Exporter', icon: Download, href: '/exporter' }
+    { label: 'Importer', icon: Upload, href: '/importer', moduleId: 'm10' },
+    { label: 'Géolocaliser', icon: Globe, href: '/territoire', moduleId: 'm12' },
+    { label: 'Exporter', icon: Download, href: '/exporter', moduleId: 'm5' }
   ];
   const itemsAudit: RailItem[] = [
-    { label: "Journal d'audit", icon: ShieldCheck, href: '/journal' },
-    { label: 'Méthodologie', icon: BookOpen, href: '/methodo' }
+    { label: "Journal d'audit", icon: ShieldCheck, href: '/journal', moduleId: 'm7' },
+    { label: 'Méthodologie', icon: BookOpen, href: '/methodo', moduleId: 'm8' }
   ];
+
+  function visible(item: RailItem, prefs: typeof $preferences): boolean {
+    // Avant le premier load : on montre tout (mode coque / hors Tauri).
+    if (!prefs.loaded) return true;
+    return prefs.enabled_modules.includes(item.moduleId);
+  }
 
   function isActive(href: string, current: string): boolean {
     return href === '/' ? current === '/' : current.startsWith(href);
   }
+
+  // Onboarding : full-screen wizard, on cache le rail et la décoration.
+  const isOnboarding = $derived(pathname === '/onboarding');
 </script>
 
-<!-- Ambient mesh + grain layer -->
-<div class="amb" aria-hidden="true"></div>
+{#if isOnboarding}
+  <!-- Wizard : layout autonome, pas de rail ni topo. -->
+  {@render children?.()}
+{:else}
+  <!-- Ambient mesh + grain layer -->
+  <div class="amb" aria-hidden="true"></div>
 
-<!-- Topographic contour decoration (top-right) -->
-<svg class="topo" viewBox="0 0 600 600" fill="none" aria-hidden="true">
-  <g stroke="rgb(197 240 74)" stroke-width="0.6" fill="none" opacity="0.5">
-    <path d="M 300 300 m -200, 0 a 200,200 0 1,0 400,0 a 200,200 0 1,0 -400,0" />
-    <path d="M 300 300 m -160, 0 a 160,180 -10 1,0 320,20 a 160,180 -10 1,0 -320,-20" />
-    <path d="M 300 300 m -120, -10 a 120,140 -20 1,0 240,40 a 120,140 -20 1,0 -240,-40" />
-    <path d="M 300 300 m -80, -10 a 80,100 -30 1,0 160,40 a 80,100 -30 1,0 -160,-40" />
-    <path d="M 300 300 m -45, -8 a 45,55 -40 1,0 90,20 a 45,55 -40 1,0 -90,-20" />
-    <path d="M 300 300 m -18, -4 a 18,22 -50 1,0 36,8 a 18,22 -50 1,0 -36,-8" />
-  </g>
-</svg>
+  <!-- Topographic contour decoration (top-right) -->
+  <svg class="topo" viewBox="0 0 600 600" fill="none" aria-hidden="true">
+    <g stroke="rgb(197 240 74)" stroke-width="0.6" fill="none" opacity="0.5">
+      <path d="M 300 300 m -200, 0 a 200,200 0 1,0 400,0 a 200,200 0 1,0 -400,0" />
+      <path d="M 300 300 m -160, 0 a 160,180 -10 1,0 320,20 a 160,180 -10 1,0 -320,-20" />
+      <path d="M 300 300 m -120, -10 a 120,140 -20 1,0 240,40 a 120,140 -20 1,0 -240,-40" />
+      <path d="M 300 300 m -80, -10 a 80,100 -30 1,0 160,40 a 80,100 -30 1,0 -160,-40" />
+      <path d="M 300 300 m -45, -8 a 45,55 -40 1,0 90,20 a 45,55 -40 1,0 -90,-20" />
+      <path d="M 300 300 m -18, -4 a 18,22 -50 1,0 36,8 a 18,22 -50 1,0 -36,-8" />
+    </g>
+  </svg>
 
-<div class="app">
-  <nav class="rail" aria-label="Navigation principale">
-    <a class="brand-mark" href="/" title="Sobr.ia" aria-label="Sobr.ia — accueil">
-      <svg viewBox="0 0 44 44" fill="none" aria-hidden="true">
-        <path
-          d="M 12 14 C 12 9, 32 9, 32 18 C 32 23, 12 23, 12 28 C 12 35, 32 35, 32 30"
-          stroke="#c5f04a"
-          stroke-width="2.4"
-          stroke-linecap="round"
-          fill="none"
-        />
-        <circle cx="32" cy="14" r="2.4" fill="#c5f04a" />
-      </svg>
-    </a>
-
-    {#each items as item (item.href)}
-      {@const Icon = item.icon}
-      {@const active = isActive(item.href, pathname)}
-      <a
-        class="rail-btn"
-        class:active
-        href={item.href}
-        title={item.label}
-        aria-label={item.label}
-        aria-current={active ? 'page' : undefined}
-      >
-        <Icon size={20} strokeWidth={1.6} />
+  <div class="app">
+    <nav class="rail" aria-label="Navigation principale">
+      <a class="brand-mark" href="/" title="Sobr.ia" aria-label="Sobr.ia — accueil">
+        <svg viewBox="0 0 44 44" fill="none" aria-hidden="true">
+          <path
+            d="M 12 14 C 12 9, 32 9, 32 18 C 32 23, 12 23, 12 28 C 12 35, 32 35, 32 30"
+            stroke="#c5f04a"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            fill="none"
+          />
+          <circle cx="32" cy="14" r="2.4" fill="#c5f04a" />
+        </svg>
       </a>
-    {/each}
 
-    <div class="rail-sep" aria-hidden="true"></div>
+      {#each itemsCore as item (item.href)}
+        {#if visible(item, $preferences)}
+          {@const Icon = item.icon}
+          {@const active = isActive(item.href, pathname)}
+          <a
+            class="rail-btn"
+            class:active
+            href={item.href}
+            title={item.label}
+            aria-label={item.label}
+            aria-current={active ? 'page' : undefined}
+            data-module-id={item.moduleId}
+          >
+            <Icon size={20} strokeWidth={1.6} />
+          </a>
+        {/if}
+      {/each}
 
-    {#each itemsIO as item (item.href)}
-      {@const Icon = item.icon}
-      {@const active = isActive(item.href, pathname)}
-      <a
-        class="rail-btn"
-        class:active
-        href={item.href}
-        title={item.label}
-        aria-label={item.label}
-        aria-current={active ? 'page' : undefined}
-      >
-        <Icon size={20} strokeWidth={1.6} />
-      </a>
-    {/each}
+      <div class="rail-sep" aria-hidden="true"></div>
 
-    <div class="rail-sep" aria-hidden="true"></div>
+      {#each itemsIO as item (item.href)}
+        {#if visible(item, $preferences)}
+          {@const Icon = item.icon}
+          {@const active = isActive(item.href, pathname)}
+          <a
+            class="rail-btn"
+            class:active
+            href={item.href}
+            title={item.label}
+            aria-label={item.label}
+            aria-current={active ? 'page' : undefined}
+            data-module-id={item.moduleId}
+          >
+            <Icon size={20} strokeWidth={1.6} />
+          </a>
+        {/if}
+      {/each}
 
-    {#each itemsAudit as item (item.href)}
-      {@const Icon = item.icon}
-      {@const active = isActive(item.href, pathname)}
-      <a
-        class="rail-btn"
-        class:active
-        href={item.href}
-        title={item.label}
-        aria-label={item.label}
-        aria-current={active ? 'page' : undefined}
-      >
-        <Icon size={20} strokeWidth={1.6} />
-      </a>
-    {/each}
+      <div class="rail-sep" aria-hidden="true"></div>
 
-    <div class="rail-foot">
-      <a class="rail-btn" href="/parametres" title="Paramètres" aria-label="Paramètres">
-        <Settings2 size={20} strokeWidth={1.6} />
-      </a>
-      <div class="rail-version">v0.2.0 · LOCAL</div>
-    </div>
-  </nav>
+      {#each itemsAudit as item (item.href)}
+        {#if visible(item, $preferences)}
+          {@const Icon = item.icon}
+          {@const active = isActive(item.href, pathname)}
+          <a
+            class="rail-btn"
+            class:active
+            href={item.href}
+            title={item.label}
+            aria-label={item.label}
+            aria-current={active ? 'page' : undefined}
+            data-module-id={item.moduleId}
+          >
+            <Icon size={20} strokeWidth={1.6} />
+          </a>
+        {/if}
+      {/each}
 
-  <main class="canvas scrollable">
-    {@render children?.()}
-  </main>
-</div>
+      <div class="rail-foot">
+        <a
+          class="rail-btn rail-add"
+          href="/parametres"
+          title="Ajouter des modules"
+          aria-label="Ajouter des modules — Paramètres"
+        >
+          <Plus size={18} strokeWidth={2} />
+        </a>
+        <a class="rail-btn" href="/parametres" title="Paramètres" aria-label="Paramètres">
+          <Settings2 size={20} strokeWidth={1.6} />
+        </a>
+        <div class="rail-version">v0.3.0 · LOCAL</div>
+      </div>
+    </nav>
+
+    <main class="canvas scrollable">
+      {@render children?.()}
+    </main>
+  </div>
+{/if}
 
 <style>
   :global(html),
@@ -296,6 +368,19 @@
     background: var(--lime);
     border-radius: 2px;
     box-shadow: 0 0 12px var(--lime-glow);
+  }
+
+  .rail-add {
+    color: var(--lime);
+    background: var(--lime-soft);
+    border: 1px dashed rgba(197, 240, 74, 0.35);
+    width: 36px;
+    height: 36px;
+    margin-bottom: 4px;
+  }
+  .rail-add:hover {
+    background: rgba(197, 240, 74, 0.22);
+    border-style: solid;
   }
 
   .rail-foot {

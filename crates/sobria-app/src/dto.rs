@@ -13,7 +13,10 @@ use sobria_core::{
     DistributionBins, EstimationRequest, EstimationResult, Equivalent, Hypothesis, Indicator,
     IndicatorValue, ModuleId, Persona,
 };
-use sobria_estimator::{CalibrationStatus, ModelPreset, Openness};
+use sobria_estimator::{
+    CalibrationStatus, ForecastConfig, ForecastResult, ModelPreset, Openness, ParamOverrides,
+    Scenario, ScenarioOutcome, SimulationRequest, SimulationResult,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // meta_info
@@ -278,6 +281,171 @@ impl AuditEntrySummaryDto {
             co2eq_p50,
             sig_short,
             purged: e.is_purged(),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// simulation (C11 — M13 Simulateur « Et si...? »)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Payload de simulation envoyé par le frontend.
+///
+/// Voir `briefs/chantiers/C11-simulateur-et-si.md`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimulationRequestDto {
+    pub baseline: EstimationRequestDto,
+    pub scenarios: Vec<ScenarioDto>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forecast: Option<ForecastConfigDto>,
+}
+
+/// Scénario envoyé par le frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScenarioDto {
+    pub label: String,
+    #[serde(default)]
+    pub overrides: ParamOverridesDto,
+}
+
+/// Overrides paramétriques optionnels. Tous les champs sont facultatifs.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ParamOverridesDto {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens_out: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pue: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub if_electrical_g_per_kwh: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embodied_g_per_request: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wue_l_per_kwh: Option<f64>,
+}
+
+impl From<ParamOverridesDto> for ParamOverrides {
+    fn from(d: ParamOverridesDto) -> Self {
+        Self {
+            model_id: d.model_id,
+            tokens_out: d.tokens_out,
+            pue: d.pue,
+            if_electrical_g_per_kwh: d.if_electrical_g_per_kwh,
+            embodied_g_per_request: d.embodied_g_per_request,
+            wue_l_per_kwh: d.wue_l_per_kwh,
+        }
+    }
+}
+
+impl From<ScenarioDto> for Scenario {
+    fn from(d: ScenarioDto) -> Self {
+        Self {
+            label: d.label,
+            overrides: d.overrides.into(),
+        }
+    }
+}
+
+/// Config de projection 12 mois.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForecastConfigDto {
+    pub months: u32,
+    pub monthly_growth_pct: f64,
+    pub base_volume_per_day: f64,
+}
+
+impl From<ForecastConfigDto> for ForecastConfig {
+    fn from(d: ForecastConfigDto) -> Self {
+        Self {
+            months: d.months,
+            monthly_growth_pct: d.monthly_growth_pct,
+            base_volume_per_day: d.base_volume_per_day,
+        }
+    }
+}
+
+impl SimulationRequestDto {
+    /// Convertit en `SimulationRequest` interne en ajoutant le timestamp baseline.
+    #[must_use]
+    pub fn into_core(self, baseline_timestamp: DateTime<Utc>) -> SimulationRequest {
+        SimulationRequest {
+            baseline: self.baseline.into_core(baseline_timestamp),
+            scenarios: self.scenarios.into_iter().map(Into::into).collect(),
+            forecast: self.forecast.map(Into::into),
+        }
+    }
+}
+
+// ── Sortie ───────────────────────────────────────────────────────────────────
+
+/// Résultat d'un scénario, prêt à afficher.
+#[derive(Debug, Clone, Serialize)]
+pub struct ScenarioOutcomeDto {
+    pub label: String,
+    pub result: EstimationResultDto,
+    /// Δ par rapport au baseline P50, en gCO₂eq (peut être négatif).
+    pub delta_co2eq_g: f64,
+    /// Δ relatif en pourcentage du baseline P50.
+    pub delta_pct: f64,
+}
+
+/// Résultat d'une projection 12 mois.
+#[derive(Debug, Clone, Serialize)]
+pub struct ForecastResultDto {
+    pub months: u32,
+    pub base_volume_per_day: f64,
+    pub monthly_growth_pct: f64,
+    pub baseline_monthly_co2eq_g: Vec<f64>,
+    pub baseline_annual_co2eq_g: f64,
+    pub scenarios_annual_co2eq_g: Vec<f64>,
+}
+
+impl From<ForecastResult> for ForecastResultDto {
+    fn from(r: ForecastResult) -> Self {
+        Self {
+            months: r.months,
+            base_volume_per_day: r.base_volume_per_day,
+            monthly_growth_pct: r.monthly_growth_pct,
+            baseline_monthly_co2eq_g: r.baseline_monthly_co2eq_g,
+            baseline_annual_co2eq_g: r.baseline_annual_co2eq_g,
+            scenarios_annual_co2eq_g: r.scenarios_annual_co2eq_g,
+        }
+    }
+}
+
+/// Résultat global d'une simulation.
+#[derive(Debug, Clone, Serialize)]
+pub struct SimulationResultDto {
+    /// Estimation baseline (avec `audit_id` réel — journalisée).
+    pub baseline: EstimationResultDto,
+    /// Outcomes par scénario. `result.audit_id == 0` (non journalisé).
+    pub scenarios: Vec<ScenarioOutcomeDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forecast: Option<ForecastResultDto>,
+}
+
+impl SimulationResultDto {
+    /// Construit le DTO de sortie en passant l'`audit_id` de l'entrée baseline
+    /// dans le ledger. Les scénarios reçoivent un `audit_id = 0` (non journalisés
+    /// — voir brief C11 §3.audit).
+    #[must_use]
+    pub fn from_result(r: &SimulationResult, baseline_audit_id: i64) -> Self {
+        let baseline = EstimationResultDto::from_result(&r.baseline, baseline_audit_id);
+        let scenarios = r
+            .scenarios
+            .iter()
+            .map(|o: &ScenarioOutcome| ScenarioOutcomeDto {
+                label: o.label.clone(),
+                result: EstimationResultDto::from_result(&o.result, 0),
+                delta_co2eq_g: o.delta_co2eq_g,
+                delta_pct: o.delta_pct,
+            })
+            .collect();
+        Self {
+            baseline,
+            scenarios,
+            forecast: r.forecast.clone().map(Into::into),
         }
     }
 }
