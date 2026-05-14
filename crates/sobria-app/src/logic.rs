@@ -1522,9 +1522,19 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         .lock()
         .map_err(|e| AppError::Poisoned(format!("preferences: {e}")))?;
     store.write_all(&stored).map_err(IpcError::from)?;
-    // C25 : applique l'intention explicite du DTO (Some → UPSERT, None →
-    // DELETE). Fait après `write_all` pour rester atomique avec le reste
-    // par-paquet, et parce que ce setter gère lui-même sa propre transaction.
+    // C25 : le DTO `AppPreferencesDto` autorise `default_datacenter_id = None`
+    // pour vider explicitement la clé. Comme `write_all` SKIP-on-None pour tous
+    // les champs `Option` non-`persona` (cf. doc de `write_all`), un appel
+    // `write_all` ne supprime jamais cette clé : on route donc l'intention
+    // explicite via le setter dédié `set_default_datacenter_id`.
+    //
+    // Note : ce setter s'exécute dans sa propre transaction, donc le couple
+    // `write_all` + `set_default_datacenter_id` N'EST PAS atomique. Un kill
+    // process entre les deux laisse `default_datacenter_id` désynchronisé du
+    // reste. C'est un trade-off accepté : la fenêtre est de l'ordre du µs et
+    // l'enjeu utilisateur (pré-remplir un picker) ne justifie pas la complexité
+    // d'un paramètre "full-replacement" sur `write_all`. À revisiter si une
+    // classe d'opérations exigeant l'atomicité émerge.
     store
         .set_default_datacenter_id(prefs.default_datacenter_id.as_deref())
         .map_err(IpcError::from)?;
@@ -1739,6 +1749,32 @@ mod tests {
         set_app_preferences(written.clone(), &state).unwrap();
         let read = get_app_preferences(&state).unwrap();
         assert_eq!(read, written);
+    }
+
+    #[test]
+    fn set_then_get_preferences_preserves_default_datacenter_id() {
+        let (_tmp, state) = fresh_state();
+
+        // Some(id) round-trips through the IPC pair.
+        let written = AppPreferencesDto {
+            default_datacenter_id: Some("ovh-gra-gravelines".into()),
+            ..AppPreferencesDto::defaults()
+        };
+        set_app_preferences(written, &state).unwrap();
+        let read = get_app_preferences(&state).unwrap();
+        assert_eq!(
+            read.default_datacenter_id.as_deref(),
+            Some("ovh-gra-gravelines")
+        );
+
+        // Explicit None must DELETE the key (not silently skip).
+        let cleared = AppPreferencesDto {
+            default_datacenter_id: None,
+            ..AppPreferencesDto::defaults()
+        };
+        set_app_preferences(cleared, &state).unwrap();
+        let read2 = get_app_preferences(&state).unwrap();
+        assert!(read2.default_datacenter_id.is_none());
     }
 
     #[test]
