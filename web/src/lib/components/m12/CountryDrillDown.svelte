@@ -25,7 +25,7 @@
   });
 </script>
 
-<article class="dd" aria-label="Détail pays">
+<article class="dd glass" aria-label="Détail pays">
   <header class="dh">
     <div class="dh-l">
       <span class="flag">{COUNTRY_FLAG[country.country_iso] ?? '🇪🇺'}</span>
@@ -88,10 +88,16 @@
 <style>
   .dd {
     padding: 18px 20px 16px;
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
     animation: rise 320ms var(--ease) backwards;
+  }
+  /* C25 B3 — surface verre dépoli (mirroir B2) */
+  .glass {
+    background: color-mix(in oklab, var(--surface) 70%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    border: 1px solid color-mix(in oklab, var(--ink-mute) 12%, transparent);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px color-mix(in oklab, black 12%, transparent);
   }
   @keyframes rise {
     from {

@@ -2,7 +2,9 @@
   // Module M12 — Datacenters Europe (C12).
   // Consomme 3 commandes IPC : list_datacenters, get_datacenter_detail,
   // aggregate_datacenters_by_country. Contrat no-mock : hors Tauri, aucune
-  // carte ni drill-down rendu (placeholder explicite uniquement).
+  // carte ni drill-down rendu (empty-shell explicite uniquement).
+  // C25 B3 : plus de placeholder « Cliquez un marker » — le drill-down
+  // n'est monté que si selectedDc ou selectedCountry est défini.
   //
   // Voir :
   //   - briefs/chantiers/C12-datacenters-europe.md
@@ -10,7 +12,7 @@
   //   - docs/sources/CATALOGUE-DATACENTERS.md
   //   - docs/CAHIER-DES-CHARGES-v1.0.md §4 M12
 
-  import { AlertTriangle, Info, PlugZap, HelpCircle, Lock, Server, Globe } from '@lucide/svelte';
+  import { AlertTriangle, Info, PlugZap, HelpCircle, Lock, Globe } from '@lucide/svelte';
   import {
     isTauriContext,
     listDatacenters,
@@ -259,17 +261,6 @@
             onSelectDc={selectDc}
           />
         </div>
-      {:else}
-        <div class="dc-drill-overlay">
-          <div class="placeholder">
-            <Server size={18} strokeWidth={1.6} />
-            <h4>Cliquez un marker</h4>
-            <p>
-              Pays agrégés au zoom &lt; 5, datacenters individuels au zoom ≥ 5. Le détail s'affiche
-              ici.
-            </p>
-          </div>
-        </div>
       {/if}
     </div>
   {:else if !bootstrapping}
@@ -450,31 +441,6 @@
     width: 340px;
     z-index: 5;
     overflow-y: auto;
-  }
-
-  .placeholder {
-    padding: 24px 22px;
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-  .placeholder :global(svg) {
-    color: var(--ivory-3);
-  }
-  .placeholder h4 {
-    font: 400 18px/1.15 var(--font-display);
-    font-style: italic;
-    color: var(--ivory);
-    margin: 0;
-  }
-  .placeholder p {
-    margin: 0;
-    font: 400 12px/1.5 var(--font-ui);
-    color: var(--ivory-3);
   }
 
   .empty-shell {
