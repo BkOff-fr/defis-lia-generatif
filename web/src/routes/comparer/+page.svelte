@@ -17,13 +17,18 @@
   import {
     estimatePrompt,
     isTauriContext,
+    listDatacenters,
     listModels,
     SobriaIpcError,
+    type DatacenterSummaryDto,
+    type EstimationRequestDto,
     type EstimationResultDto,
     type IndicatorDto,
     type IpcErrorCode,
     type ModelPresetDto
   } from '$lib/api';
+  import DatacenterPicker from '$lib/components/DatacenterPicker.svelte';
+  import { preferences } from '$lib/preferences';
   import { tick } from 'svelte';
 
   // ─── State ───────────────────────────────────────────────────────────
@@ -51,6 +56,15 @@
   let comparing = $state(false);
   let results = $state<Record<string, EstimationResultDto>>({});
   let errorById = $state<Record<string, string>>({});
+
+  // ─── C25 — Datacenters (M12) ─────────────────────────────────────────
+  // Le DC choisi ici s'applique à TOUS les modèles comparés (mêmes PUE et
+  // IF électrique, donc seule la taille N_params + l'efficacité unitaire
+  // du modèle expliquent les écarts entre cards). Catalogue chargé une
+  // fois au bootstrap ; pré-remplissage via `default_datacenter_id` des
+  // préférences utilisateur.
+  let datacenters = $state<DatacenterSummaryDto[]>([]);
+  let selectedDatacenter = $state<DatacenterSummaryDto | null>(null);
 
   // Modèle dont le détail de note est affiché dans le drawer (clic sur le
   // badge A-F dans la matrice).
@@ -106,6 +120,21 @@
         // Respecte la borne MAX_SELECTED (le `model` source pourrait pousser
         // à 5 modèles, on tronque pour rester sous 8 — pas critique ici).
         selectedIds = new Set([...selectedIds].slice(0, MAX_SELECTED));
+
+        // C25 — Catalogue datacenters (M12) + pré-remplissage depuis les
+        // préférences utilisateur. Non-bloquant : si l'IPC échoue, le
+        // picker reste actif avec une liste vide (l'utilisateur peut
+        // toujours comparer sans datacenter — l'estimateur retombe sur
+        // les PUE/IF par défaut côté Rust).
+        try {
+          datacenters = await listDatacenters();
+          const def = $preferences.default_datacenter_id;
+          if (def && !selectedDatacenter) {
+            selectedDatacenter = datacenters.find((d) => d.id === def) ?? null;
+          }
+        } catch (dcErr) {
+          console.warn('listDatacenters failed (M3)', dcErr);
+        }
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           loadError = { code: err.code, message: err.message };
@@ -155,16 +184,23 @@
     errorById = {};
 
     const ids = [...selectedIds];
+    // C25 — Le DC choisi (si présent) s'applique à TOUS les modèles : on
+    // calcule la surcharge une fois et on l'injecte dans chaque requête.
+    // `exactOptionalPropertyTypes` interdit de passer `datacenter_id:
+    // undefined` explicitement → conditional spread.
+    const dcOverride = selectedDatacenter ? { datacenter_id: selectedDatacenter.id } : {};
     // Parallèle : SQLite WAL gère l'écriture concurrente dans le ledger,
     // donc on lance tout en même temps pour minimiser le perçu < 1 s.
     const settled = await Promise.allSettled(
-      ids.map((id) =>
-        estimatePrompt({
+      ids.map((id) => {
+        const req: EstimationRequestDto = {
           model_id: id,
           tokens_in: Math.max(1, tokensIn),
-          tokens_out_estimated: Math.max(1, tokensOut)
-        }).then((r) => [id, r] as const)
-      )
+          tokens_out_estimated: Math.max(1, tokensOut),
+          ...dcOverride
+        };
+        return estimatePrompt(req).then((r) => [id, r] as const);
+      })
     );
 
     const nextResults: Record<string, EstimationResultDto> = {};
@@ -495,6 +531,21 @@
 
     <!-- ─── Prompt + paramètres communs ────────────────────────── -->
     <section class="params">
+      <!-- C25 — Datacenter commun à tous les modèles comparés. Placé
+           tout en haut du bloc "paramètres communs" pour signaler que le
+           choix ici se propage aux N estimations parallèles. -->
+      <div class="dc-block">
+        <div class="dc-block-head">
+          <span class="dc-block-title"
+            >Datacenter (commun aux {selectedIds.size || 'N'} modèles)</span
+          >
+          <span class="dc-block-hint mono">
+            PUE + IF électrique appliqués à toutes les estimations
+          </span>
+        </div>
+        <DatacenterPicker {datacenters} bind:selected={selectedDatacenter} />
+      </div>
+
       <div class="prompt-block">
         <label for="cmp-prompt">Prompt à comparer</label>
         <textarea
@@ -1054,6 +1105,32 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
   }
+  /* C25 — Datacenter commun (au-dessus du prompt). */
+  .dc-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .dc-block-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .dc-block-title {
+    font: 500 10px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ivory-3);
+  }
+  .dc-block-hint {
+    font: 400 10px/1.3 var(--font-mono);
+    color: var(--ivory-4);
+  }
+
   .prompt-block {
     display: flex;
     flex-direction: column;
