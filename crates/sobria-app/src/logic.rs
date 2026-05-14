@@ -62,6 +62,39 @@ fn user_default_method(state: &AppState) -> sobria_core::EmpreinteMethod {
         .unwrap_or_else(sobria_core::EmpreinteMethod::default_method)
 }
 
+/// Quand l'utilisateur a sélectionné un datacenter, surcharge `params.pue`,
+/// `params.if_electrical_g_per_kwh` et — si la fiche DC en a un —
+/// `params.wue_l_per_kwh` par des `Distribution::Point` dérivés du record.
+///
+/// Erreurs :
+/// - `InvalidRequest` si l'id est inconnu (la liste UI vient toujours de
+///   `list_datacenters` donc un id orphelin est forcément un bug).
+//
+// Note dead_code : helper introduit en C25 / A4 ; câblé dans
+// `estimate_prompt` et autres call-sites par les tâches A5+.
+#[allow(dead_code)]
+fn apply_datacenter_override(
+    params: &mut sobria_estimator::params::EstimationParams,
+    datacenter_id: Option<&str>,
+) -> IpcResult<()> {
+    let Some(id) = datacenter_id else {
+        return Ok(());
+    };
+    let dc = sobria_geoloc::find_datacenter(id).ok_or_else(|| {
+        IpcError::from(AppError::InvalidRequest(format!(
+            "datacenter inconnu : {id}"
+        )))
+    })?;
+    params.pue = sobria_estimator::distributions::Distribution::Point { value: dc.pue };
+    params.if_electrical_g_per_kwh = sobria_estimator::distributions::Distribution::Point {
+        value: dc.if_electrical_g_per_kwh,
+    };
+    if let Some(wue) = dc.wue_l_per_kwh {
+        params.wue_l_per_kwh = sobria_estimator::distributions::Distribution::Point { value: wue };
+    }
+    Ok(())
+}
+
 pub fn meta_info(state: &AppState) -> IpcResult<MetaInfo> {
     Ok(MetaInfo {
         app_version: APP_VERSION.into(),
@@ -3165,5 +3198,35 @@ gpt-4o-mini,200,700,
         let prefs = get_app_preferences(&state2).unwrap();
         assert_eq!(prefs.persona, Some(Persona::Enterprise));
         assert!(prefs.onboarded);
+    }
+
+    #[test]
+    fn apply_datacenter_override_replaces_pue_if_and_wue() {
+        use sobria_estimator::distributions::Distribution;
+        let mut params = sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
+        // `ovh-gra-gravelines` est la fiche canonique utilisée dans les tests
+        // C25 — elle possède `wue_l_per_kwh: 0.18` dans `datacenters.json`,
+        // ce qui exerce les trois overrides.
+        apply_datacenter_override(&mut params, Some("ovh-gra-gravelines")).unwrap();
+        assert!(matches!(params.pue, Distribution::Point { .. }));
+        assert!(matches!(params.if_electrical_g_per_kwh, Distribution::Point { .. }));
+        assert!(matches!(params.wue_l_per_kwh, Distribution::Point { .. }));
+    }
+
+    #[test]
+    fn apply_datacenter_override_unknown_id_returns_invalid_request() {
+        let mut params = sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
+        let err = apply_datacenter_override(&mut params, Some("does-not-exist")).unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn apply_datacenter_override_none_is_noop() {
+        let mut params = sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
+        let original_pue_dbg = format!("{:?}", params.pue);
+        apply_datacenter_override(&mut params, None).unwrap();
+        // PartialEq n'est pas dérivé sur Distribution ; on compare la repr
+        // Debug comme proxy peu coûteux.
+        assert_eq!(format!("{:?}", params.pue), original_pue_dbg);
     }
 }
