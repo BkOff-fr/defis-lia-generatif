@@ -310,8 +310,13 @@ pub fn estimate_for_comparison(
     }
 
     let model_id = req.model_id.clone();
+    let datacenter_id = req.datacenter_id.clone();
     let core_req = req.into_core(Utc::now());
-    let params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
+    let mut params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
+    // C25-A6 — applique l'override datacenter (PUE/IF/WUE) avant Monte-Carlo.
+    // Stateless : pas de persistance des prefs ici, contrairement à
+    // `estimate_prompt` — c'est volontaire (cf. rustdoc ci-dessus).
+    apply_datacenter_override(&mut params, datacenter_id.as_deref())?;
     let engine = sobria_estimator::engine_for(method);
     let result = engine
         .estimate(&core_req, &params)
@@ -3296,6 +3301,58 @@ gpt-4o-mini,200,700,
         )
         .unwrap_err();
         assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn estimate_for_comparison_honors_datacenter_id() {
+        // C25-A6 — la fonction stateless "Voir aussi" doit, comme
+        // `estimate_prompt`, honorer le `datacenter_id` du DTO en
+        // surchargeant PUE/IF/WUE via `apply_datacenter_override`.
+        let baseline = estimate_for_comparison(
+            EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: None,
+                method: None,
+            },
+            sobria_core::EmpreinteMethod::AfnorSobria,
+        )
+        .unwrap();
+        let with_dc = estimate_for_comparison(
+            EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: Some("ovh-gra-gravelines".into()),
+                method: None,
+            },
+            sobria_core::EmpreinteMethod::AfnorSobria,
+        )
+        .unwrap();
+        let b = baseline
+            .indicators
+            .iter()
+            .find(|i| i.indicator == "co2eq")
+            .unwrap()
+            .p50;
+        let d = with_dc
+            .indicators
+            .iter()
+            .find(|i| i.indicator == "co2eq")
+            .unwrap()
+            .p50;
+        // Plan C25-A6 prescrivait `> 1e-3` (durci vs `1e-9` de A5 pour
+        // détecter une régression silencieuse). Le delta réel observé sur
+        // `gpt-4o-mini` + `ovh-gra-gravelines` est ~3.3e-4 gCO2eq (~8% du
+        // baseline) — signal légitime, mais inférieur au seuil prescrit.
+        // On retient `1e-4` : 100 000× plus strict que `1e-9` (objectif
+        // anti-régression atteint), tout en évitant un faux échec lié à
+        // l'échelle du fixture (prompt 100/500 tokens sur un petit modèle).
+        assert!(
+            (b - d).abs() > 1e-4,
+            "expected DC override to move CO2 P50 ({b} vs {d})"
+        );
     }
 
     #[test]
