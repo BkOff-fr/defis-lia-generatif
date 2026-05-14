@@ -131,7 +131,13 @@ impl PreferencesStore {
         })
     }
 
-    /// Écrit les 4 clés en une transaction. Crée ou met à jour (UPSERT).
+    /// Écrit les préférences persistées en une seule transaction.
+    ///
+    /// Sémantique des `Option` :
+    /// - `persona` : `None` supprime la clé (comportement historique, opt-in).
+    /// - Tous les autres champs `Option` : `None` **ne modifie pas** la clé
+    ///   existante. Utiliser les setters dédiés (`set_default_datacenter_id`,
+    ///   etc.) pour effacer une clé spécifique.
     pub fn write_all(&mut self, prefs: &StoredPreferences) -> Result<(), AppError> {
         let now = Utc::now().to_rfc3339();
         let tx = self.conn.transaction()?;
@@ -197,18 +203,16 @@ impl PreferencesStore {
 
     fn write_raw(&mut self, key: &str, value: &str) -> Result<(), AppError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.execute(
-            "INSERT INTO app_preferences (key, value, updated_at) \
-             VALUES (?1, ?2, ?3) \
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-            params![key, value, now],
-        )?;
+        let tx = self.conn.transaction()?;
+        upsert(&tx, key, value, &now)?;
+        tx.commit()?;
         Ok(())
     }
 
     fn delete_raw(&mut self, key: &str) -> Result<(), AppError> {
-        self.conn
-            .execute("DELETE FROM app_preferences WHERE key = ?1", params![key])?;
+        let tx = self.conn.transaction()?;
+        delete(&tx, key)?;
+        tx.commit()?;
         Ok(())
     }
 
