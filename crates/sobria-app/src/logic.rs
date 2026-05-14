@@ -2501,6 +2501,39 @@ gpt-4o-mini,200,700,
         );
     }
 
+    #[test]
+    fn batch_row_with_datacenter_id_applies_override() {
+        // C25-A9 — chaque ligne de batch CSV doit honorer son propre
+        // `datacenter_id` : deux lignes identiques (même modèle, mêmes
+        // tokens) ne doivent pas produire le même CO2eq P50 si l'une
+        // surcharge le DC. Vérifie que le helper `apply_datacenter_override`
+        // est bien appliqué transitivement via `estimate_prompt` dans le
+        // loop de `run_batch_from_csv`.
+        let (tmp, state) = fresh_state();
+        let csv = "\
+model_id,tokens_in,tokens_out,datacenter_id
+gpt-4o-mini,100,500,
+gpt-4o-mini,100,500,ovh-gra-gravelines
+";
+        let path = write_csv_file(&tmp, csv);
+        let res = run_batch_from_csv(
+            BatchRequestDto {
+                input_csv_path: path.display().to_string(),
+                output_csv_path: None,
+            },
+            &state,
+        )
+        .unwrap();
+        assert_eq!(res.rows_processed, 2);
+        assert_eq!(res.rows_rejected, 0);
+        let baseline = res.aggregate.min_co2eq_g_p50;
+        let with_dc = res.aggregate.max_co2eq_g_p50;
+        assert!(
+            (baseline - with_dc).abs() > 1e-9,
+            "DC override should move CO2 P50 between rows ({baseline} vs {with_dc})"
+        );
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // projets + datasheet — C20 / M17
     // ─────────────────────────────────────────────────────────────────────
