@@ -150,6 +150,13 @@ pub struct SimulationResult {
 /// passaient `&MonteCarloEngine` continuent de fonctionner via coercion
 /// `&MonteCarloEngine` → `&dyn EmpreinteEngine` (trait impl additif).
 ///
+/// C25-A8 — Le paramètre `baseline_params` est désormais fourni par
+/// l'appelant. Cela permet à la couche IPC (`sobria-app::logic`) d'y
+/// appliquer un override datacenter (PUE/IF/WUE) avant de déléguer.
+/// Les scénarios partent toujours de `baseline_params` (sauf
+/// `model_id` override qui reconstruit les params depuis le nouveau
+/// preset — comportement préservé dans `apply_overrides`).
+///
 /// **Erreurs** :
 /// - `Schema` si plus de `MAX_SCENARIOS` scénarios,
 /// - `Schema` si forecast hors bornes,
@@ -158,6 +165,7 @@ pub struct SimulationResult {
 pub fn simulate(
     engine: &dyn crate::engine_trait::EmpreinteEngine,
     request: &SimulationRequest,
+    baseline_params: &EstimationParams,
 ) -> EstimatorResult<SimulationResult> {
     if request.scenarios.len() > MAX_SCENARIOS {
         return Err(EstimatorError::Schema(format!(
@@ -180,8 +188,7 @@ pub fn simulate(
     }
 
     // 1. Baseline
-    let baseline_params = EstimationParams::for_model(&request.baseline.model_id)?;
-    let baseline = engine.estimate(&request.baseline, &baseline_params)?;
+    let baseline = engine.estimate(&request.baseline, baseline_params)?;
     let baseline_co2_p50 = co2_p50(&baseline)?;
 
     // 2. Scénarios
@@ -189,7 +196,7 @@ pub fn simulate(
     for scenario in &request.scenarios {
         let (req_derived, params_derived) = apply_overrides(
             &request.baseline,
-            &baseline_params,
+            baseline_params,
             &scenario.overrides,
         )?;
         let result = engine.estimate(&req_derived, &params_derived)?;
@@ -349,10 +356,22 @@ mod tests {
         }
     }
 
+    /// Helper test (C25-A8) : construit les params du baseline du request
+    /// et délègue à `simulate`. Permet de garder les tests internes
+    /// concis après le changement de signature `simulate(engine, req,
+    /// baseline_params)`.
+    fn sim(
+        engine: &dyn crate::engine_trait::EmpreinteEngine,
+        req: &SimulationRequest,
+    ) -> EstimatorResult<SimulationResult> {
+        let params = EstimationParams::for_model(&req.baseline.model_id)?;
+        simulate(engine, req, &params)
+    }
+
     #[test]
     fn baseline_only_runs_without_scenarios() {
         let engine = MonteCarloEngine::default();
-        let res = simulate(&engine, &sim_request_with(vec![])).unwrap();
+        let res = sim(&engine, &sim_request_with(vec![])).unwrap();
         assert_eq!(res.scenarios.len(), 0);
         assert_eq!(res.baseline.indicators.len(), 3);
     }
@@ -376,7 +395,7 @@ mod tests {
                 },
             },
         ];
-        let res = simulate(&engine, &sim_request_with(scenarios)).unwrap();
+        let res = sim(&engine, &sim_request_with(scenarios)).unwrap();
         assert_eq!(res.scenarios.len(), 2);
         let pue_low = res.scenarios[0].result.indicators[0].interval.p50;
         let pue_high = res.scenarios[1].result.indicators[0].interval.p50;
@@ -418,7 +437,7 @@ mod tests {
                 },
             },
         ];
-        let res = simulate(&engine, &sim_request_with(scenarios)).unwrap();
+        let res = sim(&engine, &sim_request_with(scenarios)).unwrap();
         let fr = res.scenarios[0].result.indicators[0].interval.p50;
         let coal = res.scenarios[1].result.indicators[0].interval.p50;
         assert!(coal > fr * 2.0, "charbon ({coal}) doit être >2× France ({fr})");
@@ -434,7 +453,7 @@ mod tests {
                 ..Default::default()
             },
         }];
-        let res = simulate(&engine, &sim_request_with(scenarios)).unwrap();
+        let res = sim(&engine, &sim_request_with(scenarios)).unwrap();
         // model_id remplacé → impact attendu sur P50 (probable mais pas testé en
         // valeur absolue : on vérifie juste que ça tourne et que le delta est
         // calculé).
@@ -453,7 +472,7 @@ mod tests {
                 ..Default::default()
             },
         }];
-        let err = simulate(&engine, &sim_request_with(scenarios)).unwrap_err();
+        let err = sim(&engine, &sim_request_with(scenarios)).unwrap_err();
         assert!(format!("{err:?}").to_lowercase().contains("inconnu")
             || format!("{err:?}").to_lowercase().contains("unknown"));
     }
@@ -471,7 +490,7 @@ mod tests {
                 overrides: ParamOverrides::default(),
             },
         ];
-        let err = simulate(&engine, &sim_request_with(scenarios)).unwrap_err();
+        let err = sim(&engine, &sim_request_with(scenarios)).unwrap_err();
         assert!(format!("{err}").contains("doublon"));
     }
 
@@ -484,7 +503,7 @@ mod tests {
                 overrides: ParamOverrides::default(),
             })
             .collect();
-        let err = simulate(&engine, &sim_request_with(scenarios)).unwrap_err();
+        let err = sim(&engine, &sim_request_with(scenarios)).unwrap_err();
         assert!(format!("{err}").contains("trop de scénarios"));
     }
 
@@ -497,7 +516,7 @@ mod tests {
             monthly_growth_pct: 0.0,
             base_volume_per_day: 10.0,
         });
-        let res = simulate(&engine, &req).unwrap();
+        let res = sim(&engine, &req).unwrap();
         let f = res.forecast.unwrap();
         assert_eq!(f.baseline_monthly_co2eq_g.len(), 12);
         let first = f.baseline_monthly_co2eq_g[0];
@@ -517,7 +536,7 @@ mod tests {
             monthly_growth_pct: 5.0,
             base_volume_per_day: 10.0,
         });
-        let res = simulate(&engine, &req).unwrap();
+        let res = sim(&engine, &req).unwrap();
         let f = res.forecast.unwrap();
         // mois 11 = mois 0 × 1.05^11
         let expected_last = f.baseline_monthly_co2eq_g[0] * 1.05_f64.powi(11);
@@ -537,13 +556,13 @@ mod tests {
             monthly_growth_pct: 5.0,
             base_volume_per_day: 10.0,
         });
-        assert!(simulate(&engine, &req).is_err());
+        assert!(sim(&engine, &req).is_err());
         req.forecast = Some(ForecastConfig {
             months: MAX_FORECAST_MONTHS + 1,
             monthly_growth_pct: 5.0,
             base_volume_per_day: 10.0,
         });
-        assert!(simulate(&engine, &req).is_err());
+        assert!(sim(&engine, &req).is_err());
     }
 
     #[test]
@@ -555,7 +574,7 @@ mod tests {
             monthly_growth_pct: 200.0,
             base_volume_per_day: 10.0,
         });
-        assert!(simulate(&engine, &req).is_err());
+        assert!(sim(&engine, &req).is_err());
     }
 
     #[test]
@@ -575,7 +594,7 @@ mod tests {
             label: "no-op".into(),
             overrides: ParamOverrides::default(),
         }];
-        let res = simulate(&engine, &sim_request_with(scenarios)).unwrap();
+        let res = sim(&engine, &sim_request_with(scenarios)).unwrap();
         let baseline_p50 = res.baseline.indicators[0].interval.p50;
         let scenario_p50 = res.scenarios[0].result.indicators[0].interval.p50;
         assert!(

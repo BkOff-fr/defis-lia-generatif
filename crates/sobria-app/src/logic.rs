@@ -1469,11 +1469,18 @@ pub fn simulate_scenarios(
             req.baseline.model_id.clone(),
         )));
     }
+    // C25-A8 — Honore `datacenter_id` du baseline en surchargeant
+    // PUE/IF/WUE des params avant délégation à l'estimator. La signature
+    // de `sobria_estimator::simulate` accepte désormais `baseline_params`
+    // explicitement pour ce câblage.
+    let mut params =
+        EstimationParams::for_model(&req.baseline.model_id).map_err(AppError::from)?;
+    apply_datacenter_override(&mut params, req.baseline.datacenter_id.as_deref())?;
     let sim_core = req.into_core(Utc::now());
     // Polish G — Simulateur honore la méthodologie par défaut user.
     let engine = sobria_estimator::engine_for(user_default_method(state));
-    let result =
-        sobria_estimator::simulate(engine.as_ref(), &sim_core).map_err(AppError::from)?;
+    let result = sobria_estimator::simulate(engine.as_ref(), &sim_core, &params)
+        .map_err(AppError::from)?;
 
     // Journalise UNIQUEMENT le baseline (les scénarios sont exploratoires).
     let mut ledger = state
@@ -2110,6 +2117,56 @@ mod tests {
         let fr = agg.iter().find(|c| c.country_iso == "FR").unwrap();
         assert_eq!(fr.datacenter_count, 4);
         assert!((fr.if_electrical_g_per_kwh - 56.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn simulate_baseline_with_datacenter_applies_override() {
+        let (_tmp, state) = fresh_state();
+        let baseline = simulate_scenarios(
+            SimulationRequestDto {
+                baseline: EstimationRequestDto {
+                    model_id: "gpt-4o-mini".into(),
+                    tokens_in: 100,
+                    tokens_out_estimated: 500,
+                    datacenter_id: None,
+                    method: None,
+                },
+                scenarios: vec![],
+                forecast: None,
+            },
+            &state,
+        )
+        .unwrap();
+        let with_dc = simulate_scenarios(
+            SimulationRequestDto {
+                baseline: EstimationRequestDto {
+                    model_id: "gpt-4o-mini".into(),
+                    tokens_in: 100,
+                    tokens_out_estimated: 500,
+                    datacenter_id: Some("ovh-gra-gravelines".into()),
+                    method: None,
+                },
+                scenarios: vec![],
+                forecast: None,
+            },
+            &state,
+        )
+        .unwrap();
+        let extract_co2 = |result: &crate::dto::SimulationResultDto| -> f64 {
+            result
+                .baseline
+                .indicators
+                .iter()
+                .find(|i| i.indicator == "co2eq")
+                .unwrap()
+                .p50
+        };
+        let b = extract_co2(&baseline);
+        let d = extract_co2(&with_dc);
+        assert!(
+            (b - d).abs() > 1e-4,
+            "DC override should move baseline CO2 P50 ({b} vs {d})"
+        );
     }
 
     #[test]
