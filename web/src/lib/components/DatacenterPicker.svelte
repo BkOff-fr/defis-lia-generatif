@@ -10,6 +10,7 @@
   let { datacenters, selected = $bindable() }: Props = $props();
 
   let root: HTMLDivElement | undefined = $state();
+  let searchEl: HTMLInputElement | undefined = $state();
   let open = $state(false);
   let query = $state('');
   let activeIndex = $state(0);
@@ -96,6 +97,20 @@
       open = false;
     }
   }
+
+  const activeOptionId = $derived.by(() => {
+    if (!open) return undefined;
+    if (activeIndex === 0) return 'dc-opt-none';
+    const dc = filtered[activeIndex - 1];
+    return dc ? `dc-opt-${dc.id}` : undefined;
+  });
+
+  $effect(() => {
+    if (open) {
+      // Tick so the DOM is mounted, then focus.
+      queueMicrotask(() => searchEl?.focus());
+    }
+  });
 </script>
 
 <svelte:window onkeydown={onKey} onclick={onWindowClick} />
@@ -104,9 +119,11 @@
   class="picker"
   bind:this={root}
   role="combobox"
+  tabindex="-1"
   aria-expanded={open}
   aria-haspopup="listbox"
   aria-controls="dc-picker-listbox"
+  aria-activedescendant={activeOptionId}
 >
   <button type="button" class="trigger" onclick={toggle} aria-label="Choisir un datacenter">
     <span class="ico"><Server size={18} strokeWidth={1.6} /></span>
@@ -137,9 +154,9 @@
         <input
           type="text"
           bind:value={query}
+          bind:this={searchEl}
           placeholder="Rechercher (nom, ville, opérateur, pays)…"
           autocomplete="off"
-          data-autofocus
         />
         {#if query}
           <button
@@ -156,6 +173,7 @@
       <ul class="options">
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <li
+          id="dc-opt-none"
           class="option none"
           class:active={activeIndex === 0}
           role="option"
@@ -173,6 +191,7 @@
             {@const flatIndex = filtered.indexOf(dc) + 1}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <li
+              id={`dc-opt-${dc.id}`}
               class="option"
               class:active={activeIndex === flatIndex}
               role="option"
