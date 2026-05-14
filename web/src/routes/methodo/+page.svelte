@@ -222,6 +222,14 @@
       d'émission ADEME. Toute valeur est restituée avec son intervalle P5–P95 et ses sources
       cliquables.
     </p>
+    <aside class="page-crosslink" aria-label="Choisir une méthodologie">
+      <strong>Cette page documente l'approche AFNOR SPEC 2314 (Sobr.ia).</strong>
+      Pour <em>choisir</em> quelle méthodologie scientifique tu utilises au quotidien (AFNOR
+      Sobr.ia, EcoLogits 2026-01, etc.) :
+      <a class="crosslink-cta" href="/methodologies">
+        → Catalogue des méthodologies <ArrowUpRight size={12} strokeWidth={2} />
+      </a>
+    </aside>
   </section>
 
   <div class="page-grid">
@@ -313,10 +321,11 @@
             <ShieldCheck size={14} strokeWidth={1.8} />
             <div>
               <div class="status-label">Reproduction</div>
-              <div class="status-val">±15 % vs paper</div>
+              <div class="status-val">±20–25 % usage-only</div>
               <div class="status-note">
-                Luccioni 2023, Patterson 2021, EcoLogits 2024 (à activer modèle par modèle —
-                chantier C07).
+                3 cas Llama 70B / Mistral Large 2 contre EcoLogits 2026-01
+                (DOI:10.21105/joss.07471). Embodied comparé séparément (méthodologies divergentes
+                par construction).
               </div>
             </div>
           </div>
@@ -555,6 +564,39 @@
     color: var(--ivory-2);
     max-width: 720px;
     margin: 0;
+  }
+
+  /* Polish B — cross-link vers /methodologies (catalogue) */
+  .page-crosslink {
+    margin-top: 18px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px dashed var(--border-hi);
+    border-radius: var(--radius-md);
+    font: 400 13px/1.55 var(--font-ui);
+    color: var(--ivory-2);
+    max-width: 720px;
+  }
+  .page-crosslink strong {
+    display: block;
+    color: var(--ivory);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .page-crosslink em {
+    font-style: italic;
+  }
+  .crosslink-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    color: var(--lime);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .crosslink-cta:hover {
+    text-decoration: underline;
   }
 
   /* Layout 2 colonnes : TOC + main */

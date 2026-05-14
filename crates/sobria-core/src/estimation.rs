@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::{SobriaError, SobriaResult},
     indicators::{Equivalent, IndicatorValue},
+    methodology::EmpreinteMethod,
 };
 
 /// Une requête d'estimation pour un usage unitaire.
@@ -66,6 +67,16 @@ pub struct Hypothesis {
 /// Résultat complet d'une estimation, prêt à journaliser dans l'audit ledger.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct EstimationResult {
+    /// Méthodologie utilisée pour produire ce résultat. Tracé dans
+    /// l'audit ledger (colonne `method`) pour permettre à l'utilisateur
+    /// de filtrer ses estimations par méthodologie ou de régénérer un
+    /// rapport historiquement cohérent (cf. ADR-0012, chantier C24).
+    ///
+    /// `serde(default)` pour rester compatible avec les entries audit
+    /// produites **avant** l'introduction de ce champ (v0.3.x) : elles
+    /// sont alors considérées comme `AfnorSobria` (seul moteur historique).
+    #[serde(default)]
+    pub method: EmpreinteMethod,
     /// Requête d'origine.
     pub request: EstimationRequest,
     /// Indicateurs calculés (CO₂eq, énergie, eau, métaux, coût).
@@ -118,6 +129,7 @@ mod tests {
     fn result_serializes_round_trip() {
         let request = sample_request();
         let result = EstimationResult {
+            method: EmpreinteMethod::EcoLogits,
             request,
             indicators: vec![IndicatorValue {
                 indicator: Indicator::Co2Eq,
@@ -141,5 +153,27 @@ mod tests {
         let json = serde_json::to_string(&result).unwrap();
         let back: EstimationResult = serde_json::from_str(&json).unwrap();
         assert_eq!(back, result);
+    }
+
+    #[test]
+    fn result_deserializes_legacy_v03_without_method_field() {
+        // Une entry audit v0.3.x (avant C24) n'a pas de champ `method` :
+        // on doit pouvoir la désérialiser, le champ vaudra `AfnorSobria`
+        // (méthodologie historique).
+        let legacy_json = r#"{
+            "request": {
+                "model_id": "gpt-4o-mini",
+                "tokens_in": 10,
+                "tokens_out_estimated": 50,
+                "timestamp": "2026-04-01T10:00:00Z"
+            },
+            "indicators": [],
+            "equivalents": [],
+            "hypotheses": [],
+            "computed_at": "2026-04-01T10:00:00Z",
+            "seed": 42
+        }"#;
+        let back: EstimationResult = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(back.method, EmpreinteMethod::AfnorSobria);
     }
 }

@@ -11,6 +11,7 @@
     Sparkles,
     Zap,
     Check,
+    Layers,
     AlertTriangle,
     GraduationCap,
     Code2,
@@ -118,7 +119,9 @@
           (a, b) => ALL_MODULES.indexOf(a) - ALL_MODULES.indexOf(b)
         ),
         onboarded: true,
-        lang: 'fr'
+        lang: 'fr',
+        default_method: 'afnor_sobria',
+        also_show_methods: []
       });
       // `window.location.replace` plutôt que `goto`/`$app/navigation`
       // (cf. note dans +layout.svelte).
@@ -396,7 +399,7 @@
         </p>
       </header>
 
-      <!-- Trois mini-cartes résumant ce qui attend l'utilisateur — pas de
+      <!-- Quatre mini-cartes résumant ce qui attend l'utilisateur — pas de
            mock UI interactif (le brief demandait un tooltip sur M1 réel,
            ré-implémenté sur la route `/` au prochain ralliement). -->
       <ul class="ready-cards">
@@ -413,6 +416,14 @@
           <span class="ready-sub"
             >Visibles dans le rail. Modifiables dans Paramètres à tout moment.</span
           >
+        </li>
+        <li class="ready-card ready-card-method">
+          <span class="ready-ico" aria-hidden="true"><Layers size={20} strokeWidth={1.6} /></span>
+          <span class="ready-title">2 méthodologies au choix</span>
+          <span class="ready-sub">
+            <strong>AFNOR SPEC 2314 (Sobr.ia)</strong> par défaut · <strong>EcoLogits 2026-01</strong>
+            disponible. Switcher à tout moment via <em>Méthodologies (choix)</em> dans le rail.
+          </span>
         </li>
         <li class="ready-card">
           <span class="ready-ico" aria-hidden="true"><Check size={20} strokeWidth={2} /></span>
@@ -1020,6 +1031,19 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     text-align: left;
+  }
+  /* Polish H3 — Carte "2 méthodologies au choix" : highlight différenciateur */
+  .ready-card-method {
+    background: linear-gradient(155deg, rgba(197, 240, 74, 0.06), rgba(197, 240, 74, 0.01));
+    border-color: rgba(197, 240, 74, 0.25);
+  }
+  .ready-card-method .ready-sub strong {
+    color: var(--ivory);
+    font-weight: 500;
+  }
+  .ready-card-method .ready-sub em {
+    color: var(--lime);
+    font-style: italic;
   }
   .ready-ico {
     display: inline-grid;

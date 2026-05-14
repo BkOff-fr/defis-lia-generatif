@@ -18,9 +18,9 @@ use sobria_app::{
         CreateProjectDto, CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto,
         DatacenterDetailDto, DatacenterSummaryDto, DatasheetDto, EstimationRequestDto,
         EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
-        ModelDetailDto, ModelPresetDto, PersonalGoalDto, ProjectDto, RegionFrAggregateDto,
-        SankeyDataDto, SimulationRequestDto, SimulationResultDto, UpdateProjectDto,
-        YearlyForecastRequestDto, YearlyForecastResultDto,
+        MethodologyInfoDto, ModelDetailDto, ModelPresetDto, PersonalGoalDto, ProjectDto,
+        RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
+        UpdateProjectDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -42,6 +42,11 @@ fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
 }
 
 #[tauri::command]
+fn list_methodologies() -> IpcResult<Vec<MethodologyInfoDto>> {
+    logic::list_methodologies()
+}
+
+#[tauri::command]
 fn get_model_detail(
     id: String,
     state: tauri::State<'_, AppState>,
@@ -55,6 +60,14 @@ fn estimate_prompt(
     state: tauri::State<'_, AppState>,
 ) -> IpcResult<EstimationResultDto> {
     logic::estimate_prompt(req, state.inner())
+}
+
+#[tauri::command]
+fn estimate_for_comparison(
+    req: EstimationRequestDto,
+    method: sobria_core::EmpreinteMethod,
+) -> IpcResult<EstimationResultDto> {
+    logic::estimate_for_comparison(req, method)
 }
 
 #[tauri::command]
@@ -285,8 +298,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             meta_info,
             list_models,
+            list_methodologies,
             get_model_detail,
             estimate_prompt,
+            estimate_for_comparison,
             verify_audit,
             list_audit_entries,
             export_audit_ndjson,

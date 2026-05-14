@@ -203,7 +203,14 @@
       <li>
         Monte-Carlo <span class="mono">N&nbsp;=&nbsp;10⁴</span> tirages, seed déterministe (42).
       </li>
-      <li>Validation croisée à ±15&nbsp;% contre Luccioni 2023 et EcoLogits 2024.</li>
+      <li>
+        Reproduction usage-only à ±20-25&nbsp;% contre la méthodologie <a
+          class="link"
+          href="https://doi.org/10.21105/joss.07471"
+          rel="noopener noreferrer"
+          target="_blank">EcoLogits 2026-01</a
+        > sur 3 cas (Llama 70B, Mistral Large 2).
+      </li>
     </ul>
     <p class="card-foot">
       <a class="link" href="/methodo">

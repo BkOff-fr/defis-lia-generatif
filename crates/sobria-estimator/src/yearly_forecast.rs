@@ -11,10 +11,14 @@ use serde::{Deserialize, Serialize};
 use sobria_core::{EstimationRequest, Indicator};
 
 use crate::{
-    engine::MonteCarloEngine,
     error::{EstimatorError, EstimatorResult},
     params::EstimationParams,
 };
+// `MonteCarloEngine` n'est plus référencé par la signature publique
+// (`forecast_yearly` prend désormais `&dyn EmpreinteEngine`, C24) ; il reste
+// utilisé par les tests internes.
+#[cfg(test)]
+use crate::engine::MonteCarloEngine;
 
 /// Nombre maximum de scénarios par requête de forecast.
 pub const MAX_FORECAST_SCENARIOS: usize = 10;
@@ -77,15 +81,18 @@ pub struct YearlyForecastResult {
 
 /// Lance le forecast sur 1-60 mois pour 1-10 scénarios de croissance.
 ///
+/// Polish G (C24) — `engine` est devenu `&dyn EmpreinteEngine` pour
+/// honorer la méthodologie choisie par l'utilisateur.
+///
 /// **Errors** :
 /// - `Schema` si `scenarios` est vide ou > `MAX_FORECAST_SCENARIOS`.
 /// - `Schema` si `months` hors `[1, MAX_FORECAST_HORIZON_MONTHS]`.
 /// - `Schema` si `base_volume_per_day` hors `[0, 10⁶]`.
 /// - `Schema` si un `monthly_growth_pct` hors `[-50, 50]`.
 /// - `Schema` si deux scénarios ont le même `label`.
-/// - propage les erreurs de `MonteCarloEngine::estimate`.
+/// - propage les erreurs de `engine.estimate`.
 pub fn forecast_yearly(
-    engine: &MonteCarloEngine,
+    engine: &dyn crate::engine_trait::EmpreinteEngine,
     req: &YearlyForecastRequest,
 ) -> EstimatorResult<YearlyForecastResult> {
     validate(req)?;
@@ -261,7 +268,7 @@ mod tests {
     #[test]
     fn too_many_scenarios_rejected() {
         let engine = MonteCarloEngine::default();
-        let scenarios: Vec<YearlyScenario> = (0..MAX_FORECAST_SCENARIOS + 1)
+        let scenarios: Vec<YearlyScenario> = (0..=MAX_FORECAST_SCENARIOS)
             .map(|i| YearlyScenario {
                 label: format!("sc{i}"),
                 monthly_growth_pct: 0.0,

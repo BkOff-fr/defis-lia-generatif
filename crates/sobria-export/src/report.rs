@@ -10,6 +10,7 @@ use printpdf::{BuiltinFont, Mm, PdfDocument};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sobria_audit::AuditEntry;
+use sobria_core::EmpreinteMethod;
 use tracing::{debug, info};
 
 use crate::{
@@ -21,6 +22,19 @@ use crate::{
 /// Marqueur AFNOR placé dans le PDF (page 1) — utilisé par les tests
 /// d'intégration pour s'assurer que le rapport est bien produit.
 pub const AFNOR_HEADER_MARKER: &str = "Rapport conforme AFNOR SPEC 2314";
+
+/// Polish F (C24) — Libellé long d'une méthodologie pour rendu PDF.
+/// Sans caractères Unicode étendus (le rendu printpdf utilise une police
+/// built-in qui n'a pas tout l'éventail Unicode).
+#[must_use]
+fn methodology_pdf_label(method: EmpreinteMethod) -> &'static str {
+    match method {
+        EmpreinteMethod::AfnorSobria => "AFNOR SPEC 2314 (Sobr.ia) - referentiel francais",
+        EmpreinteMethod::EcoLogits => {
+            "EcoLogits 2026-01 (port direct, doi:10.21105/joss.07471, CC BY-SA 4.0)"
+        },
+    }
+}
 
 /// Paramètres d'entrée pour générer un rapport.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -223,14 +237,58 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         let mut y = 270.0;
         layer.use_text("Méthodologie", 16.0, Mm(20.0), Mm(y), &font_regular);
         y -= 8.0;
+
+        // Polish F (C24) — Lister les méthodologies effectivement utilisées
+        // dans la période, lues depuis le ledger. Plus de hard-code AFNOR.
+        let methods_intro = match summary.methods_used.len() {
+            0 => "Methodologie(s) utilisee(s) : (aucune entree)".to_string(),
+            1 => format!(
+                "Methodologie utilisee : {}",
+                methodology_pdf_label(summary.methods_used[0])
+            ),
+            n => format!(
+                "Methodologies utilisees dans la periode ({n}) :",
+            ),
+        };
+        layer.use_text(&methods_intro, 10.0, Mm(20.0), Mm(y), &font_body);
+        y -= 6.0;
+        if summary.methods_used.len() > 1 {
+            for m in &summary.methods_used {
+                layer.use_text(
+                    format!("  - {}", methodology_pdf_label(*m)),
+                    9.5,
+                    Mm(20.0),
+                    Mm(y),
+                    &font_body,
+                );
+                y -= 5.0;
+            }
+            layer.use_text(
+                "Note : ce rapport agrege des estimations de plusieurs methodologies.",
+                9.0,
+                Mm(20.0),
+                Mm(y),
+                &font_body,
+            );
+            y -= 5.0;
+            layer.use_text(
+                "      Cf. section breakdown du dashboard pour les sous-totaux par methodologie.",
+                9.0,
+                Mm(20.0),
+                Mm(y),
+                &font_body,
+            );
+            y -= 5.0;
+        }
+        y -= 3.0;
+
         for line in [
-            "Formule de calcul : AFNOR SPEC 2314 (référentiel français,",
-            "  enregistrement public ; voir docs/methodology/).",
-            "Distribution Monte-Carlo : N tirages indépendants par paramètre",
-            "  (PUE, IF élec, embodied, WUE, ε prefill/decode).",
-            "Seed déterministe pour reproductibilité.",
-            "Validation croisée à ±15% : Luccioni 2023, EcoLogits 2024.",
-            "Sources des paramètres :",
+            "Distribution Monte-Carlo : N tirages independants par parametre",
+            "  (PUE, IF elec, embodied, WUE, e prefill/decode).",
+            "Seed deterministe pour reproductibilite.",
+            "Port EcoLogits 2026-01 : formules officielles reproduites a <=1%",
+            "  (DOI: 10.21105/joss.07471, CC BY-SA 4.0).",
+            "Sources des parametres :",
             "  - HF AI Energy Score (CC-BY)",
             "  - RTE eco2mix / Electricity Maps (Etalab 2.0 / CC-BY)",
             "  - ADEME Base Empreinte (Etalab 2.0)",
@@ -308,12 +366,13 @@ mod tests {
     use super::*;
     use chrono::TimeZone;
     use sobria_core::{
-        EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval, EstimationResult,
-        Indicator,
+        EmpreinteMethod, EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
+        EstimationResult, Indicator,
     };
 
     fn make_entry(id: i64, ts: DateTime<Utc>, co2eq: f64) -> AuditEntry {
         let result = EstimationResult {
+            method: EmpreinteMethod::AfnorSobria,
             request: EstimationRequest {
                 model_id: "gpt-4o-mini".into(),
                 tokens_in: 100,

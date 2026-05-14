@@ -24,6 +24,7 @@ pub mod emission;
 pub mod error;
 pub mod estimation;
 pub mod indicators;
+pub mod methodology;
 pub mod model;
 pub mod preferences;
 pub mod validation;
@@ -35,6 +36,7 @@ pub use estimation::{EstimationRequest, EstimationResult, Hypothesis};
 pub use indicators::{
     DistributionBins, Equivalent, Indicator, IndicatorValue, UncertaintyInterval,
 };
+pub use methodology::EmpreinteMethod;
 pub use model::{Modality, Model, ModelProvider};
 pub use preferences::{ModuleId, Persona};
 pub use validation::{validate_country_iso, validate_year};

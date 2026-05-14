@@ -27,10 +27,13 @@
   } from '@lucide/svelte';
   import {
     isTauriContext,
+    listMethodologies,
     metaInfo,
     SobriaIpcError,
+    type EmpreinteMethod,
     type IpcErrorCode,
-    type MetaInfo
+    type MetaInfo,
+    type MethodologyInfoDto
   } from '$lib/api';
   import {
     ALL_MODULES,
@@ -64,6 +67,8 @@
   let loadError = $state<{ code: IpcErrorCode | string; message: string } | null>(null);
   let saveError = $state<{ code: IpcErrorCode | string; message: string } | null>(null);
   let confirmPersona = $state<Persona | null>(null); // dialog de confirmation
+  // Polish H2 — catalogue de méthodologies pour la section dédiée
+  let methodologies = $state<MethodologyInfoDto[]>([]);
 
   const tauriAvailable = $derived(isTauriContext());
 
@@ -79,7 +84,9 @@
         return;
       }
       try {
-        meta = await metaInfo();
+        const [m, list] = await Promise.all([metaInfo(), listMethodologies()]);
+        meta = m;
+        methodologies = list;
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           loadError = { code: err.code, message: err.message };
@@ -109,7 +116,9 @@
         persona: p,
         enabled_modules: defaultModulesFor(p),
         onboarded: $preferences.onboarded,
-        lang: $preferences.lang
+        lang: $preferences.lang,
+        default_method: $preferences.default_method,
+        also_show_methods: $preferences.also_show_methods
       });
     } catch (e) {
       saveError = errorOf(e);
@@ -127,7 +136,9 @@
         persona: $preferences.persona,
         enabled_modules: sorted,
         onboarded: $preferences.onboarded,
-        lang: $preferences.lang
+        lang: $preferences.lang,
+        default_method: $preferences.default_method,
+        also_show_methods: $preferences.also_show_methods
       });
     } catch (e) {
       saveError = errorOf(e);
@@ -141,11 +152,60 @@
         persona: $preferences.persona,
         enabled_modules: $preferences.enabled_modules,
         onboarded: $preferences.onboarded,
-        lang: l
+        lang: l,
+        default_method: $preferences.default_method,
+        also_show_methods: $preferences.also_show_methods
       });
     } catch (e) {
       saveError = errorOf(e);
     }
+  }
+
+  // Polish H2 — Méthodologie par défaut (C24).
+  // Quand l'user switche, on s'assure que la nouvelle méthodo n'est plus
+  // dans also_show_methods (impossible de se comparer à soi-même).
+  async function setDefaultMethod(m: EmpreinteMethod) {
+    if (m === $preferences.default_method) return;
+    saveError = null;
+    const filtered = $preferences.also_show_methods.filter((x) => x !== m);
+    try {
+      await savePreferences({
+        persona: $preferences.persona,
+        enabled_modules: $preferences.enabled_modules,
+        onboarded: $preferences.onboarded,
+        lang: $preferences.lang,
+        default_method: m,
+        also_show_methods: filtered
+      });
+    } catch (e) {
+      saveError = errorOf(e);
+    }
+  }
+
+  // Polish H2 — Toggle d'une méthodologie en référence (« Voir aussi »).
+  async function toggleAlsoShowMethod(m: EmpreinteMethod) {
+    if (m === $preferences.default_method) return;
+    saveError = null;
+    const isShown = $preferences.also_show_methods.includes(m);
+    const next = isShown
+      ? $preferences.also_show_methods.filter((x) => x !== m)
+      : [...$preferences.also_show_methods, m];
+    try {
+      await savePreferences({
+        persona: $preferences.persona,
+        enabled_modules: $preferences.enabled_modules,
+        onboarded: $preferences.onboarded,
+        lang: $preferences.lang,
+        default_method: $preferences.default_method,
+        also_show_methods: next
+      });
+    } catch (e) {
+      saveError = errorOf(e);
+    }
+  }
+
+  function methodInfo(m: EmpreinteMethod): MethodologyInfoDto | undefined {
+    return methodologies.find((x) => x.method === m);
   }
 
   async function redoOnboarding() {
@@ -155,7 +215,9 @@
         persona: $preferences.persona,
         enabled_modules: $preferences.enabled_modules,
         onboarded: false,
-        lang: $preferences.lang
+        lang: $preferences.lang,
+        default_method: $preferences.default_method,
+        also_show_methods: $preferences.also_show_methods
       });
       // `window.location.replace` plutôt que `goto`/`$app/navigation`
       // (cf. note dans +layout.svelte).
@@ -414,12 +476,76 @@
     {/if}
   </section>
 
+  <!-- ╭─── Polish H2 : Méthodologie scientifique (C24) ──────────╮ -->
+  <section class="section">
+    <header class="section-head">
+      <Layers size={16} strokeWidth={1.8} />
+      <h2>Méthodologie scientifique</h2>
+      <a class="section-hint mono section-hint-link" href="/methodologies"
+        >→ catalogue complet</a
+      >
+    </header>
+    <p class="section-intro">
+      Sobr.ia embarque <strong>plusieurs méthodologies d'estimation d'empreinte LLM</strong>
+      au choix. La méthodologie par défaut est utilisée par tous les calculs (M1 Atelier, M3
+      Comparer, M13 Simulateur, M22 Rapport CSRD…). Les méthodologies en référence
+      apparaissent dans le panneau « Voir aussi » à côté du résultat principal.
+    </p>
+
+    {#if methodologies.length === 0}
+      <p class="empty mono">Catalogue indisponible (hors Tauri).</p>
+    {:else}
+      <div class="method-list" role="list">
+        {#each methodologies as m (m.method)}
+          {@const isDefault = $preferences.default_method === m.method}
+          {@const isRef = $preferences.also_show_methods.includes(m.method)}
+          <article class="method-row" data-method={m.method} class:is-default={isDefault}>
+            <div class="method-head">
+              <span class="method-name">{m.display_name}</span>
+              {#if isDefault}
+                <span class="badge-method badge-default">
+                  <Check size={11} strokeWidth={2.2} /> par défaut
+                </span>
+              {/if}
+              {#if m.doi}
+                <a class="doi mono" href={m.reference_url} target="_blank" rel="noopener noreferrer">
+                  doi:{m.doi}
+                </a>
+              {/if}
+            </div>
+            <p class="method-desc">{m.short_description}</p>
+            <div class="method-actions">
+              <button
+                type="button"
+                class="btn-tiny"
+                class:active={isDefault}
+                onclick={() => setDefaultMethod(m.method)}
+                disabled={!tauriAvailable || isDefault}
+              >
+                {isDefault ? '✓ méthodo par défaut' : 'Définir comme défaut'}
+              </button>
+              <label class="ref-check">
+                <input
+                  type="checkbox"
+                  checked={isRef}
+                  disabled={!tauriAvailable || isDefault}
+                  onchange={() => toggleAlsoShowMethod(m.method)}
+                />
+                <span>Afficher en référence (« Voir aussi »)</span>
+              </label>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
   <!-- ╭─── Section 4 : Onboarding + langue ─────────────────────╮ -->
   <section class="section">
     <header class="section-head">
       <RefreshCw size={16} strokeWidth={1.8} />
       <h2>Réinitialiser &amp; langue</h2>
-      <span class="section-hint mono">FR · EN à venir</span>
+      <span class="section-hint mono">i18n v1.1</span>
     </header>
 
     <div class="dual">
@@ -443,30 +569,33 @@
       <div class="dual-col">
         <h3 class="dual-title">Langue de l'interface</h3>
         <p class="dual-sub">
-          La traduction anglaise est en cours (chantier C12). Vous pouvez déjà tester le sélecteur.
+          La traduction anglaise est prévue en v1.1 (chantier C12 non démarré). Le sélecteur
+          est désactivé : l'interface reste en français quel que soit le choix sauvegardé.
         </p>
-        <div class="lang-toggle" role="radiogroup" aria-label="Langue de l'interface">
+        <div
+          class="lang-toggle is-disabled"
+          role="radiogroup"
+          aria-label="Langue de l'interface (désactivé, v1.1)"
+          title="Le sélecteur sera réactivé en v1.1 quand les chaînes EN seront disponibles."
+        >
           <button
             type="button"
-            class="lang-btn"
-            class:active={$preferences.lang === 'fr'}
-            onclick={() => setLang('fr')}
-            disabled={!tauriAvailable}
+            class="lang-btn active"
+            disabled
             role="radio"
-            aria-checked={$preferences.lang === 'fr'}
+            aria-checked="true"
           >
             FR
           </button>
           <button
             type="button"
             class="lang-btn"
-            class:active={$preferences.lang === 'en'}
-            onclick={() => setLang('en')}
-            disabled={!tauriAvailable}
+            disabled
             role="radio"
-            aria-checked={$preferences.lang === 'en'}
+            aria-checked="false"
+            aria-disabled="true"
           >
-            EN
+            EN <span class="lang-pending mono">v1.1</span>
           </button>
         </div>
       </div>
@@ -1017,6 +1146,135 @@
     color: var(--ivory-3);
     margin: 0 0 12px;
   }
+  /* Polish H2 — Section Méthodologie (C24) */
+  .section-intro {
+    font: 400 13px/1.6 var(--font-ui);
+    color: var(--ivory-2);
+    margin: 0 0 18px;
+    max-width: 760px;
+  }
+  .section-hint-link {
+    color: var(--lime);
+    text-decoration: none;
+  }
+  .section-hint-link:hover {
+    text-decoration: underline;
+  }
+  .method-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .method-row {
+    background: var(--ink-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color var(--dur-base) var(--ease);
+  }
+  .method-row.is-default {
+    border-color: rgba(197, 240, 74, 0.4);
+    background: linear-gradient(135deg, rgba(197, 240, 74, 0.04), transparent);
+  }
+  .method-row[data-method='ecologits'].is-default {
+    border-color: rgba(96, 165, 250, 0.4);
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.04), transparent);
+  }
+  .method-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .method-name {
+    font: 500 13.5px/1.2 var(--font-ui);
+    color: var(--ivory);
+    flex: 0 0 auto;
+  }
+  .badge-method {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: var(--radius-pill);
+    font: 500 10.5px/1 var(--font-ui);
+  }
+  .badge-default {
+    background: rgba(197, 240, 74, 0.12);
+    border: 1px solid rgba(197, 240, 74, 0.3);
+    color: var(--lime);
+  }
+  .method-row[data-method='ecologits'] .badge-default {
+    background: rgba(96, 165, 250, 0.12);
+    border-color: rgba(96, 165, 250, 0.3);
+    color: rgb(147, 197, 253);
+  }
+  .doi {
+    font: 400 11px/1 var(--font-mono);
+    color: var(--ivory-4);
+    text-decoration: none;
+    margin-left: auto;
+  }
+  .doi:hover {
+    color: var(--lime);
+  }
+  .method-desc {
+    font: 400 12.5px/1.55 var(--font-ui);
+    color: var(--ivory-3);
+    margin: 0;
+  }
+  .method-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-top: 4px;
+  }
+  .btn-tiny {
+    background: transparent;
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-sm);
+    color: var(--ivory-2);
+    font: 500 12px/1 var(--font-ui);
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .btn-tiny:hover:not(:disabled) {
+    border-color: var(--lime);
+    color: var(--lime);
+  }
+  .btn-tiny:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .btn-tiny.active {
+    background: rgba(197, 240, 74, 0.1);
+    border-color: rgba(197, 240, 74, 0.3);
+    color: var(--lime);
+  }
+  .ref-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 400 12px/1.3 var(--font-ui);
+    color: var(--ivory-2);
+    cursor: pointer;
+  }
+  .ref-check input[type='checkbox'] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--lime);
+    cursor: pointer;
+  }
+  .ref-check input[type='checkbox']:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
   .lang-toggle {
     display: inline-flex;
     background: var(--ink-2);
@@ -1024,6 +1282,17 @@
     border-radius: var(--radius-pill);
     padding: 3px;
     gap: 2px;
+  }
+  /* Polish H4 — toggle FR/EN visuellement désactivé (i18n v1.1) */
+  .lang-toggle.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .lang-pending {
+    font-size: 9px;
+    color: var(--ivory-4);
+    margin-left: 4px;
+    letter-spacing: 0.04em;
   }
   .lang-btn {
     border: none;

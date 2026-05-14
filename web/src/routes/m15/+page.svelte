@@ -519,6 +519,63 @@
       </article>
     </section>
 
+    <!-- ── Polish E (C24) — Breakdown méthodologie ─────────────────────
+         Affiché seulement si la période contient ≥ 2 méthodos différentes.
+         Sommer aveuglément 2 méthodos est scientifiquement faux (elles
+         ne mesurent pas la même chose), d'où le warning + split. -->
+    {#if summary && summary.warning_multi_method && summary.method_breakdown.length > 1}
+      <section class="card method-breakdown" aria-label="Breakdown par méthodologie">
+        <header class="mb-head">
+          <span class="mb-ico" aria-hidden="true">⚠️</span>
+          <div>
+            <h3 class="mb-title">Période multi-méthodologies</h3>
+            <p class="mb-sub">
+              Cette période contient des estimations produites avec
+              <strong>{summary.method_breakdown.length} méthodologies différentes</strong>. Les
+              totaux globaux ci-dessus sont la somme arithmétique brute — utiliser le breakdown
+              ci-dessous pour un reporting CSRD scientifiquement cohérent.
+              <a class="link" href="/methodologies">Choisir une méthodo par défaut</a>.
+            </p>
+          </div>
+        </header>
+        <div class="mb-grid">
+          {#each summary.method_breakdown as mt (mt.method)}
+            {@const co2 = fmtCo2(mt.total_co2eq_g_p50)}
+            {@const en = fmtEnergy(mt.total_energy_wh_p50)}
+            {@const wa = fmtWater(mt.total_water_l_p50)}
+            <article class="mb-card" data-method={mt.method}>
+              <header class="mb-card-head">
+                <span class="mb-method-name">
+                  {mt.method === 'afnor_sobria' ? 'AFNOR SPEC 2314' : 'EcoLogits 2026-01'}
+                </span>
+                <span class="mb-count mono">{mt.request_count} req</span>
+              </header>
+              <dl class="mb-stats">
+                <div class="mb-stat">
+                  <dt>CO₂eq</dt>
+                  <dd>
+                    <strong>{co2.v}</strong><span class="u">{co2.u}</span>
+                  </dd>
+                </div>
+                <div class="mb-stat">
+                  <dt>Énergie</dt>
+                  <dd>
+                    <strong>{en.v}</strong><span class="u">{en.u}</span>
+                  </dd>
+                </div>
+                <div class="mb-stat">
+                  <dt>Eau</dt>
+                  <dd>
+                    <strong>{wa.v}</strong><span class="u">{wa.u}</span>
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          {/each}
+        </div>
+      </section>
+    {/if}
+
     <!-- ── Évolution journalière ──────────────────────────────────────── -->
     <section class="card">
       <header class="ch">
@@ -1051,6 +1108,106 @@
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.005));
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
+  }
+
+  /* Polish E — Breakdown méthodologique (warning multi-méthodo) */
+  .method-breakdown {
+    border-color: rgba(234, 179, 8, 0.3);
+    background: linear-gradient(180deg, rgba(234, 179, 8, 0.05), rgba(234, 179, 8, 0.01));
+  }
+  .mb-head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed rgba(234, 179, 8, 0.2);
+  }
+  .mb-ico {
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .mb-title {
+    font: 500 14px/1.2 var(--font-ui);
+    color: var(--ivory);
+    margin: 0 0 6px;
+  }
+  .mb-sub {
+    font: 400 12.5px/1.55 var(--font-ui);
+    color: var(--ivory-2);
+    margin: 0;
+  }
+  .mb-sub .link {
+    color: var(--lime);
+    text-decoration: none;
+  }
+  .mb-sub .link:hover {
+    text-decoration: underline;
+  }
+  .mb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .mb-card {
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .mb-card[data-method='afnor_sobria'] {
+    border-color: rgba(197, 240, 74, 0.3);
+  }
+  .mb-card[data-method='ecologits'] {
+    border-color: rgba(96, 165, 250, 0.3);
+  }
+  .mb-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .mb-method-name {
+    font: 500 13px/1.2 var(--font-ui);
+    color: var(--ivory);
+  }
+  .mb-count {
+    font: 500 11px/1 var(--font-mono);
+    color: var(--ivory-3);
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-hi);
+    border: 1px solid var(--border);
+  }
+  .mb-stats {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px 12px;
+  }
+  .mb-stat dt {
+    font: 500 10px/1 var(--font-ui);
+    color: var(--ivory-4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+  }
+  .mb-stat dd {
+    margin: 0;
+    font: 400 13px/1.2 var(--font-mono);
+    color: var(--ivory);
+  }
+  .mb-stat strong {
+    font-weight: 500;
+  }
+  .mb-stat .u {
+    font: 400 10px/1 var(--font-mono);
+    color: var(--ivory-3);
+    margin-left: 2px;
   }
   .ch {
     display: flex;

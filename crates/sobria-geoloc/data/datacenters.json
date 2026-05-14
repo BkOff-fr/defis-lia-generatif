@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "updated": "2026-05-13",
     "license": "CC-BY-4.0",
     "notes": [
       "Sélection de 28 datacenters européens représentatifs servant l'inférence LLM.",
-      "IF élec : moyenne annuelle pays 2023 — Electricity Maps + AIB European Residual Mix.",
-      "PUE : valeurs annuelles déclarées par les opérateurs (rapports sustainability).",
-      "Profils 24h : ENTSO-E Transparency Platform, charge moyenne annuelle normalisée.",
+      "IF élec : moyenne annuelle pays 2023 — Electricity Maps + AIB European Residual Mix (valeurs réelles, sourcées par DC).",
+      "PUE : valeurs annuelles déclarées par les opérateurs (rapports sustainability — valeurs réelles, sourcées par DC).",
+      "Profils 24h : courbes typiques modélisées par pays (forme demande résidentielle + industrielle). v1.0 — **non issu d'un pull ENTSO-E live**, à remplacer en v1.1 par un appel à api.entsoe.eu (TOTAL LOAD A65) avec clé API utilisateur.",
       "Voir docs/sources/CATALOGUE-DATACENTERS.md pour les sources détaillées."
     ]
   },

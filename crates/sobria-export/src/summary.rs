@@ -1,9 +1,11 @@
 //! Calcul des agrégats sur une période d'entrées d'audit.
 
+use std::collections::HashSet;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sobria_audit::AuditEntry;
-use sobria_core::{EstimationResult, Indicator};
+use sobria_core::{EmpreinteMethod, EstimationResult, Indicator};
 
 use crate::error::{ExportError, ExportResult};
 
@@ -21,6 +23,11 @@ pub struct ReportSummary {
     /// Premier et dernier `audit_id` couverts.
     pub first_audit_id: i64,
     pub last_audit_id: i64,
+    /// Polish F (C24) — Méthodologies effectivement utilisées dans la
+    /// période. Ordre stable (AFNOR puis EcoLogits). Tracé dans le PDF
+    /// section "Méthodologie" et dans le sidecar PROV-O
+    /// (`prov:wasAttributedTo`) pour audit CSRD historique.
+    pub methods_used: Vec<EmpreinteMethod>,
 }
 
 /// Agrège les indicateurs sur la période. Les P5/P50/P95 totaux sont les
@@ -41,6 +48,7 @@ pub(crate) fn aggregate(
     let mut sum_water = 0.0;
     let mut first_id = i64::MAX;
     let mut last_id = i64::MIN;
+    let mut methods_seen: HashSet<EmpreinteMethod> = HashSet::new();
 
     for entry in entries {
         if entry.timestamp < period_start || entry.timestamp >= period_end {
@@ -59,6 +67,8 @@ pub(crate) fn aggregate(
         total_requests += 1;
         first_id = first_id.min(entry.id);
         last_id = last_id.max(entry.id);
+        // Polish F — trace les méthodos utilisées dans la période.
+        methods_seen.insert(result.method);
 
         for ind in &result.indicators {
             match ind.indicator {
@@ -84,6 +94,13 @@ pub(crate) fn aggregate(
         last_id = 0;
     }
 
+    // Ordre stable : AFNOR puis EcoLogits (pour rendu déterministe PDF + PROV-O).
+    let mut methods_used: Vec<EmpreinteMethod> = methods_seen.into_iter().collect();
+    methods_used.sort_by_key(|m| match m {
+        EmpreinteMethod::AfnorSobria => 0,
+        EmpreinteMethod::EcoLogits => 1,
+    });
+
     Ok(ReportSummary {
         period_start,
         period_end,
@@ -95,6 +112,7 @@ pub(crate) fn aggregate(
         total_water_l_p50: sum_water,
         first_audit_id: first_id,
         last_audit_id: last_id,
+        methods_used,
     })
 }
 
@@ -103,11 +121,12 @@ mod tests {
     use super::*;
     use chrono::TimeZone;
     use sobria_core::{
-        EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
+        EmpreinteMethod, EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
     };
 
     fn make_result(co2eq_p50: f64) -> EstimationResult {
         EstimationResult {
+            method: EmpreinteMethod::AfnorSobria,
             request: EstimationRequest {
                 model_id: "gpt-4o-mini".into(),
                 tokens_in: 100,
@@ -211,5 +230,61 @@ mod tests {
         let s = aggregate(&entries, start, end).unwrap();
         assert_eq!(s.total_requests, 2, "purgée comptée");
         assert!((s.total_co2eq_g_p50 - 1.0).abs() < 1e-9, "valeur purgée exclue");
+    }
+
+    // ─── Polish F (C24) — méthodologies tracées ────────────────────────
+
+    fn make_result_with_method(co2eq_p50: f64, method: EmpreinteMethod) -> EstimationResult {
+        let mut r = make_result(co2eq_p50);
+        r.method = method;
+        r
+    }
+
+    fn make_entry_with_method(
+        id: i64,
+        ts: DateTime<Utc>,
+        co2eq: f64,
+        method: EmpreinteMethod,
+    ) -> AuditEntry {
+        let payload = serde_json::to_string(&make_result_with_method(co2eq, method)).unwrap();
+        AuditEntry {
+            id,
+            timestamp: ts,
+            estimation_result_json: payload,
+            prev_sig: String::new(),
+            sig: "x".repeat(64),
+            purged_at: None,
+        }
+    }
+
+    #[test]
+    fn aggregate_tracks_single_methodology() {
+        let start = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap();
+        let entries = vec![
+            make_entry_with_method(1, start, 1.0, EmpreinteMethod::AfnorSobria),
+            make_entry_with_method(2, start, 2.0, EmpreinteMethod::AfnorSobria),
+        ];
+        let s = aggregate(&entries, start, end).unwrap();
+        assert_eq!(s.methods_used, vec![EmpreinteMethod::AfnorSobria]);
+    }
+
+    #[test]
+    fn aggregate_tracks_multiple_methodologies_sorted() {
+        let start = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap();
+        // EcoLogits ajouté avant AFNOR dans le ledger → l'ordre stable
+        // doit ramener AFNOR en premier dans `methods_used`.
+        let entries = vec![
+            make_entry_with_method(1, start, 1.0, EmpreinteMethod::EcoLogits),
+            make_entry_with_method(2, start, 2.0, EmpreinteMethod::AfnorSobria),
+            make_entry_with_method(3, start, 3.0, EmpreinteMethod::EcoLogits),
+        ];
+        let s = aggregate(&entries, start, end).unwrap();
+        assert_eq!(
+            s.methods_used,
+            vec![EmpreinteMethod::AfnorSobria, EmpreinteMethod::EcoLogits],
+            "ordre stable AFNOR puis EcoLogits"
+        );
     }
 }

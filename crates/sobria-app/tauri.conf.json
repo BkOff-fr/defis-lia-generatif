@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Sobr.ia",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "identifier": "ia.sobr.app",
   "build": {
-    "beforeDevCommand": "npm --prefix web run dev",
+    "beforeDevCommand": "npm --prefix ../web run dev",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "npm --prefix web run build",
+    "beforeBuildCommand": "npm --prefix ../web run build",
     "frontendDist": "../../web/build"
   },
   "app": {

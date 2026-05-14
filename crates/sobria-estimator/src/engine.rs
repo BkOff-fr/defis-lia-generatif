@@ -12,6 +12,7 @@ use sobria_core::{
 use tracing::debug;
 
 use crate::{
+    engine_trait::{EmpreinteEngine, EmpreinteMethod},
     equivalents, error::{EstimatorError, EstimatorResult}, params::EstimationParams,
 };
 
@@ -166,6 +167,7 @@ impl MonteCarloEngine {
         );
 
         Ok(EstimationResult {
+            method: EmpreinteMethod::AfnorSobria,
             request: request.clone(),
             indicators,
             equivalents,
@@ -173,6 +175,22 @@ impl MonteCarloEngine {
             computed_at: Utc::now(),
             seed: self.seed,
         })
+    }
+}
+
+/// Implémentation du trait commun [`EmpreinteEngine`] pour Monte-Carlo
+/// AFNOR SPEC 2314 (méthodologie historique Sobr.ia).
+impl EmpreinteEngine for MonteCarloEngine {
+    fn method(&self) -> EmpreinteMethod {
+        EmpreinteMethod::AfnorSobria
+    }
+
+    fn estimate(
+        &self,
+        request: &EstimationRequest,
+        params: &EstimationParams,
+    ) -> EstimatorResult<EstimationResult> {
+        MonteCarloEngine::estimate(self, request, params)
     }
 }
 

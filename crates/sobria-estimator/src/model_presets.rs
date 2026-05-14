@@ -85,9 +85,16 @@ pub struct ModelPreset {
 // Voir `docs/methodology/MODEL-PRESETS.md` §2.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Coefficient `mJ/token/B` pour décoder. Calibré par ordre de grandeur sur les
-/// mesures HF AI Energy Score (Llama 3.1 70B ≈ 1.75 mJ/token, ≈ 0.025 × 70).
-pub const K_DECODE_MJ_PER_TOKEN_PER_B: f64 = 0.025;
+/// Coefficient `mJ/token/B` pour décoder.
+///
+/// Recalibré 2026-05 (chantier C24) : auparavant `0.025` (sous-évaluait
+/// d'un facteur ~1000), désormais `25.0` pour aligner avec la mesure
+/// HF AI Energy Score et ML.ENERGY (Llama 3.1 70B ≈ 1.75 J/token decode,
+/// ≈ 25 × 70 mJ/token).
+///
+/// Cf. ADR-0012 et `briefs/chantiers/C24-multi-methodologie-ecologits.md`
+/// pour le détail de la calibration.
+pub const K_DECODE_MJ_PER_TOKEN_PER_B: f64 = 25.0;
 
 /// Ratio prefill/decode (le prefill est plus efficient, batché sur GPU).
 pub const PREFILL_DECODE_RATIO: f64 = 0.4;
@@ -143,14 +150,14 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "gpt-4",
         approx_params_billions: 200.0,
         openness: Openness::Closed,
-        // Décode 200 × 0.025 = 5.0 mJ/tok
-        epsilon_prefill_mj: (1.21, 2.0, 3.3),
-        epsilon_decode_mj: (3.03, 5.0, 8.25),
+        // Décode 200 × 25 = 5000 mJ/tok (≈ 5 J/tok)
+        epsilon_prefill_mj: (1210.0, 2000.0, 3300.0),
+        epsilon_decode_mj: (3030.0, 5000.0, 8250.0),
         // Embodied 200 × 0.00025 = 0.05 g/req
         embodied_g_per_req: (0.030, 0.050, 0.0825),
         calibration: CalibrationStatus::Extrapolated,
         sources: &[
-            "EcoLogits 2024",
+            "EcoLogits 2026-01",
             "HF AI Energy Score 2026",
             "Estimation taille — analyse publique 2024",
         ],
@@ -162,12 +169,12 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "gpt-4",
         approx_params_billions: 8.0,
         openness: Openness::Closed,
-        // Décode 8 × 0.025 = 0.2 mJ/tok — extrapolation pure
-        epsilon_prefill_mj: (0.0485, 0.08, 0.132),
-        epsilon_decode_mj: (0.121, 0.20, 0.33),
+        // Décode 8 × 25 = 200 mJ/tok — extrapolation pure
+        epsilon_prefill_mj: (48.5, 80.0, 132.0),
+        epsilon_decode_mj: (121.0, 200.0, 330.0),
         embodied_g_per_req: (0.00121, 0.0020, 0.0033),
         calibration: CalibrationStatus::Extrapolated,
-        sources: &["EcoLogits 2024", "Estimation taille — analyse publique 2024"],
+        sources: &["EcoLogits 2026-01", "Estimation taille — analyse publique 2024"],
     },
     ModelPreset {
         id: "claude-3-5-sonnet",
@@ -176,11 +183,11 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "claude-3",
         approx_params_billions: 200.0,
         openness: Openness::Closed,
-        epsilon_prefill_mj: (1.21, 2.0, 3.3),
-        epsilon_decode_mj: (3.03, 5.0, 8.25),
+        epsilon_prefill_mj: (1210.0, 2000.0, 3300.0),
+        epsilon_decode_mj: (3030.0, 5000.0, 8250.0),
         embodied_g_per_req: (0.030, 0.050, 0.0825),
         calibration: CalibrationStatus::Extrapolated,
-        sources: &["EcoLogits 2024 (analogie modèles dense ~200B)"],
+        sources: &["EcoLogits 2026-01 (analogie modèles dense ~200B)"],
     },
     ModelPreset {
         id: "mistral-large-2",
@@ -189,15 +196,15 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "mistral-large",
         approx_params_billions: 123.0,
         openness: Openness::OpenWeights,
-        // 123 × 0.025 = 3.075
-        epsilon_prefill_mj: (0.745, 1.23, 2.03),
-        epsilon_decode_mj: (1.864, 3.075, 5.074),
+        // 123 × 25 = 3075
+        epsilon_prefill_mj: (745.0, 1230.0, 2030.0),
+        epsilon_decode_mj: (1864.0, 3075.0, 5074.0),
         embodied_g_per_req: (0.01864, 0.03075, 0.05074),
         calibration: CalibrationStatus::Indicative,
         sources: &[
             "Mistral AI tech report 2024",
             "HF AI Energy Score 2026",
-            "EcoLogits 2024",
+            "EcoLogits 2026-01",
         ],
     },
     ModelPreset {
@@ -207,12 +214,12 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "mistral-medium",
         approx_params_billions: 30.0,
         openness: Openness::OpenWeights,
-        // 30 × 0.025 = 0.75
-        epsilon_prefill_mj: (0.182, 0.30, 0.495),
-        epsilon_decode_mj: (0.455, 0.75, 1.238),
+        // 30 × 25 = 750
+        epsilon_prefill_mj: (182.0, 300.0, 495.0),
+        epsilon_decode_mj: (455.0, 750.0, 1238.0),
         embodied_g_per_req: (0.00455, 0.0075, 0.01238),
         calibration: CalibrationStatus::Indicative,
-        sources: &["Mistral AI 2024", "EcoLogits 2024"],
+        sources: &["Mistral AI 2024", "EcoLogits 2026-01"],
     },
     ModelPreset {
         id: "llama-3-1-70b",
@@ -221,9 +228,9 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "llama-3",
         approx_params_billions: 70.0,
         openness: Openness::OpenWeights,
-        // 70 × 0.025 = 1.75
-        epsilon_prefill_mj: (0.424, 0.70, 1.155),
-        epsilon_decode_mj: (1.061, 1.75, 2.888),
+        // 70 × 25 = 1750
+        epsilon_prefill_mj: (424.0, 700.0, 1155.0),
+        epsilon_decode_mj: (1061.0, 1750.0, 2888.0),
         embodied_g_per_req: (0.0106, 0.0175, 0.02888),
         calibration: CalibrationStatus::Indicative,
         sources: &[
@@ -238,9 +245,9 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "llama-3",
         approx_params_billions: 8.0,
         openness: Openness::OpenWeights,
-        // 8 × 0.025 = 0.2
-        epsilon_prefill_mj: (0.0485, 0.08, 0.132),
-        epsilon_decode_mj: (0.121, 0.20, 0.33),
+        // 8 × 25 = 200
+        epsilon_prefill_mj: (48.5, 80.0, 132.0),
+        epsilon_decode_mj: (121.0, 200.0, 330.0),
         embodied_g_per_req: (0.00121, 0.0020, 0.0033),
         calibration: CalibrationStatus::Indicative,
         sources: &[
@@ -255,9 +262,9 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         family: "gemini-2",
         approx_params_billions: 32.0,
         openness: Openness::Closed,
-        // 32 × 0.025 = 0.8
-        epsilon_prefill_mj: (0.194, 0.32, 0.528),
-        epsilon_decode_mj: (0.485, 0.80, 1.32),
+        // 32 × 25 = 800
+        epsilon_prefill_mj: (194.0, 320.0, 528.0),
+        epsilon_decode_mj: (485.0, 800.0, 1320.0),
         embodied_g_per_req: (0.00485, 0.0080, 0.0132),
         calibration: CalibrationStatus::Extrapolated,
         sources: &["Google DeepMind 2025 (annonce publique)", "Analogie Mistral Medium"],

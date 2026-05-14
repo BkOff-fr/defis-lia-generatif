@@ -108,6 +108,26 @@ fn validate(a: &RteMixArtifact) -> SankeyFrResult<()> {
             "records_processed = 0 — l'agrégation eco2mix n'a rien traité".into(),
         ));
     }
+    // Sanity check vs Bilan RTE annuel.
+    // - Production totale FR ~ 460-540 TWh selon l'année (Bilan RTE 2019-2024).
+    // - Nucléaire FR ~ 280-380 TWh.
+    // Toute valeur < 400 ou > 600 TWh est suspecte (probablement un bug
+    // de granularité 15-min vs 30-min comme corrigé en 2026-05).
+    let total = a.mix.total_production_twh;
+    if !(400.0..=600.0).contains(&total) {
+        return Err(SankeyFrError::Schema(format!(
+            "total_production_twh = {total:.1} TWh hors plage plausible \
+             [400, 600] TWh (Bilan RTE annuel). Vérifier le facteur de \
+             conversion pas-30-min dans sobria-ingest."
+        )));
+    }
+    let nuclear = a.mix.nuclear_twh;
+    if !(200.0..=400.0).contains(&nuclear) {
+        return Err(SankeyFrError::Schema(format!(
+            "nuclear_twh = {nuclear:.1} TWh hors plage plausible \
+             [200, 400] TWh (Bilan RTE annuel)."
+        )));
+    }
     Ok(())
 }
 
@@ -401,5 +421,43 @@ mod tests {
     fn load_returns_not_found_for_missing_path() {
         let err = load_rte_mix(Path::new("/nonexistent/rte_mix.json")).unwrap_err();
         assert!(matches!(err, SankeyFrError::NotFound(_)));
+    }
+
+    #[test]
+    fn validate_rejects_half_value_regression() {
+        // Garde-fou contre le bug 2026-05 (FACTOR 0.25h alors que le pas
+        // réalisé est 30-min). Si une future ingestion régresse, total
+        // ressort à ~243 TWh au lieu de ~494 TWh, et la validation alerte.
+        let mut a = sample_artifact();
+        a.mix.nuclear_twh = 160.0;
+        a.mix.total_production_twh = 243.0;
+        let err = validate(&a).unwrap_err();
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("plausible") || msg.contains("hors plage"),
+            "message d'erreur attendu (plage plausible), reçu : {msg}"
+        );
+    }
+
+    #[test]
+    fn shipped_rte_mix_data_passes_validation() {
+        // Vérifie que le fichier rte_mix_fr.json embarqué dans le crate
+        // passe la validation. Couvre la régression silencieuse où on
+        // pourrait recharger un mauvais artefact.
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("data")
+            .join("rte_mix_fr.json");
+        let art = load_rte_mix(&path).expect("rte_mix_fr.json charge OK");
+        // Sanity vs Bilan RTE 2023 (production totale ~494 TWh, nucl ~320 TWh).
+        assert!(
+            (450.0..=540.0).contains(&art.mix.total_production_twh),
+            "total {} TWh hors plage Bilan RTE 2023 ±10 %",
+            art.mix.total_production_twh
+        );
+        assert!(
+            (280.0..=380.0).contains(&art.mix.nuclear_twh),
+            "nucléaire {} TWh hors plage Bilan RTE 2023 ±15 %",
+            art.mix.nuclear_twh
+        );
     }
 }

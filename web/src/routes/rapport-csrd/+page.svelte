@@ -212,7 +212,7 @@
   function errorHelp(code: string): string {
     switch (code) {
       case 'empty_period':
-        return 'Aucune estimation enregistrée dans cette plage de dates. Essaie une période plus large, ou commence par effectuer quelques estimations via /workbench.';
+        return "Aucune estimation enregistrée dans cette plage de dates. Essaie une période plus large, ou commence par effectuer quelques estimations depuis l'Atelier.";
       case 'invalid_request':
         return "Vérifie que la date de début est antérieure à la date de fin, et que le nom de l'organisation est rempli.";
       case 'export_error':

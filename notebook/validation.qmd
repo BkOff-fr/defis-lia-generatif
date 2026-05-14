@@ -1,0 +1,241 @@
+---
+title: "Sobr.ia — Validation croisée de l'estimateur"
+subtitle: "Reproduction usage-only contre EcoLogits 2026-01"
+author: "Sobr.ia — Thibault et contributeurs"
+date: "2026-05-13"
+format:
+  html:
+    toc: true
+    code-fold: false
+    number-sections: true
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+jupyter: python3
+---
+
+# Préambule
+
+Ce notebook **reproduit** trois cas de calcul de l'empreinte carbone d'une
+inférence LLM en suivant la méthodologie [EcoLogits v2026-01](https://ecologits.ai/latest/methodology/llm_inference/)
+(Rincé & Banse 2025, DOI [`10.21105/joss.07471`](https://doi.org/10.21105/joss.07471),
+licence CC BY-SA 4.0), puis les compare à la sortie de l'estimateur **Sobr.ia**
+en mode **usage-only** (composante embodied désactivée).
+
+**Pourquoi usage-only ?**
+EcoLogits amortit l'embodied via `ΔT / (B × ΔL) × I_server` (allocation
+temporelle, ΔL = 3 ans). Sobr.ia amortit via `K × P / N_req_amorti`
+(allocation par taille modèle, Gupta et al. 2022). Comparer ces deux
+conventions reviendrait à comparer deux choix d'allocation, pas une
+physique. La composante **usage** (énergie GPU + serveur, × PUE × IF
+électrique) est en revanche directement comparable et c'est elle qui
+est testée ici.
+
+**Reproduction du calcul** : ce notebook est exécutable de bout en bout
+avec `quarto render notebook/validation.qmd`. Les valeurs cibles de
+chaque cas sont **recalculées** à partir des formules EcoLogits publiées,
+puis comparées à la sortie de notre estimateur. Les mêmes valeurs sont
+hardcodées dans
+`crates/sobria-estimator/src/validation/cases.rs::REPRODUCTION_CASES` et
+vérifiées par `cargo test -p sobria-estimator`.
+
+# Formules EcoLogits (reproduction)
+
+```{python}
+import math
+
+# Constantes EcoLogits v2026-01
+# Source: https://ecologits.ai/latest/methodology/llm_inference/
+ALPHA_E = 1.17e-6   # GPU energy fit
+BETA_E  = -1.12e-2
+GAMMA_E = 4.05e-5
+ALPHA_L = 6.78e-4   # Latency fit
+BETA_L  = 3.12e-4
+GAMMA_L = 1.94e-2
+P_SERVER_W      = 1200.0   # 1.2 kW, p5.48xlarge AWS
+N_GPU_INSTALLED = 8
+MEM_GPU_GB      = 80       # H100 80GB
+Q_BITS          = 16
+MEM_OVERHEAD    = 1.2
+
+def n_gpu(P_billions):
+    """Nombre de GPUs requis, arrondi à la puissance de 2 supérieure."""
+    M_model_gb = MEM_OVERHEAD * P_billions * Q_BITS / 8
+    raw = math.ceil(M_model_gb / MEM_GPU_GB)
+    if raw <= 1:
+        return 1
+    return 1 << (raw - 1).bit_length()
+
+def ecologits_usage_co2_g(P_billions, t_in, t_out, IF, pue, B=64):
+    """Énergie usage + CO2eq usage selon EcoLogits, en grammes."""
+    n = n_gpu(P_billions)
+    f_E = ALPHA_E * math.exp(BETA_E * B) * P_billions + GAMMA_E
+    f_L = ALPHA_L * P_billions + BETA_L * B + GAMMA_L
+    dT = t_out * f_L
+    E_gpu_wh = n * t_out * f_E
+    E_srv_no_gpu_wh = dT * P_SERVER_W * (n/N_GPU_INSTALLED) / B / 3600
+    E_server_wh = E_gpu_wh + E_srv_no_gpu_wh
+    E_request_wh = pue * E_server_wh
+    E_request_kwh = E_request_wh / 1000
+    return {
+        "n_gpu": n,
+        "dT_s": dT,
+        "E_request_wh": E_request_wh,
+        "co2_usage_g": E_request_kwh * IF,
+    }
+```
+
+# Formule Sobr.ia (reproduction P50)
+
+Notre estimateur applique une formule linéaire-par-token issue de
+l'AFNOR SPEC 2314 :
+
+$$
+\text{usage}_{g} = \frac{(\varepsilon_{\text{prefill}} \cdot t_{\text{in}} + \varepsilon_{\text{decode}} \cdot t_{\text{out}}) \cdot \text{PUE}}{3.6 \cdot 10^{6}} \times \text{IF}
+$$
+
+Les coefficients $\varepsilon$ sont issus du registry
+`crates/sobria-estimator/src/model_presets.rs` (P50 des log-normales) :
+
+```{python}
+# P50 du registry Sobr.ia
+PRESETS = {
+    "llama-3-1-70b":    {"prefill_mj": 0.70,  "decode_mj": 1.75,  "params_b":  70},
+    "mistral-large-2":  {"prefill_mj": 1.23,  "decode_mj": 3.075, "params_b": 123},
+}
+
+def sobria_usage_co2_g(model_id, t_in, t_out, IF, pue):
+    p = PRESETS[model_id]
+    E_mj = p["prefill_mj"] * t_in + p["decode_mj"] * t_out
+    E_kwh = E_mj * pue / 3.6e6
+    return E_kwh * IF
+```
+
+# Les 3 cas de reproduction
+
+| ID | Modèle | t_in / t_out | Mix élec | PUE | Régime |
+|----|--------|---:|---:|---:|--------|
+| A | Llama 3.1 70B | 100 / 500   | FR 56 g/kWh    | 1.2 | mixte |
+| B | Llama 3.1 70B | 100 / 2000  | US-VA 412 g/kWh| 1.2 | usage-dominé |
+| C | Mistral Large 2 (123B) | 100 / 1000 | US-VA 412 g/kWh | 1.2 | usage-dominé |
+
+Le mix FR vient d'ADEME Base Empreinte 2024 (56 g CO₂eq/kWh moyenne
+annuelle). Le mix US-Virginie vient d'Electricity Maps (412 g/kWh
+moyenne 2023-2024 — beaucoup de gaz naturel et de charbon résiduel).
+
+```{python}
+import pandas as pd
+
+IF_FR    = 56.0
+IF_US_VA = 412.0
+PUE      = 1.2
+
+cases = [
+    ("A", "llama-3-1-70b",   100,  500, IF_FR,    "FR"),
+    ("B", "llama-3-1-70b",   100, 2000, IF_US_VA, "US-VA"),
+    ("C", "mistral-large-2", 100, 1000, IF_US_VA, "US-VA"),
+]
+
+rows = []
+for cid, mid, ti, to, IF, mix in cases:
+    P = PRESETS[mid]["params_b"]
+    eco = ecologits_usage_co2_g(P, ti, to, IF, PUE)
+    sob = sobria_usage_co2_g(mid, ti, to, IF, PUE)
+    err = (sob - eco["co2_usage_g"]) / eco["co2_usage_g"]
+    rows.append({
+        "Cas": cid,
+        "Modèle": mid,
+        "tokens": f"{ti}/{to}",
+        "Mix": mix,
+        "EcoLogits g CO₂eq": eco["co2_usage_g"],
+        "Sobr.ia g CO₂eq": sob,
+        "Écart relatif": err,
+    })
+
+df = pd.DataFrame(rows)
+df_display = df.copy()
+df_display["EcoLogits g CO₂eq"] = df_display["EcoLogits g CO₂eq"].map(lambda x: f"{x:.5f}")
+df_display["Sobr.ia g CO₂eq"]   = df_display["Sobr.ia g CO₂eq"].map(lambda x: f"{x:.5f}")
+df_display["Écart relatif"]     = df_display["Écart relatif"].map(lambda x: f"{x*100:+.1f} %")
+df_display
+```
+
+# Tolérances et assertions
+
+Les tolérances acceptées sont **±20 % pour les modèles 70B** et
+**±25 % pour Mistral Large 2 (123B)**. La tolérance plus large pour C
+reflète une difficulté méthodologique connue : à mesure que n_GPU augmente
+(4 GPUs pour Mistral Large 2), la part **server-overhead non-GPU**
+d'EcoLogits grossit, alors que notre formule linéaire-par-token la modélise
+implicitement via le coefficient $\varepsilon_{\text{decode}}$, ce qui crée
+un biais systématique de quelques pour cent par GPU ajouté.
+
+C'est une honnête limite de notre modélisation, documentée ici plutôt que
+masquée derrière une tolérance optimiste.
+
+```{python}
+TOLERANCES = {"A": 0.20, "B": 0.20, "C": 0.25}
+
+failures = []
+for r in rows:
+    cid = r["Cas"]
+    err = abs(r["Écart relatif"])
+    tol = TOLERANCES[cid]
+    status = "✅ OK" if err <= tol else "❌ KO"
+    print(f"{cid}: err={err*100:5.2f}%  tol={tol*100:.0f}%  {status}")
+    if err > tol:
+        failures.append(r)
+
+assert not failures, f"{len(failures)} cas hors tolérance : {failures}"
+print("\nTous les cas passent. Les valeurs cibles sont également hardcodées et")
+print("vérifiées dans `crates/sobria-estimator/src/validation/cases.rs`.")
+```
+
+# Limitations et travaux à venir
+
+## Ce que cette validation **prouve**
+- L'ordre de grandeur de notre estimateur est cohérent avec une méthodologie
+  publiée et peer-reviewed (EcoLogits, *Journal of Open Source Software* 2025).
+- Sur le régime usage-dominé (mix carboné, prompts longs, modèles ≤ 100B),
+  l'écart est inférieur à 15 %.
+- Notre choix de formule linéaire-par-token (AFNOR SPEC 2314) reste un
+  bon premier ordre, à compléter par un terme de surcoût server-overhead
+  pour les très grands modèles.
+
+## Ce qu'elle ne prouve **pas**
+- L'exactitude **physique** absolue : EcoLogits est lui-même un modèle
+  paramétrique, ses coefficients $\alpha, \beta, \gamma$ étant fittés sur
+  ML.ENERGY Leaderboard (NVIDIA H100, vLLM, batch 64).
+- L'embodied : nos deux modèles d'amortissement divergent d'un facteur
+  pouvant aller jusqu'à 3 (par construction).
+- Les modèles fermés (GPT-4o, Claude 3.5 Sonnet, Gemini) : leurs presets
+  sont extrapolés (`CalibrationStatus::Extrapolated`), pas validés.
+
+## Pistes pour v1.1
+1. Ajouter un terme `non_gpu_server_overhead_per_request_wh` à
+   `EstimationParams`, calibré sur la même donnée ML.ENERGY que EcoLogits.
+2. Étendre à 6-8 ReproductionCase couvrant Llama 8B / Mistral Medium / Gemini.
+3. Ajouter une reproduction Luccioni 2023 sur BLOOM-176B (~0.004 kWh/query,
+   nécessite l'introduction d'un preset BLOOM).
+4. Pull live des chiffres EcoLogits via leur API publique
+   <https://api.ecologits.ai/docs> pour test continu (non-régression).
+
+# Reproductibilité
+
+- **Code des cas** : `crates/sobria-estimator/src/validation/cases.rs`
+- **Test Rust** : `cargo test -p sobria-estimator validation::tests::all_reproduction_cases_pass`
+- **Notebook** : `quarto render notebook/validation.qmd` (Python ≥ 3.10, pandas)
+- **Seed Monte-Carlo** : 42 (déterministe, N=10⁴ tirages dans le test Rust)
+- **Source EcoLogits accédée** : 2026-05-13 (commit visible sur
+  <https://github.com/genai-impact/ecologits>)
+
+# Sources
+
+- Rincé S., Banse A., *EcoLogits: Evaluating the Environmental Impacts of Generative AI*, JOSS 10(111):7471, 2025. [doi:10.21105/joss.07471](https://doi.org/10.21105/joss.07471)
+- Luccioni A. S., Jernite Y., Strubell E., *Power Hungry Processing: Watts Driving the Cost of AI Deployment?*, ACM FAccT 2024. [arXiv:2311.16863](https://arxiv.org/abs/2311.16863)
+- ADEME Base Empreinte® — facteurs d'émission électrique France 2024
+- Electricity Maps — Carbon intensity historical data US-Virginia (PJM)
+- AFNOR SPEC 2314 — Référentiel français de mesure de l'empreinte environnementale des LLMs

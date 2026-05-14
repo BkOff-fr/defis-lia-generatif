@@ -1,9 +1,26 @@
 <script lang="ts">
-  import { Leaf, Droplet, Hexagon } from '@lucide/svelte';
-  import type { DistributionBins, EstimationResultDto, IndicatorDto } from '$lib/api';
+  import { Leaf, Droplet, Hexagon, Layers, Settings2 } from '@lucide/svelte';
+  import type {
+    DistributionBins,
+    EmpreinteMethod,
+    EstimationResultDto,
+    IndicatorDto
+  } from '$lib/api';
 
   type Props = { result: EstimationResultDto };
   const { result }: Props = $props();
+
+  // ─── C24 — Badge méthodologie ──────────────────────────────────────────
+  // Le résultat porte la méthodo utilisée (AFNOR ou EcoLogits). On affiche
+  // un badge cliquable près du résultat pour que l'utilisateur sache
+  // toujours quelle méthodologie a produit ce chiffre.
+  const METHOD_LABELS: Record<EmpreinteMethod, string> = {
+    afnor_sobria: 'AFNOR SPEC 2314 (Sobr.ia)',
+    ecologits: 'EcoLogits 2026-01'
+  };
+  function methodLabel(m: EmpreinteMethod): string {
+    return METHOD_LABELS[m] ?? m;
+  }
 
   // Format FR : virgule décimale, **N chiffres significatifs** plutôt que
   // N décimales fixes. Indispensable parce que les indicateurs Sobr.ia
@@ -189,6 +206,18 @@
 </script>
 
 <section class="result-block" aria-label="Résultat de l'estimation">
+  <!-- C24 — Badge méthodologie utilisée pour produire ce résultat -->
+  <a
+    class="method-badge"
+    href="/methodologies"
+    title="Méthodologie utilisée pour ce calcul. Clique pour changer ta méthodologie par défaut."
+    data-method={result.method}
+  >
+    <Layers size={11} strokeWidth={2} />
+    <span class="method-badge-label">{methodLabel(result.method)}</span>
+    <Settings2 size={10} strokeWidth={1.8} aria-hidden="true" />
+  </a>
+
   <article class="hero-metric">
     <h2 class="hm-label">
       <Leaf size={14} strokeWidth={1.8} />
@@ -364,6 +393,44 @@
     grid-template-columns: 1.4fr 1fr;
     gap: 24px;
     align-items: stretch;
+    position: relative;
+  }
+
+  /* C24 — Badge méthodologie au-dessus du résultat */
+  .method-badge {
+    position: absolute;
+    top: -14px;
+    left: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px 4px 10px;
+    background: var(--surface-hi);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-pill);
+    font: 500 11px/1 var(--font-ui);
+    color: var(--ivory-2);
+    text-decoration: none;
+    z-index: 2;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .method-badge:hover {
+    border-color: var(--lime);
+    color: var(--ivory);
+    transform: translateY(-1px);
+  }
+  .method-badge[data-method='afnor_sobria'] {
+    background: linear-gradient(135deg, rgba(197, 240, 74, 0.12), rgba(197, 240, 74, 0.04));
+    border-color: rgba(197, 240, 74, 0.3);
+    color: var(--lime);
+  }
+  .method-badge[data-method='ecologits'] {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.12), rgba(96, 165, 250, 0.04));
+    border-color: rgba(96, 165, 250, 0.3);
+    color: rgb(147, 197, 253);
+  }
+  .method-badge-label {
+    font-weight: 500;
   }
 
   .hero-metric {

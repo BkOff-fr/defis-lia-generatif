@@ -32,8 +32,14 @@ pub struct AuditLedger {
 
 impl AuditLedger {
     /// Ouvre (ou crée) un ledger sur disque en mode WAL.
+    ///
+    /// Schéma versionné (idempotent) :
+    /// - v1 : `id, timestamp, estimation_result_json, prev_sig, sig, purged_at`
+    /// - v2 (C24, 2026-05) : ajout colonne `method TEXT NOT NULL DEFAULT 'afnor_sobria'`.
     pub fn open(path: &Path) -> AuditResult<Self> {
         let conn = Connection::open(path)?;
+        // Étape 1 : PRAGMA + CREATE TABLE (idempotent — la table peut déjà
+        // exister en schéma v1, sans colonne `method`).
         conn.execute_batch(
             r"
             PRAGMA journal_mode = WAL;
@@ -43,13 +49,43 @@ impl AuditLedger {
                 estimation_result_json TEXT NOT NULL,
                 prev_sig TEXT NOT NULL,
                 sig TEXT NOT NULL,
-                purged_at TEXT
+                purged_at TEXT,
+                method TEXT NOT NULL DEFAULT 'afnor_sobria'
             );
             CREATE INDEX IF NOT EXISTS idx_audit_timestamp
                 ON audit_entries(timestamp);
             ",
         )?;
+        // Étape 2 : migration v1 → v2 (ajoute la colonne `method` si absente,
+        // pour un ledger préexistant). Doit être exécutée AVANT la création
+        // de l'index sur `method`, sinon SQLite échoue.
+        Self::migrate_add_method_column_if_missing(&conn)?;
+        // Étape 3 : index sur `method` (la colonne existe à coup sûr ici).
+        conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_audit_method
+                ON audit_entries(method);",
+        )?;
         Ok(Self { conn })
+    }
+
+    /// Migration v1 → v2 : ajoute la colonne `method` aux ledgers
+    /// préexistants. Les entrées historiques héritent de la valeur par
+    /// défaut `'afnor_sobria'` (seul moteur disponible avant C24).
+    fn migrate_add_method_column_if_missing(conn: &Connection) -> AuditResult<()> {
+        let mut stmt = conn.prepare("PRAGMA table_info(audit_entries)")?;
+        let has_method = stmt
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(Result::ok)
+            .any(|col_name| col_name == "method");
+        if !has_method {
+            conn.execute(
+                "ALTER TABLE audit_entries ADD COLUMN method TEXT NOT NULL \
+                 DEFAULT 'afnor_sobria'",
+                [],
+            )?;
+            info!("audit: migration v1 → v2 (ajout colonne `method` au ledger)");
+        }
+        Ok(())
     }
 
     /// Ajoute une nouvelle entrée chaînée à la signature de la précédente.
@@ -73,13 +109,14 @@ impl AuditLedger {
         let tx = self.conn.transaction()?;
         tx.execute(
             "INSERT INTO audit_entries \
-             (timestamp, estimation_result_json, prev_sig, sig, purged_at) \
-             VALUES (?1, ?2, ?3, ?4, NULL)",
+             (timestamp, estimation_result_json, prev_sig, sig, purged_at, method) \
+             VALUES (?1, ?2, ?3, ?4, NULL, ?5)",
             params![
                 tentative.timestamp.to_rfc3339(),
                 tentative.estimation_result_json,
                 tentative.prev_sig,
                 tentative.sig,
+                result.method.as_str(),
             ],
         )?;
         let id = tx.last_insert_rowid();
@@ -240,11 +277,13 @@ mod tests {
     use super::*;
     use chrono::Duration;
     use sobria_core::{
-        EstimationRequest, Hypothesis, Indicator, IndicatorValue, UncertaintyInterval,
+        EmpreinteMethod, EstimationRequest, Hypothesis, Indicator, IndicatorValue,
+        UncertaintyInterval,
     };
 
     fn sample_result() -> EstimationResult {
         EstimationResult {
+            method: EmpreinteMethod::AfnorSobria,
             request: EstimationRequest {
                 model_id: "gpt-4o-mini".into(),
                 tokens_in: 100,

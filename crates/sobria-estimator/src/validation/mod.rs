@@ -14,6 +14,8 @@ use sobria_core::{EstimationRequest, Indicator};
 use crate::{
     distributions::Distribution,
     engine::MonteCarloEngine,
+    engine_trait::EmpreinteMethod,
+    engines::ecologits::EcoLogitsEngine,
     error::EstimatorResult,
     params::EstimationParams,
 };
@@ -46,6 +48,9 @@ pub struct PlausibilityCase {
 pub struct ReproductionCase {
     /// Identifiant stable.
     pub id: &'static str,
+    /// Méthodologie ciblée. Le test invoque le moteur correspondant via
+    /// la factory [`crate::engines::factory::engine_for`].
+    pub method: EmpreinteMethod,
     /// DOI ou URL de la source.
     pub source_doi_or_url: &'static str,
     /// Modèle visé.
@@ -54,14 +59,18 @@ pub struct ReproductionCase {
     pub tokens_in: u32,
     /// Tokens de sortie.
     pub tokens_out: u32,
-    /// Facteur d'émission électrique utilisé dans le paper.
+    /// Facteur d'émission électrique utilisé dans la référence.
     pub if_electrical_g_per_kwh: f64,
-    /// PUE utilisé dans le paper.
+    /// PUE utilisé dans la référence.
     pub pue: f64,
-    /// P50 cible publié (gCO₂eq).
+    /// P50 cible (gCO₂eq).
     pub expected_p50_g_co2eq: f64,
     /// Tolérance relative (ex: 0.15 pour ±15 %).
     pub tolerance: f64,
+    /// Si `true`, désactive la composante embodied dans notre estimateur
+    /// (Point 0). Utile pour comparaisons usage-only entre méthodologies
+    /// qui allouent l'embodied différemment.
+    pub disable_embodied: bool,
     /// Notes méthodologiques.
     pub notes: &'static str,
 }
@@ -160,15 +169,31 @@ pub fn run_plausibility(case: &PlausibilityCase) -> EstimatorResult<ValidationRe
 }
 
 /// Exécute un cas de reproduction stricte.
+///
+/// Le moteur utilisé est déterminé par `case.method` :
+/// - `EmpreinteMethod::AfnorSobria` → [`MonteCarloEngine`] (10⁴ tirages)
+/// - `EmpreinteMethod::EcoLogits`   → [`EcoLogitsEngine`] (déterministe)
 pub fn run_reproduction(case: &ReproductionCase) -> EstimatorResult<ValidationReport> {
-    let params = EstimationParams::for_model(case.model_id)?
+    let mut params = EstimationParams::for_model(case.model_id)?
         .with_if_electrical(Distribution::Point { value: case.if_electrical_g_per_kwh })
         .with_pue(Distribution::Point { value: case.pue });
-    let engine = MonteCarloEngine::new(42).with_n(10_000);
-    let result = engine.estimate(
-        &request_for(case.model_id, case.tokens_in, case.tokens_out),
-        &params,
-    )?;
+    if case.disable_embodied {
+        // Comparaison usage-only : on neutralise notre amortissement
+        // embodied pour rester homogène avec la valeur cible (qui n'inclut
+        // pas l'embodied ou l'inclut via une formule différente).
+        params = params.with_embodied(Distribution::Point { value: 0.0 });
+    }
+    let request = request_for(case.model_id, case.tokens_in, case.tokens_out);
+    let result = match case.method {
+        EmpreinteMethod::AfnorSobria => {
+            let engine = MonteCarloEngine::new(42).with_n(10_000);
+            engine.estimate(&request, &params)?
+        },
+        EmpreinteMethod::EcoLogits => {
+            let engine = EcoLogitsEngine::new(42);
+            engine.estimate(&request, &params)?
+        },
+    };
     let co2eq = result
         .indicators
         .iter()
@@ -249,15 +274,38 @@ mod tests {
     }
 
     #[test]
-    fn no_reproduction_cases_yet_in_v1() {
-        // Volontairement : les cas de reproduction stricts sont ajoutés
-        // après lecture biblio S0. Ce test alerte si on a oublié de remettre
-        // le compteur à zéro en attendant les vraies données.
+    fn at_least_three_reproduction_cases_registered() {
         assert!(
-            cases::REPRODUCTION_CASES.is_empty(),
-            "{} cas de reproduction présents — attendre la calibration S0 ou \
-             ajuster ce test pour refléter l'avancement",
+            cases::REPRODUCTION_CASES.len() >= 3,
+            "attendu ≥ 3 cas de reproduction, reçu {}",
             cases::REPRODUCTION_CASES.len()
         );
+    }
+
+    /// Vérifie que chaque [`ReproductionCase`] passe sa tolérance contre
+    /// le moteur ciblé par `case.method`.
+    ///
+    /// Pour les cas `EcoLogits` : le port Rust doit reproduire les
+    /// formules officielles à <1 % (port direct → l'écart attendu est
+    /// purement numérique float64).
+    #[test]
+    fn all_reproduction_cases_pass() {
+        for case in cases::REPRODUCTION_CASES {
+            let report = run_reproduction(case)
+                .unwrap_or_else(|e| panic!("erreur de validation pour {} : {e}", case.id));
+            assert!(report.passed, "{}", report.message);
+        }
+    }
+
+    #[test]
+    fn all_reproduction_cases_cite_a_doi_or_url() {
+        for case in cases::REPRODUCTION_CASES {
+            let s = case.source_doi_or_url;
+            assert!(
+                s.starts_with("https://") || s.starts_with("doi:") || s.starts_with("10."),
+                "cas {} : source non citée correctement ({s:?})",
+                case.id
+            );
+        }
     }
 }

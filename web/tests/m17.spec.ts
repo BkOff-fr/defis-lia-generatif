@@ -16,7 +16,7 @@ import { expect, test } from '@playwright/test';
  * Garanties :
  *   1. Title + hero h1 + sub visibles.
  *   2. Bannière `tauri_unavailable` mentionne `cargo run -p sobria-app`.
- *   3. Liste des projets vide → empty state avec mention « Gebru ».
+ *   3. Liste des projets vide → empty state pointe vers `cargo run -p sobria-app`.
  *   4. Bouton « Nouveau projet » disabled.
  *   5. Aucune card de projet rendue.
  *   6. Panel droit affiche le placeholder (pas de datasheet rendu).
@@ -31,9 +31,7 @@ test('Empreinte projet : refuse de servir des projets ou un datasheet mocké hor
   await expect(page).toHaveTitle(/Empreinte projet/);
 
   // Hero h1 (italic "publie")
-  await expect(
-    page.getByRole('heading', { name: /Documente.*publie.*reproduis/i })
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Documente.*publie.*reproduis/i })).toBeVisible();
 
   // Bannière tauri_unavailable
   const banner = page.getByRole('alert');
@@ -46,9 +44,15 @@ test('Empreinte projet : refuse de servir des projets ou un datasheet mocké hor
   await expect(newBtn).toBeVisible();
   await expect(newBtn).toBeDisabled();
 
-  // Empty state explicite avec mention Gebru.
+  // Empty state explicite : message hors-Tauri (le message Gebru est l'eyebrow
+  // hero ci-dessus). Hors Tauri, l'empty-state pointe vers `cargo run`.
   await expect(page.locator('.empty-state')).toBeVisible();
-  await expect(page.locator('.empty-state')).toContainText(/Gebru/);
+  await expect(page.locator('.empty-state')).toContainText(/Aucun projet/);
+  await expect(page.locator('.empty-state')).toContainText(/cargo run -p sobria-app/);
+
+  // Gebru est référencé dans l'eyebrow du hero (méthodo visible quel que
+  // soit le contexte) — c'est le signal "format académique" promis dans le brief.
+  await expect(page.locator('.hero-eyebrow')).toContainText(/Gebru/);
 
   // Aucune card projet rendue (rien dans la liste).
   await expect(page.locator('.project-card')).toHaveCount(0);

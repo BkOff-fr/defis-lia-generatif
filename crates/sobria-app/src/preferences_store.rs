@@ -20,7 +20,7 @@ use std::path::Path;
 
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
-use sobria_core::{ModuleId, Persona};
+use sobria_core::{EmpreinteMethod, ModuleId, Persona};
 use tracing::info;
 
 use crate::error::AppError;
@@ -33,6 +33,10 @@ pub const KEY_ENABLED_MODULES: &str = "enabled_modules";
 pub const KEY_ONBOARDED: &str = "onboarded";
 /// Clé qui stocke la langue courante (`"fr"` / `"en"`).
 pub const KEY_LANG: &str = "lang";
+/// Clé qui stocke la méthodologie par défaut de l'utilisateur (C24).
+pub const KEY_DEFAULT_METHOD: &str = "default_method";
+/// Clé qui stocke la liste JSON des méthodologies affichées en référence (C24).
+pub const KEY_ALSO_SHOW_METHODS: &str = "also_show_methods";
 
 /// Représentation interne des préférences avant traversée IPC.
 ///
@@ -41,10 +45,22 @@ pub const KEY_LANG: &str = "lang";
 /// alors les valeurs par défaut.
 #[derive(Debug, Clone, Default)]
 pub struct StoredPreferences {
+    /// Persona sélectionné lors de l'onboarding.
     pub persona: Option<Persona>,
+    /// Modules activés (chevauche / dépasse le bundle persona).
     pub enabled_modules: Option<Vec<ModuleId>>,
+    /// Vrai si l'utilisateur a complété l'onboarding.
     pub onboarded: Option<bool>,
+    /// Langue courante (`"fr"` ou `"en"`).
     pub lang: Option<String>,
+    /// Méthodologie utilisée par défaut pour les calculs (C24).
+    /// `None` → fallback `EmpreinteMethod::default_method()`
+    /// (= `AfnorSobria`, le référentiel français).
+    pub default_method: Option<EmpreinteMethod>,
+    /// Méthodologies additionnelles affichées en panneau "Voir aussi"
+    /// à côté du résultat principal (C24). `None` → liste vide (aucune
+    /// référence comparée par défaut, l'utilisateur active manuellement).
+    pub also_show_methods: Option<Vec<EmpreinteMethod>>,
 }
 
 /// Magasin de préférences adossé à SQLite (`referentiel.sqlite`).
@@ -87,11 +103,23 @@ impl PreferencesStore {
             .read_raw(KEY_ONBOARDED)?
             .map(|v| matches!(v.as_str(), "true"));
         let lang = self.read_raw(KEY_LANG)?;
+        let default_method = self
+            .read_raw(KEY_DEFAULT_METHOD)?
+            .map(|v| serde_json::from_str::<EmpreinteMethod>(&v))
+            .transpose()
+            .map_err(AppError::from)?;
+        let also_show_methods = self
+            .read_raw(KEY_ALSO_SHOW_METHODS)?
+            .map(|v| serde_json::from_str::<Vec<EmpreinteMethod>>(&v))
+            .transpose()
+            .map_err(AppError::from)?;
         Ok(StoredPreferences {
             persona,
             enabled_modules,
             onboarded,
             lang,
+            default_method,
+            also_show_methods,
         })
     }
 
@@ -124,6 +152,18 @@ impl PreferencesStore {
         // lang
         if let Some(lang) = &prefs.lang {
             upsert(&tx, KEY_LANG, lang, &now)?;
+        }
+
+        // default_method (C24)
+        if let Some(method) = &prefs.default_method {
+            let v = serde_json::to_string(method)?;
+            upsert(&tx, KEY_DEFAULT_METHOD, &v, &now)?;
+        }
+
+        // also_show_methods (C24)
+        if let Some(methods) = &prefs.also_show_methods {
+            let v = serde_json::to_string(methods)?;
+            upsert(&tx, KEY_ALSO_SHOW_METHODS, &v, &now)?;
         }
 
         tx.commit()?;
@@ -176,6 +216,8 @@ mod tests {
         assert!(prefs.enabled_modules.is_none());
         assert!(prefs.onboarded.is_none());
         assert!(prefs.lang.is_none());
+        assert!(prefs.default_method.is_none());
+        assert!(prefs.also_show_methods.is_none());
     }
 
     #[test]
@@ -186,6 +228,8 @@ mod tests {
             enabled_modules: Some(vec![ModuleId::M1, ModuleId::M22]),
             onboarded: Some(true),
             lang: Some("fr".into()),
+            default_method: Some(EmpreinteMethod::EcoLogits),
+            also_show_methods: Some(vec![EmpreinteMethod::AfnorSobria]),
         };
         store.write_all(&written).unwrap();
         let read = store.read_all().unwrap();
@@ -193,6 +237,8 @@ mod tests {
         assert_eq!(read.enabled_modules, Some(vec![ModuleId::M1, ModuleId::M22]));
         assert_eq!(read.onboarded, Some(true));
         assert_eq!(read.lang.as_deref(), Some("fr"));
+        assert_eq!(read.default_method, Some(EmpreinteMethod::EcoLogits));
+        assert_eq!(read.also_show_methods, Some(vec![EmpreinteMethod::AfnorSobria]));
     }
 
     #[test]
@@ -204,6 +250,7 @@ mod tests {
                 enabled_modules: Some(vec![ModuleId::M1]),
                 onboarded: Some(false),
                 lang: Some("fr".into()),
+                ..StoredPreferences::default()
             })
             .unwrap();
         store
@@ -212,6 +259,7 @@ mod tests {
                 enabled_modules: Some(vec![ModuleId::M1, ModuleId::M17]),
                 onboarded: Some(true),
                 lang: Some("en".into()),
+                ..StoredPreferences::default()
             })
             .unwrap();
         let read = store.read_all().unwrap();
@@ -227,19 +275,12 @@ mod tests {
         store
             .write_all(&StoredPreferences {
                 persona: Some(Persona::Enterprise),
-                enabled_modules: None,
-                onboarded: None,
-                lang: None,
+                ..StoredPreferences::default()
             })
             .unwrap();
         assert!(store.read_all().unwrap().persona.is_some());
         store
-            .write_all(&StoredPreferences {
-                persona: None,
-                enabled_modules: None,
-                onboarded: None,
-                lang: None,
-            })
+            .write_all(&StoredPreferences::default())
             .unwrap();
         assert!(store.read_all().unwrap().persona.is_none());
     }
@@ -255,6 +296,8 @@ mod tests {
                 enabled_modules: Some(vec![ModuleId::M1, ModuleId::M3]),
                 onboarded: Some(true),
                 lang: Some("fr".into()),
+                default_method: Some(EmpreinteMethod::EcoLogits),
+                ..StoredPreferences::default()
             })
             .unwrap();
         }
@@ -262,5 +305,6 @@ mod tests {
         let p = s2.read_all().unwrap();
         assert_eq!(p.persona, Some(Persona::ProTech));
         assert_eq!(p.onboarded, Some(true));
+        assert_eq!(p.default_method, Some(EmpreinteMethod::EcoLogits));
     }
 }

@@ -19,22 +19,32 @@ auditable** (AFNOR SPEC 2314, Monte-Carlo, audit ledger SHA-256) et un
 
 | 🎯 | Détail |
 |---|---|
-| **Audit chaîné SHA-256** | Chaque estimation est journalisée dans un ledger ACID SQLite avec chaînage cryptographique. Anti-tampering vérifiable. **Aucun concurrent ne propose ça.** |
+| **Catalogue souverain de méthodologies** | Sobr.ia v1.0 embarque **2 méthodologies scientifiques** d'estimation d'empreinte LLM (AFNOR SPEC 2314 française + EcoLogits 2026-01 peer-reviewed). L'utilisateur choisit la sienne par défaut, active les autres en référence pour comparer les résultats côté Atelier. **Aucun concurrent ne fait ça** : EcoLogits / BoaVizta / AI Energy Score sont mono-méthodologie. Cf. [ADR-0012](docs/adr/ADR-0012-multi-methodology-engine.md). |
+| **Audit chaîné SHA-256 avec méthodologie tracée** | Chaque estimation est journalisée dans un ledger ACID SQLite avec chaînage cryptographique + **méthodologie utilisée** (colonne `method`). Anti-tampering vérifiable, reproductible à la nanoseconde, filtrable par méthodologie pour reporting CSRD historique. |
 | **Territoire FR (M20)** | Cartographie des sites industriels par IRIS (RTE/NaTran/Teréga) croisée avec ComparIA. Sankey énergétique national. Différenciateur unique du défi data.gouv. |
 | **Datasheet Gebru** | Génération automatique du format académique standard (Gebru et al. 2018) pour reproductibilité scientifique. Adopté par NeurIPS, ICML, FAccT. |
 | **Rapport CSRD/AGEC** | Export PDF officiel + JSON-LD PROV-O signé SHA-256, prêt pour reporting réglementaire UE. |
 | **Privacy by design** | Tout en local. Zéro télémétrie, zéro tracking, zéro appel réseau au runtime. RGPD : droit à l'oubli implémenté avec préservation de la chaîne d'audit. |
 | **Frugalité incarnée** | Binaire ≈ 15 MB optimisé (LTO, opt-level=z, strip). Méta-cohérent : l'outil de mesure consomme peu. |
 
-## Méthodologie
+## Méthodologies disponibles
 
-- **Référentiel** : [AFNOR SPEC 2314](https://norminfo.afnor.org/norme/AFNOR%20SPEC%202314/) — référentiel français de mesure de l'empreinte environnementale des LLMs.
-- **Estimation** : Monte-Carlo N=10⁴ tirages, seed déterministe (42), reproductible à la nanoseconde.
-- **Paramètres distributionnels** : log-normales sourcées sur HF AI Energy Score, RTE eco2mix, ADEME Base Empreinte, Mytton 2021.
+Sobr.ia propose **un catalogue de méthodologies** sélectionnables par l'utilisateur, exposé via la page `/methodologies`. Ajouter une méthodologie en v1.1+ = implémenter un trait + une entrée dans le registry (cf. [ADR-0012](docs/adr/ADR-0012-multi-methodology-engine.md)).
+
+| Méthodologie | Statut Sobr.ia | Référence | Licence |
+|---|---|---|---|
+| **AFNOR SPEC 2314 (Sobr.ia)** *(défaut)* | Méthode publique de référence FR, calibration en cours | [AFNOR SPEC 2314](https://norminfo.afnor.org/norme/AFNOR%20SPEC%202314/) | Spec publique ; code MIT |
+| **EcoLogits 2026-01** | Peer-reviewed · reproduit à ≤ 1 % | [doi:10.21105/joss.07471](https://doi.org/10.21105/joss.07471) | CC BY-SA 4.0 |
+| *BoaVizta · AI Energy Score · GreenAlgorithms* | Prévu v1.1+ | — | — |
+
+### Détails communs
+
+- **Estimation** : Monte-Carlo N=10⁴ tirages (AFNOR), formules déterministes (EcoLogits), seed déterministe (42), reproductible à la nanoseconde.
 - **Indicateurs** : CO₂eq (g), Énergie (Wh), Eau (L), avec intervalles P5/P50/P95.
-- **Validation croisée à ±15%** : Luccioni et al. 2023, EcoLogits 2024.
+- **Validation EcoLogits port** : 3 `ReproductionCase` cibles recalculées en Python depuis les formules officielles, écart ≤ 1 % vs port Rust. Cf. [`notebook/validation.qmd`](notebook/validation.qmd) (Quarto + Python) et `cargo test -p sobria-estimator validation`.
+- **Audit** : chaque estimation est tracée avec sa méthodologie dans le ledger SHA-256. Un rapport CSRD régénéré à partir d'entrées historiques utilise la méthodologie qui était active au moment du calcul (cohérence rétroactive garantie).
 
-Détails complets : [`docs/methodology/`](docs/methodology/) et [CDC v1.4](docs/CAHIER-DES-CHARGES-v1.0.md).
+Détails complets : [`docs/methodology/`](docs/methodology/), [ADR-0012](docs/adr/ADR-0012-multi-methodology-engine.md) et [CDC v1.4](docs/CAHIER-DES-CHARGES-v1.0.md).
 
 ## 13 modules essentiels (v1.0)
 
@@ -140,15 +150,16 @@ Datasets ODRÉ Etalab 2.0, traçabilité SHA-256 + URL source dans le JSON produ
 - **Pipeline ingest** unique : `cargo run -p sobria-ingest -- fetch ...` télécharge ODRÉ + RTE en local.
 - **IPC Tauri** : 30+ commandes typées DTO ↔ TypeScript.
 
-Cf. [`docs/adr/`](docs/adr/) pour les 11 décisions architecturales.
+Cf. [`docs/adr/`](docs/adr/) pour les 12 décisions architecturales (ADR-0012 = catalogue multi-méthodologie).
 
 ## Statut
 
-- **Backend Rust** : ✅ complet, 250+ tests, clippy `-D warnings` clean.
-- **Frontend SvelteKit** : ✅ 13 modules livrés, design system v2 (ink/lime/ivory).
-- **Données réelles** : ✅ fetch automatique ODRÉ + RTE via `sobria-ingest`. **Aucune valeur inventée.**
-- **Méthodologie validée** : ✅ croisement Luccioni / EcoLogits dans `notebook/validation.qmd`.
-- **Documentation** : ✅ 11 ADR + CDC v1.4 + 13 briefs chantiers.
+- **Backend Rust** : ✅ complet, 250+ tests, clippy `-D warnings` clean. **Trait `EmpreinteEngine`** + 2 engines (AFNOR Sobr.ia + EcoLogits port direct).
+- **Frontend SvelteKit** : ✅ 13 modules livrés, design system v2 (ink/lime/ivory). Nouvelle page `/methodologies` (catalogue) + panneau "Voir aussi" dans M1.
+- **Données réelles** : ✅ fetch automatique ODRÉ + RTE via `sobria-ingest` (200 sites industriels FR + mix élec 2023 validé à <2% du Bilan RTE). Profils horaires 24h des datacenters : forme typique modélisée en v1.0, **pull ENTSO-E live prévu v1.1** — documenté honnêtement.
+- **Validation méthodologique** : ✅ port direct EcoLogits 2026-01, écart ≤ 1 % vs formules officielles sur 3 cas (Llama 3.1 70B, Mistral Large 2). 6 cas de plausibilité sur l'engine AFNOR. Notebook Python reproductible (`notebook/validation.qmd`).
+- **Audit ledger v2** : ✅ migration v1 → v2 idempotente (colonne `method` ajoutée). Traçabilité méthodologique pour reporting CSRD historique.
+- **Documentation** : ✅ 12 ADR + CDC v1.4 + 14 briefs chantiers (dont C24 multi-méthodologie).
 
 ## Licences
 
@@ -180,4 +191,4 @@ Si vous utilisez Sobr.ia dans un travail académique :
 
 ---
 
-*Sobr.ia — Made in France · Privacy by design · v0.3.x*
+*Sobr.ia — Made in France · Privacy by design · v0.4.0 (C24 multi-méthodologie + polish A-H)*

@@ -16,7 +16,8 @@
     Target,
     FileText,
     Info,
-    FlaskConical
+    FlaskConical,
+    Layers
   } from '@lucide/svelte';
   import { get } from 'svelte/store';
   import { isTauriContext, SobriaIpcError } from '$lib/api';
@@ -27,7 +28,18 @@
   type Props = { children?: import('svelte').Snippet };
   let { children }: Props = $props();
 
-  type RailItem = { label: string; icon: typeof Zap; href: string; moduleId: ModuleId };
+  type RailItem = {
+    label: string;
+    icon: typeof Zap;
+    href: string;
+    moduleId: ModuleId;
+    /**
+     * Si `true`, l'entrée est toujours visible quel que soit le bundle
+     * persona (utilisé pour les pages de paramétrage global comme
+     * `/methodologies`). Défaut : `false` (gating standard).
+     */
+    alwaysVisible?: boolean;
+  };
 
   // Pathname réactif, autonome (évite `$app/stores` qui ne résout pas dans
   // le tsconfig SvelteKit généré — voir .svelte-kit/tsconfig.json).
@@ -124,11 +136,23 @@
   const itemsAudit: RailItem[] = [
     { label: "Journal d'audit", icon: ShieldCheck, href: '/journal', moduleId: 'm7' },
     { label: 'Référentiel modèles', icon: Library, href: '/m9', moduleId: 'm9' },
-    { label: 'Méthodologie', icon: BookOpen, href: '/methodo', moduleId: 'm8' },
+    // Polish B — désambiguïsation des routes méthodologie :
+    // `/methodo` = doc explicative de la méthodologie (cours, formules)
+    // `/methodologies` = catalogue de choix utilisateur (settings global)
+    { label: 'Comment ça marche', icon: BookOpen, href: '/methodo', moduleId: 'm8' },
+    {
+      label: 'Méthodologies (choix)',
+      icon: Layers,
+      href: '/methodologies',
+      moduleId: 'm14',
+      alwaysVisible: true
+    },
     { label: 'À propos', icon: Info, href: '/a-propos', moduleId: 'm14' }
   ];
 
   function visible(item: RailItem, prefs: typeof $preferences): boolean {
+    // Toujours visible (paramétrage global cf. C24).
+    if (item.alwaysVisible) return true;
     // Avant le premier load : on montre tout (mode coque / hors Tauri).
     if (!prefs.loaded) return true;
     return prefs.enabled_modules.includes(item.moduleId);

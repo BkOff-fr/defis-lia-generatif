@@ -36,6 +36,7 @@
 
 pub mod distributions;
 pub mod engine;
+pub mod engine_trait;
 pub mod equivalents;
 pub mod error;
 pub mod model_presets;
@@ -44,8 +45,15 @@ pub mod scenarios;
 pub mod validation;
 pub mod yearly_forecast;
 
+pub mod engines;
+
 pub use distributions::Distribution;
 pub use engine::{bin_samples, MonteCarloEngine, DEFAULT_BIN_COUNT, DEFAULT_N, MIN_SAMPLES_FOR_BINS};
+pub use engine_trait::{
+    info_for, EmpreinteEngine, EmpreinteMethod, MethodologyCalibration, MethodologyInfo,
+    AVAILABLE_METHODS,
+};
+pub use engines::{ecologits::EcoLogitsEngine, factory::engine_for};
 pub use error::{EstimatorError, EstimatorResult};
 pub use model_presets::{
     available_models, find_preset, CalibrationStatus, ModelPreset, Openness, MODEL_REGISTRY,

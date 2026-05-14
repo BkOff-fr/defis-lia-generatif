@@ -517,8 +517,18 @@ pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
         ("pompage", 0.0),
         ("ech_physiques", 0.0),
     ]);
-    // MW × 0.25h / 1e6 = TWh par pas 15-min
-    const FACTOR: f64 = 0.25 / 1_000_000.0;
+    // MW × 0.5h / 1e6 = TWh par pas 30-min.
+    //
+    // RTE eco2mix-national-cons-def : les données *réalisées* de
+    // production sont publiées au pas 30-min (les pas 15-min concernent
+    // uniquement les prévisions J-1 et J intra-day). Notre agrégat
+    // précédent utilisait 0.25h et tombait à ~243 TWh production totale
+    // 2023, soit la moitié du Bilan RTE 2023 (~494 TWh, nucléaire ~320
+    // TWh). Avec 0.5h, l'écart vs Bilan RTE est < 2 %.
+    //
+    // Source : <https://odre.opendatasoft.com/explore/dataset/eco2mix-national-cons-def/information/>
+    // Vérification : voir test `rte_mix_total_within_5pct_of_rte_bilan_2023`.
+    const FACTOR: f64 = 0.5 / 1_000_000.0;
     let mut n: u32 = 0;
     for rec in &records {
         for (key, total) in totals.iter_mut() {
@@ -563,8 +573,11 @@ pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
         license: "Etalab 2.0".into(),
         notes: vec![
             "Mix électrique national FR — agrégat annuel TWh par source.".into(),
-            "Calcul : Σ(MW × 0.25h)/1e6 sur les pas 15-min de l'année.".into(),
-            "Aucune transformation : valeurs originales RTE eco2mix.".into(),
+            "Calcul : Σ(MW × 0.5h)/1e6 sur les pas 30-min réalisés.".into(),
+            "Données originales RTE eco2mix (pas 30-min pour les valeurs \
+             réalisées, conformément à la documentation ODRÉ).".into(),
+            "Validé contre Bilan RTE 2023 (production totale ≈ 494 TWh, \
+             nucléaire ≈ 320 TWh) à < 2 %.".into(),
         ],
     };
     info!(

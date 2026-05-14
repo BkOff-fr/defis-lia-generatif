@@ -101,6 +101,28 @@ pub struct DashboardSummary {
     pub vs_previous: Option<DashboardComparison>,
     pub top_models: Vec<TopModel>,
     pub daily_series: Vec<DailySeriesPoint>,
+    /// Polish E (C24) — Breakdown par méthodologie.
+    ///
+    /// Liste les totaux pour CHAQUE méthodologie présente dans la
+    /// période. Sommer aveuglément deux méthodos est scientifiquement
+    /// faux (elles ne mesurent pas la même chose), donc on expose les
+    /// chiffres séparés à l'UI qui peut afficher un warning si > 1.
+    pub method_breakdown: Vec<MethodTotal>,
+    /// `true` si la période contient des entrées de plus d'une
+    /// méthodologie. Le frontend doit afficher un avertissement
+    /// méthodologique : « Cette période mélange deux méthodologies,
+    /// les totaux globaux sont indicatifs — utiliser le breakdown
+    /// pour un reporting CSRD cohérent. »
+    pub warning_multi_method: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MethodTotal {
+    pub method: sobria_core::EmpreinteMethod,
+    pub request_count: u32,
+    pub total_co2eq_g_p50: f64,
+    pub total_energy_wh_p50: f64,
+    pub total_water_l_p50: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,6 +235,25 @@ pub fn aggregate(
         None
     };
 
+    // Polish E — Breakdown par méthodologie. Ordre stable : AFNOR puis
+    // EcoLogits puis le reste, pour que l'UI ait un layout déterministe.
+    let mut method_breakdown: Vec<MethodTotal> = current
+        .by_method
+        .iter()
+        .map(|(method, b)| MethodTotal {
+            method: *method,
+            request_count: b.requests,
+            total_co2eq_g_p50: b.co2,
+            total_energy_wh_p50: b.energy,
+            total_water_l_p50: b.water,
+        })
+        .collect();
+    method_breakdown.sort_by_key(|m| match m.method {
+        sobria_core::EmpreinteMethod::AfnorSobria => 0,
+        sobria_core::EmpreinteMethod::EcoLogits => 1,
+    });
+    let warning_multi_method = method_breakdown.len() > 1;
+
     DashboardSummary {
         period_label: period.label().to_string(),
         period_start: start,
@@ -224,6 +265,8 @@ pub fn aggregate(
         vs_previous,
         top_models: top,
         daily_series: daily,
+        method_breakdown,
+        warning_multi_method,
     }
 }
 
@@ -246,6 +289,14 @@ struct ModelBucket {
 }
 
 #[derive(Debug, Default, Clone)]
+struct MethodBucket {
+    requests: u32,
+    co2: f64,
+    energy: f64,
+    water: f64,
+}
+
+#[derive(Debug, Default, Clone)]
 struct WindowAggregate {
     total_requests: u32,
     total_co2eq: f64,
@@ -253,6 +304,7 @@ struct WindowAggregate {
     total_water: f64,
     by_day: HashMap<String, DayBucket>,
     by_model: HashMap<String, ModelBucket>,
+    by_method: HashMap<sobria_core::EmpreinteMethod, MethodBucket>,
 }
 
 fn aggregate_window(
@@ -306,6 +358,13 @@ fn aggregate_window(
             .or_default();
         model.requests = model.requests.saturating_add(1);
         model.co2 += co2;
+
+        // Polish E — accumulation par méthodologie.
+        let method_bucket = agg.by_method.entry(result.method).or_default();
+        method_bucket.requests = method_bucket.requests.saturating_add(1);
+        method_bucket.co2 += co2;
+        method_bucket.energy += energy;
+        method_bucket.water += water;
     }
     agg
 }
@@ -350,11 +409,13 @@ mod tests {
     use super::*;
     use chrono::Timelike;
     use sobria_core::{
-        EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval, EstimationResult,
+        EmpreinteMethod, EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
+        EstimationResult,
     };
 
     fn entry_at(id: i64, ts: DateTime<Utc>, model: &str, co2: f64) -> AuditEntry {
         let result = EstimationResult {
+            method: EmpreinteMethod::AfnorSobria,
             request: EstimationRequest {
                 model_id: model.into(),
                 tokens_in: 100,

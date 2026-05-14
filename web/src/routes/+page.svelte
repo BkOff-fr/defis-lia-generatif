@@ -13,16 +13,21 @@
     Info,
     PlugZap,
     Scale,
-    Settings2
+    Settings2,
+    Layers
   } from '@lucide/svelte';
   import {
+    estimateForComparison,
     estimatePrompt,
     isTauriContext,
+    listMethodologies,
     listModels,
     SobriaIpcError,
+    type EmpreinteMethod,
     type EquivalentDto,
     type EstimationResultDto,
     type IpcErrorCode,
+    type MethodologyInfoDto,
     type ModelPresetDto
   } from '$lib/api';
   import { preferences, moduleLabel, type ModuleId } from '$lib/preferences';
@@ -102,6 +107,21 @@
   let bootstrapping = $state(true);
   let error = $state<{ code: IpcErrorCode; message: string } | null>(null);
 
+  // ─── C24 — Catalogue de méthodologies + résultats "Voir aussi" ─────
+  // Le catalogue est chargé une fois au bootstrap (lecture statique du
+  // registry compile-time). Les résultats "voir aussi" sont rafraîchis
+  // chaque fois que `result` change : un appel IPC supplémentaire est
+  // déclenché pour chaque méthodologie cochée dans
+  // `$preferences.also_show_methods`, avec `method` en surcharge.
+  let methodologies = $state<MethodologyInfoDto[]>([]);
+  type AlsoShowEntry = {
+    method: EmpreinteMethod;
+    state: 'loading' | 'ok' | 'error';
+    result?: EstimationResultDto;
+    errorMessage?: string;
+  };
+  let alsoShowResults = $state<AlsoShowEntry[]>([]);
+
   // Ancre pour le scroll smooth post-estimation (cf. submitEstimation).
   let resultAnchor: HTMLDivElement | undefined = $state();
 
@@ -120,7 +140,8 @@
         return;
       }
       try {
-        const list = await listModels();
+        const [list, methods] = await Promise.all([listModels(), listMethodologies()]);
+        methodologies = methods;
         models = list.sort((a, b) =>
           a.provider === b.provider
             ? a.display_name.localeCompare(b.display_name)
@@ -152,6 +173,9 @@
     if (!selectedModelId) return;
     loading = true;
     error = null;
+    // Reset des résultats "voir aussi" pour ne pas afficher d'orphelins
+    // de l'estimation précédente.
+    alsoShowResults = [];
     try {
       // Même heuristique que Composer (3,3 chars/token FR). Cf. note dans
       // Composer.svelte — tokenizer réel en v0.3 (chantier outillage).
@@ -170,6 +194,9 @@
         behavior: reduced ? 'auto' : 'smooth',
         block: 'start'
       });
+      // Lance en parallèle les estimations "voir aussi" pour les
+      // méthodologies cochées par l'utilisateur (cf. /methodologies).
+      void fetchAlsoShowResults(tokensIn, Math.max(1, tokensOut));
     } catch (err) {
       result = null;
       if (err instanceof SobriaIpcError) {
@@ -180,6 +207,63 @@
     } finally {
       loading = false;
     }
+  }
+
+  // C24 — Pour chaque méthodologie additionnelle activée par l'utilisateur,
+  // lance une estimation **éphémère** parallèle (sans écriture dans
+  // l'audit ledger via `estimate_for_comparison`). Ces calculs sont
+  // exploratoires : le ledger ne doit contenir que la décision
+  // principale (cf. polish A — hygiène du ledger).
+  // On affiche le statut individuel (loading / ok / error) pour ne pas
+  // bloquer l'UX si un moteur secondaire échoue.
+  async function fetchAlsoShowResults(tokensIn: number, tokensOutFinal: number) {
+    const wanted: EmpreinteMethod[] = ($preferences.also_show_methods ?? []).filter(
+      (m) => m !== $preferences.default_method
+    );
+    if (wanted.length === 0) {
+      alsoShowResults = [];
+      return;
+    }
+    alsoShowResults = wanted.map((method) => ({ method, state: 'loading' as const }));
+    await Promise.all(
+      wanted.map(async (method, idx) => {
+        try {
+          const r = await estimateForComparison(
+            {
+              model_id: selectedModelId,
+              tokens_in: tokensIn,
+              tokens_out_estimated: tokensOutFinal
+            },
+            method
+          );
+          alsoShowResults[idx] = { method, state: 'ok', result: r };
+        } catch (err) {
+          const msg = err instanceof SobriaIpcError ? err.message : 'Erreur inconnue';
+          alsoShowResults[idx] = { method, state: 'error', errorMessage: msg };
+        }
+      })
+    );
+    // Re-assignation pour forcer la réactivité du tableau muté en place.
+    alsoShowResults = [...alsoShowResults];
+  }
+
+  function methodInfo(m: EmpreinteMethod): MethodologyInfoDto | undefined {
+    return methodologies.find((x) => x.method === m);
+  }
+
+  // Indicateur CO₂eq (P50) pour comparaison rapide entre méthodos.
+  function co2P50(r: EstimationResultDto): number {
+    return r.indicators.find((i) => i.indicator === 'co2eq')?.p50 ?? NaN;
+  }
+
+  // Écart relatif % vs résultat principal (positif si la méthodo
+  // additionnelle estime plus haut, négatif si plus bas).
+  function deltaVsPrimaryPct(secondary: EstimationResultDto): number {
+    if (!result) return 0;
+    const a = co2P50(result);
+    const b = co2P50(secondary);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a === 0) return 0;
+    return ((b - a) / a) * 100;
   }
 
   // ─── Raccourci clavier Ctrl+Enter pour estimer ───────────────────────
@@ -357,6 +441,102 @@
       </section>
     {/if}
 
+    <!-- C24 — Panneau "Voir aussi" (méthodologies additionnelles activées
+         dans /methodologies). Visible uniquement si l'utilisateur a coché
+         au moins une méthodo en référence. -->
+    {#if alsoShowResults.length > 0}
+      <section class="also-show" aria-label="Comparaison avec d'autres méthodologies">
+        <header class="also-head">
+          <span class="also-ico" aria-hidden="true">
+            <Layers size={16} strokeWidth={1.7} />
+          </span>
+          <div>
+            <h2 class="also-title">Voir aussi (autres méthodologies)</h2>
+            <p class="also-sub">
+              Le même prompt, calculé en parallèle avec
+              <a class="link" href="/methodologies">d'autres méthodologies</a>
+              que tu as activées. Tous les calculs sont audités.
+            </p>
+          </div>
+        </header>
+        <div class="also-grid">
+          {#each alsoShowResults as entry (entry.method)}
+            {@const info = methodInfo(entry.method)}
+            <article class="also-card" data-state={entry.state}>
+              <div class="also-card-head">
+                <span class="also-card-name">{info?.display_name ?? entry.method}</span>
+                {#if entry.state === 'loading'}
+                  <span class="also-card-pill pill-loading">…en cours</span>
+                {:else if entry.state === 'error'}
+                  <span class="also-card-pill pill-error">erreur</span>
+                {:else if entry.result}
+                  {@const dpct = deltaVsPrimaryPct(entry.result)}
+                  <span
+                    class="also-card-pill"
+                    class:pill-up={dpct > 0.5}
+                    class:pill-down={dpct < -0.5}
+                    class:pill-flat={Math.abs(dpct) <= 0.5}
+                    title="Écart relatif vs méthodologie par défaut"
+                  >
+                    {dpct >= 0 ? '+' : ''}{fmt(dpct, 2)} %
+                  </span>
+                {/if}
+              </div>
+              {#if entry.state === 'ok' && entry.result}
+                <dl class="also-card-stats">
+                  <div class="stat">
+                    <dt>CO₂eq P50</dt>
+                    <dd>
+                      <strong>{fmt(co2P50(entry.result))}</strong>
+                      <span class="unit">
+                        {entry.result.indicators.find((i) => i.indicator === 'co2eq')?.unit ?? 'g'}
+                      </span>
+                    </dd>
+                  </div>
+                  <div class="stat">
+                    <dt>Énergie P50</dt>
+                    <dd>
+                      <strong>
+                        {fmt(
+                          entry.result.indicators.find((i) => i.indicator === 'energy')?.p50 ?? NaN
+                        )}
+                      </strong>
+                      <span class="unit">
+                        {entry.result.indicators.find((i) => i.indicator === 'energy')?.unit ??
+                          'Wh'}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
+                <span
+                  class="also-card-note"
+                  title="Estimation éphémère — non journalisée dans le ledger d'audit. L'estimation principale (méthodo par défaut) est seule journalisée pour préserver l'hygiène du ledger."
+                >
+                  estimation éphémère (non journalisée)
+                </span>
+              {:else if entry.state === 'error'}
+                <p class="also-card-error">{entry.errorMessage ?? 'Erreur inconnue.'}</p>
+              {:else}
+                <p class="also-card-loading">Calcul en cours…</p>
+              {/if}
+              {#if info}
+                <p class="also-card-ref">
+                  <a
+                    class="link"
+                    href={info.reference_url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {info.doi ? `doi:${info.doi}` : 'doc officielle'}
+                  </a>
+                </p>
+              {/if}
+            </article>
+          {/each}
+        </div>
+      </section>
+    {/if}
+
     <!-- Cross-screen CTA : prolonger vers le comparateur avec le même prompt -->
     <a
       class="cross-cta"
@@ -398,6 +578,164 @@
     max-width: 1240px;
     margin: 0 auto;
     padding: 40px 56px 80px;
+  }
+
+  /* ─── C24 — Panneau "Voir aussi" (méthodologies additionnelles) ─── */
+  .also-show {
+    margin-top: 4px;
+    padding: 18px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .also-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .also-ico {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-hi);
+    border: 1px solid var(--border);
+    color: var(--ivory-2);
+    flex-shrink: 0;
+  }
+  .also-title {
+    font: 500 14px/1.2 var(--font-ui);
+    color: var(--ivory);
+    margin: 0;
+  }
+  .also-sub {
+    font: 400 12.5px/1.55 var(--font-ui);
+    color: var(--ivory-3);
+    margin: 4px 0 0;
+  }
+  .also-sub .link {
+    color: var(--lime);
+    text-decoration: none;
+  }
+  .also-sub .link:hover {
+    text-decoration: underline;
+  }
+  .also-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .also-card {
+    padding: 12px 14px;
+    background: var(--surface-hi);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color var(--dur-base) var(--ease);
+  }
+  .also-card[data-state='loading'] {
+    opacity: 0.7;
+  }
+  .also-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+  .also-card-name {
+    font: 500 13px/1.2 var(--font-ui);
+    color: var(--ivory);
+  }
+  .also-card-pill {
+    font: 500 11px/1 var(--font-mono);
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    color: var(--ivory-3);
+    white-space: nowrap;
+  }
+  .pill-up {
+    background: rgba(234, 179, 8, 0.1);
+    border-color: rgba(234, 179, 8, 0.25);
+    color: rgb(250, 204, 21);
+  }
+  .pill-down {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.25);
+    color: rgb(74, 222, 128);
+  }
+  .pill-flat {
+    color: var(--ivory-3);
+  }
+  .pill-loading {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  .pill-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: rgb(248, 113, 113);
+  }
+  .also-card-stats {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+  }
+  .stat dt {
+    font: 500 10px/1 var(--font-ui);
+    color: var(--ivory-4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 2px;
+  }
+  .stat dd {
+    margin: 0;
+    font: 400 13px/1.2 var(--font-ui);
+    color: var(--ivory);
+  }
+  .stat strong {
+    font-weight: 500;
+  }
+  .stat .unit {
+    font: 400 11px/1 var(--font-mono);
+    color: var(--ivory-3);
+    margin-left: 2px;
+  }
+  .also-card-note {
+    font: 400 10.5px/1.3 var(--font-mono);
+    color: var(--ivory-4);
+    font-style: italic;
+    cursor: help;
+  }
+  .also-card-error {
+    font: 400 12px/1.4 var(--font-ui);
+    color: rgb(248, 113, 113);
+    margin: 0;
+  }
+  .also-card-loading {
+    font: 400 12px/1.4 var(--font-ui);
+    color: var(--ivory-3);
+    margin: 0;
+  }
+  .also-card-ref {
+    margin: 4px 0 0;
+    font: 400 11px/1 var(--font-mono);
+  }
+  .also-card-ref .link {
+    color: var(--ivory-4);
+    text-decoration: none;
+  }
+  .also-card-ref .link:hover {
+    color: var(--lime);
+    text-decoration: underline;
   }
 
   /* ─── Top bar ──────────────────────────────────────────────── */

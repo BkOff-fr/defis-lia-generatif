@@ -192,7 +192,7 @@
 
   // ── Méthodologie : phrase selon calibration ─────────────────────────────
   const METHOD_TEXT: Record<ModelDetailDto['calibration'], string> = {
-    validated: 'Calibré contre Luccioni 2023 et EcoLogits à ±15%.',
+    validated: 'Reproduction usage-only ±20-25% contre EcoLogits 2026-01.',
     indicative: 'Calibré par ordre de grandeur depuis HF AI Energy Score.',
     extrapolated: 'Extrapolé depuis un modèle ouvert comparable.'
   };

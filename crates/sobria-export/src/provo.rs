@@ -108,7 +108,31 @@ pub fn build_provo_jsonld(
                 "schema:version": opts.estimator_version,
                 "sobria:seed": opts.estimator_seed,
                 "sobria:monteCarloN": opts.estimator_n,
-                "sobria:methodology": "AFNOR SPEC 2314 — Monte-Carlo distributional"
+                // Polish F (C24) — Liste des méthodologies effectivement
+                // utilisées dans la période (auto-détectée depuis le ledger).
+                // Si > 1, la valeur est un tableau JSON-LD (qui se sérialise
+                // comme array dans le @graph).
+                "sobria:methodologiesUsed": summary
+                    .methods_used
+                    .iter()
+                    .map(|m| match m {
+                        sobria_core::EmpreinteMethod::AfnorSobria =>
+                            "AFNOR SPEC 2314 (Sobr.ia) — Monte-Carlo distributional",
+                        sobria_core::EmpreinteMethod::EcoLogits =>
+                            "EcoLogits 2026-01 — port direct, doi:10.21105/joss.07471",
+                    })
+                    .collect::<Vec<_>>(),
+                // Historique : champ legacy conservé pour rétrocompat (sera
+                // déprécié v1.1). Reflète la première méthodo trouvée.
+                "sobria:methodology": summary
+                    .methods_used
+                    .first()
+                    .map_or("AFNOR SPEC 2314 (Sobr.ia)", |m| match m {
+                        sobria_core::EmpreinteMethod::AfnorSobria =>
+                            "AFNOR SPEC 2314 (Sobr.ia)",
+                        sobria_core::EmpreinteMethod::EcoLogits =>
+                            "EcoLogits 2026-01",
+                    })
             },
             {
                 "@id": "sobria:agent-sobria-export",
@@ -137,6 +161,7 @@ mod tests {
             total_water_l_p50: 1.2,
             first_audit_id: 1,
             last_audit_id: 247,
+            methods_used: vec![sobria_core::EmpreinteMethod::AfnorSobria],
         }
     }
 

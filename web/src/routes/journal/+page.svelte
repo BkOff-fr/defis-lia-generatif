@@ -382,6 +382,7 @@
             <th class="th-id">#</th>
             <th class="th-date">Horodatage</th>
             <th class="th-model">Modèle</th>
+            <th class="th-method">Méthodo</th>
             <th class="th-num">CO₂eq P50</th>
             <th class="th-sig">Signature</th>
             <th class="th-state">État</th>
@@ -429,6 +430,11 @@
                 <td class="td-id">#{e.id}</td>
                 <td class="td-date">{fmtDate(e.timestamp)}</td>
                 <td class="td-model">{e.model_id}</td>
+                <td class="td-method">
+                  <span class="method-pill" data-method={e.method}>
+                    {e.method === 'afnor_sobria' ? 'AFNOR' : 'EcoLogits'}
+                  </span>
+                </td>
                 <td class="td-num">{fmtCo2(e.co2eq_p50)}</td>
                 <td class="td-sig">
                   <span class="sig-wrap">
@@ -878,6 +884,28 @@
   .td-model {
     font: 500 13px/1 var(--font-ui);
     color: var(--ivory);
+  }
+  /* Polish C2 — pill méthodologie */
+  .td-method {
+    white-space: nowrap;
+  }
+  .method-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    font: 500 10px/1.4 var(--font-mono);
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+  }
+  .method-pill[data-method='afnor_sobria'] {
+    background: rgba(197, 240, 74, 0.1);
+    border-color: rgba(197, 240, 74, 0.25);
+    color: var(--lime);
+  }
+  .method-pill[data-method='ecologits'] {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.25);
+    color: rgb(147, 197, 253);
   }
   .td-num {
     font: 500 13px/1 var(--font-mono);

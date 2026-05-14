@@ -71,11 +71,37 @@ export interface ModelDetailDto {
   baseline_water_l_p50: number;
 }
 
+/** Méthodologies d'empreinte LLM embarquées (C24). */
+export type EmpreinteMethod = 'afnor_sobria' | 'ecologits';
+
+export type MethodologyCalibration =
+  | 'peer_reviewed_reproduced'
+  | 'public_method_calibration_pending'
+  | 'indicative';
+
+export interface MethodologyInfoDto {
+  method: EmpreinteMethod;
+  display_name: string;
+  short_description: string;
+  reference_url: string;
+  doi: string | null;
+  license: string;
+  calibration: MethodologyCalibration;
+  year_published: number;
+  maintained_by: string;
+}
+
 export interface EstimationRequestDto {
   model_id: string;
   tokens_in: number;
   tokens_out_estimated: number;
   datacenter_id?: string;
+  /**
+   * Surcharge de la méthodologie pour ce calcul. `undefined` = utilise la
+   * préférence utilisateur (`AppPreferencesDto.default_method`), elle-même
+   * `afnor_sobria` au premier lancement.
+   */
+  method?: EmpreinteMethod;
 }
 
 // Histogramme équi-width de la distribution Monte-Carlo d'un indicateur.
@@ -124,12 +150,15 @@ export interface EstimationRequestEchoDto {
 }
 
 export interface EstimationResultDto {
+  /** Méthodologie utilisée pour produire ce résultat (C24). */
+  method: EmpreinteMethod;
   request: EstimationRequestEchoDto;
   indicators: IndicatorDto[];
   equivalents: EquivalentDto[];
   hypotheses: HypothesisDto[];
   computed_at: string;
   seed: number;
+  /** `0` = estimation éphémère (Voir aussi), pas dans le ledger. */
   audit_id: number;
 }
 
@@ -147,6 +176,8 @@ export interface AuditEntrySummaryDto {
   co2eq_p50: number;
   sig_short: string;
   purged: boolean;
+  /** Méthodologie qui a produit l'entrée (C24). */
+  method: EmpreinteMethod;
 }
 
 // ─── Simulation (C11 — M13 « Et si...? ») ────────────────────────────────
@@ -329,6 +360,15 @@ export interface DailySeriesPointDto {
   water_l_p50: number;
 }
 
+/** Total agrégé pour une méthodologie unique (Polish E, C24). */
+export interface MethodTotalDto {
+  method: EmpreinteMethod;
+  request_count: number;
+  total_co2eq_g_p50: number;
+  total_energy_wh_p50: number;
+  total_water_l_p50: number;
+}
+
 export interface DashboardSummaryDto {
   period_label: string;
   /** RFC 3339. */
@@ -343,6 +383,10 @@ export interface DashboardSummaryDto {
   vs_previous?: DashboardComparisonDto;
   top_models: TopModelDto[];
   daily_series: DailySeriesPointDto[];
+  /** Polish E (C24) — Breakdown par méthodologie présente dans la période. */
+  method_breakdown: MethodTotalDto[];
+  /** True si la période contient + d'une méthodologie (warning UI). */
+  warning_multi_method: boolean;
 }
 
 // ─── Eco-budget personnel (C19 — M25) ────────────────────────────────────
@@ -510,6 +554,22 @@ export function getModelDetail(id: string): Promise<ModelDetailDto> {
 
 export function estimatePrompt(req: EstimationRequestDto): Promise<EstimationResultDto> {
   return call<EstimationResultDto>('estimate_prompt', { req });
+}
+
+/**
+ * Lance une estimation **éphémère** (sans écriture dans l'audit ledger)
+ * pour le panneau "Voir aussi" (C24). La méthodologie est obligatoire
+ * (pas de fallback sur la préférence user — c'est explicitement une
+ * comparaison).
+ *
+ * Le `audit_id` du résultat retourné est `0` (sentinel "non journalisé").
+ * Le frontend ne doit donc pas afficher de lien vers le journal.
+ */
+export function estimateForComparison(
+  req: EstimationRequestDto,
+  method: EmpreinteMethod
+): Promise<EstimationResultDto> {
+  return call<EstimationResultDto>('estimate_for_comparison', { req, method });
 }
 
 export function verifyAudit(): Promise<IntegrityReportDto> {
@@ -728,6 +788,10 @@ export interface AppPreferencesDto {
   enabled_modules: ModuleId[];
   onboarded: boolean;
   lang: 'fr' | 'en';
+  /** Méthodologie utilisée par défaut pour les calculs (C24). */
+  default_method: EmpreinteMethod;
+  /** Méthodologies additionnelles affichées en référence ("Voir aussi"). */
+  also_show_methods: EmpreinteMethod[];
 }
 
 export function getAppPreferences(): Promise<AppPreferencesDto> {
@@ -736,4 +800,10 @@ export function getAppPreferences(): Promise<AppPreferencesDto> {
 
 export async function setAppPreferences(prefs: AppPreferencesDto): Promise<void> {
   await call<null>('set_app_preferences', { prefs });
+}
+
+// ─── Catalogue méthodologies (C24) ───────────────────────────────────────
+
+export function listMethodologies(): Promise<MethodologyInfoDto[]> {
+  return call<MethodologyInfoDto[]>('list_methodologies');
 }

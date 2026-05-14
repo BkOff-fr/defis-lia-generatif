@@ -43,6 +43,25 @@ use crate::{
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Métadonnées runtime.
+/// Polish G (C24) — Helper interne : résout la méthodologie effective
+/// pour les estimations « ambient » (fiches statiques M9/M12, simulateur
+/// M13, forecaster M16) qui n'ont pas de `method` explicite dans la
+/// requête frontend.
+///
+/// Lit `prefs.default_method` avec fallback `EmpreinteMethod::default_method()`
+/// si erreur disque ou store vide. Lecture best-effort — ne propage pas
+/// l'erreur, car ces écrans doivent rester utilisables même si le store
+/// de préférences est cassé.
+fn user_default_method(state: &AppState) -> sobria_core::EmpreinteMethod {
+    state
+        .preferences
+        .lock()
+        .ok()
+        .and_then(|store| store.read_all().ok())
+        .and_then(|p| p.default_method)
+        .unwrap_or_else(sobria_core::EmpreinteMethod::default_method)
+}
+
 pub fn meta_info(state: &AppState) -> IpcResult<MetaInfo> {
     Ok(MetaInfo {
         app_version: APP_VERSION.into(),
@@ -56,6 +75,18 @@ pub fn meta_info(state: &AppState) -> IpcResult<MetaInfo> {
 /// Liste les presets de modèles disponibles (≥ 8 — voir C06).
 pub fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
     Ok(available_models().into_iter().map(Into::into).collect())
+}
+
+/// Liste les méthodologies d'empreinte LLM embarquées dans Sobr.ia (C24).
+///
+/// Cette commande IPC alimente la page `/methodologies` (catalogue) et
+/// les sélecteurs Settings → "Méthodologie par défaut" / "Voir aussi".
+/// Pas d'effet de bord — lecture seule du registry compile-time.
+pub fn list_methodologies() -> IpcResult<Vec<crate::dto::MethodologyInfoDto>> {
+    Ok(sobria_estimator::AVAILABLE_METHODS
+        .iter()
+        .map(crate::dto::MethodologyInfoDto::from)
+        .collect())
 }
 
 /// Détaille un modèle (M9 / C18) avec ses params distributionnels et un
@@ -79,6 +110,9 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
     };
 
     // Baseline pour contexte (sans journalisation).
+    // Polish G — Honore la méthodologie par défaut de l'utilisateur,
+    // sinon la fiche modèle affiche un baseline AFNOR alors que l'user
+    // calcule en EcoLogits (mensonge visuel).
     let params = EstimationParams::for_model(model_id).map_err(AppError::from)?;
     let req = sobria_core::EstimationRequest {
         model_id: model_id.to_string(),
@@ -87,7 +121,8 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         datacenter_id: None,
         timestamp: Utc::now(),
     };
-    let result = state.estimator.estimate(&req, &params).map_err(AppError::from)?;
+    let engine = sobria_estimator::engine_for(user_default_method(state));
+    let result = engine.estimate(&req, &params).map_err(AppError::from)?;
     let co2 = result
         .indicators
         .iter()
@@ -161,11 +196,24 @@ pub fn estimate_prompt(
     }
 
     let model_id = req.model_id.clone();
+    let method_override = req.method;
     let core_req = req.into_core(Utc::now());
     let params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
 
-    let result = state
-        .estimator
+    // Choix de la méthodologie : surcharge explicite > préférence user > défaut.
+    let method = method_override.unwrap_or_else(|| {
+        // Lecture best-effort des préférences ; si erreur, fallback default.
+        state
+            .preferences
+            .lock()
+            .ok()
+            .and_then(|store| store.read_all().ok())
+            .and_then(|p| p.default_method)
+            .unwrap_or_else(sobria_core::EmpreinteMethod::default_method)
+    });
+    let engine = sobria_estimator::engine_for(method);
+
+    let result = engine
         .estimate(&core_req, &params)
         .map_err(AppError::from)?;
 
@@ -184,6 +232,58 @@ pub fn estimate_prompt(
         "estimate_prompt: ok"
     );
     Ok(EstimationResultDto::from_result(&result, audit_id))
+}
+
+/// Lance une estimation **éphémère** pour le panneau "Voir aussi" (C24).
+///
+/// Différence avec [`estimate_prompt`] :
+/// - La méthodologie est **toujours** spécifiée par l'appelant (pas de
+///   fallback sur la préférence user — c'est explicitement une
+///   comparaison).
+/// - Le résultat **n'est PAS journalisé** dans l'audit ledger.
+///
+/// Pourquoi ne pas logguer ? Le panneau "Voir aussi" fait tourner 1 à N
+/// méthodologies alternatives à chaque estimation principale, ce qui
+/// multiplierait le volume du ledger sans valeur ajoutée pour
+/// l'utilisateur : ces calculs sont *exploratoires*, pas des décisions.
+/// L'estimation principale (la méthodo par défaut) reste, elle, dans le
+/// ledger via [`estimate_prompt`] — c'est elle qui sert pour les
+/// rapports CSRD, le dashboard et le datasheet Gebru.
+///
+/// L'`audit_id` du DTO retourné est `0` (sentinel "non journalisé").
+///
+/// Cette fonction est *stateless* (pas d'accès au `AppState`) — un
+/// comparatif n'a pas à lire les préférences user ni à toucher au
+/// ledger. C'est volontaire.
+pub fn estimate_for_comparison(
+    req: EstimationRequestDto,
+    method: sobria_core::EmpreinteMethod,
+) -> IpcResult<EstimationResultDto> {
+    if find_preset(&req.model_id).is_none() {
+        return Err(IpcError::from(AppError::UnknownModel(req.model_id.clone())));
+    }
+    if req.tokens_in == 0 && req.tokens_out_estimated == 0 {
+        return Err(IpcError::from(AppError::InvalidRequest(
+            "tokens_in et tokens_out_estimated sont tous les deux nuls".into(),
+        )));
+    }
+
+    let model_id = req.model_id.clone();
+    let core_req = req.into_core(Utc::now());
+    let params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
+    let engine = sobria_estimator::engine_for(method);
+    let result = engine
+        .estimate(&core_req, &params)
+        .map_err(AppError::from)?;
+
+    debug!(
+        model = %model_id,
+        method = method.as_str(),
+        co2eq_p50 = ?result.indicators.first().map(|i| i.interval.p50),
+        "estimate_for_comparison: ok (no ledger write)"
+    );
+    // audit_id = 0 → sentinel "estimation éphémère, non journalisée".
+    Ok(EstimationResultDto::from_result(&result, 0))
 }
 
 /// Vérifie l'intégrité de la chaîne d'audit.
@@ -713,6 +813,7 @@ pub fn run_batch_from_csv(
             tokens_in: row.tokens_in,
             tokens_out_estimated: row.tokens_out,
             datacenter_id: row.datacenter_id.clone(),
+            method: None,
         };
         match estimate_prompt(est_req, state) {
             Ok(dto) => {
@@ -1058,7 +1159,9 @@ fn compute_baseline_for_dc(
         datacenter_id: Some(dc.id.clone()),
         timestamp: Utc::now(),
     };
-    let result = state.estimator.estimate(&req, &params)?;
+    // Polish G — baseline DC respecte la méthodologie user
+    let engine = sobria_estimator::engine_for(user_default_method(state));
+    let result = engine.estimate(&req, &params)?;
     let co2 = pick_p50(&result, Indicator::Co2Eq);
     let energy = pick_p50(&result, Indicator::Energy);
     let water = pick_p50(&result, Indicator::Water);
@@ -1117,6 +1220,21 @@ pub fn benchmark_models(
     }
 
     // 2. Estimation + journalisation de chaque modèle.
+    //
+    // Polish D — On lit la méthodologie par défaut **une fois** au lieu
+    // de laisser chaque `estimate_prompt` la relire depuis SQLite. Ça :
+    // 1. évite N appels disque (1 par modèle benchmarké),
+    // 2. garantit que TOUS les modèles utilisent la **même** méthodo
+    //    même si l'utilisateur change ses préférences pendant le calcul
+    //    (race-condition mitigation — un benchmark doit être cohérent).
+    let user_method = state
+        .preferences
+        .lock()
+        .ok()
+        .and_then(|store| store.read_all().ok())
+        .and_then(|p| p.default_method)
+        .unwrap_or_else(sobria_core::EmpreinteMethod::default_method);
+
     let mut tmp: Vec<(BenchmarkOutcomeDto, f64, f64, f64)> = Vec::with_capacity(req.model_ids.len());
     for model_id in &req.model_ids {
         let est_req = EstimationRequestDto {
@@ -1124,6 +1242,8 @@ pub fn benchmark_models(
             tokens_in: req.tokens_in,
             tokens_out_estimated: req.tokens_out_estimated,
             datacenter_id: req.datacenter_id.clone(),
+            // Méthodo explicite — pas de fallback IPC, on a déjà résolu.
+            method: Some(user_method),
         };
         let result_dto = estimate_prompt(est_req, state)?;
         let preset = find_preset(model_id)
@@ -1254,7 +1374,9 @@ pub fn forecast_yearly_budget(
         )));
     }
     let core_req = req.into_core(Utc::now());
-    let result = sobria_estimator::forecast_yearly(&state.estimator, &core_req)
+    // Polish G — Forecaster honore la méthodologie par défaut user.
+    let engine = sobria_estimator::engine_for(user_default_method(state));
+    let result = sobria_estimator::forecast_yearly(engine.as_ref(), &core_req)
         .map_err(AppError::from)?;
 
     // Journalisation baseline : on relance l'estimateur baseline pour
@@ -1263,8 +1385,7 @@ pub fn forecast_yearly_budget(
     // simple ; le coût est faible (1 Monte-Carlo de plus).
     let params = sobria_estimator::EstimationParams::for_model(&core_req.baseline.model_id)
         .map_err(AppError::from)?;
-    let baseline_full = state
-        .estimator
+    let baseline_full = engine
         .estimate(&core_req.baseline, &params)
         .map_err(AppError::from)?;
     let mut ledger = state
@@ -1303,7 +1424,10 @@ pub fn simulate_scenarios(
         )));
     }
     let sim_core = req.into_core(Utc::now());
-    let result = sobria_estimator::simulate(&state.estimator, &sim_core).map_err(AppError::from)?;
+    // Polish G — Simulateur honore la méthodologie par défaut user.
+    let engine = sobria_estimator::engine_for(user_default_method(state));
+    let result =
+        sobria_estimator::simulate(engine.as_ref(), &sim_core).map_err(AppError::from)?;
 
     // Journalise UNIQUEMENT le baseline (les scénarios sont exploratoires).
     let mut ledger = state
@@ -1355,6 +1479,8 @@ pub fn get_app_preferences(state: &AppState) -> IpcResult<AppPreferencesDto> {
         enabled_modules: stored.enabled_modules.unwrap_or(defaults.enabled_modules),
         onboarded: stored.onboarded.unwrap_or(defaults.onboarded),
         lang: stored.lang.unwrap_or(defaults.lang),
+        default_method: stored.default_method.unwrap_or(defaults.default_method),
+        also_show_methods: stored.also_show_methods.unwrap_or(defaults.also_show_methods),
     })
 }
 
@@ -1377,6 +1503,8 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         enabled_modules: Some(prefs.enabled_modules),
         onboarded: Some(prefs.onboarded),
         lang: Some(prefs.lang),
+        default_method: Some(prefs.default_method),
+        also_show_methods: Some(prefs.also_show_methods),
     };
 
     let mut store = state
@@ -1457,6 +1585,7 @@ mod tests {
             tokens_in: 10,
             tokens_out_estimated: 50,
             datacenter_id: None,
+            method: None,
         };
         let err = estimate_prompt(req, &state).unwrap_err();
         assert_eq!(err.code, "unknown_model");
@@ -1470,6 +1599,7 @@ mod tests {
             tokens_in: 0,
             tokens_out_estimated: 0,
             datacenter_id: None,
+            method: None,
         };
         let err = estimate_prompt(req, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -1483,6 +1613,7 @@ mod tests {
             tokens_in: 100,
             tokens_out_estimated: 500,
             datacenter_id: None,
+            method: None,
         };
         let result = estimate_prompt(req, &state).unwrap();
         assert!(result.audit_id >= 1);
@@ -1505,6 +1636,7 @@ mod tests {
             tokens_in: 50,
             tokens_out_estimated: 100,
             datacenter_id: None,
+            method: None,
         };
         for _ in 0..5 {
             estimate_prompt(req.clone(), &state).unwrap();
@@ -1522,6 +1654,7 @@ mod tests {
             tokens_in: 10,
             tokens_out_estimated: 30,
             datacenter_id: None,
+            method: None,
         };
         for _ in 0..7 {
             estimate_prompt(req.clone(), &state).unwrap();
@@ -1544,6 +1677,7 @@ mod tests {
             tokens_in: 10,
             tokens_out_estimated: 20,
             datacenter_id: None,
+            method: None,
         };
         for _ in 0..3 {
             estimate_prompt(req.clone(), &state).unwrap();
@@ -1584,6 +1718,7 @@ mod tests {
             enabled_modules: vec![ModuleId::M1, ModuleId::M7, ModuleId::M22],
             onboarded: true,
             lang: "fr".into(),
+            ..AppPreferencesDto::defaults()
         };
         set_app_preferences(written.clone(), &state).unwrap();
         let read = get_app_preferences(&state).unwrap();
@@ -1598,6 +1733,7 @@ mod tests {
             enabled_modules: vec![ModuleId::M1],
             onboarded: true,
             lang: "es".into(), // espagnol pas supporté en v1.0
+            ..AppPreferencesDto::defaults()
         };
         let err = set_app_preferences(prefs, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -1612,6 +1748,7 @@ mod tests {
             enabled_modules: vec![],
             onboarded: true,
             lang: "fr".into(),
+            ..AppPreferencesDto::defaults()
         };
         let err = set_app_preferences(prefs, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -1626,6 +1763,7 @@ mod tests {
             enabled_modules: vec![],
             onboarded: false,
             lang: "fr".into(),
+            ..AppPreferencesDto::defaults()
         };
         assert!(set_app_preferences(prefs, &state).is_ok());
     }
@@ -1638,6 +1776,7 @@ mod tests {
             enabled_modules: vec![ModuleId::M1, ModuleId::M13, ModuleId::M1],
             onboarded: true,
             lang: "fr".into(),
+            ..AppPreferencesDto::defaults()
         };
         let err = set_app_preferences(prefs, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -1653,6 +1792,7 @@ mod tests {
                 enabled_modules: vec![ModuleId::M1],
                 onboarded: true,
                 lang: "fr".into(),
+                ..AppPreferencesDto::defaults()
             },
             &state,
         )
@@ -1663,6 +1803,7 @@ mod tests {
                 enabled_modules: vec![ModuleId::M1, ModuleId::M17, ModuleId::M18],
                 onboarded: true,
                 lang: "en".into(),
+                ..AppPreferencesDto::defaults()
             },
             &state,
         )
@@ -1697,6 +1838,7 @@ mod tests {
             tokens_in: 100,
             tokens_out_estimated: 500,
             datacenter_id: None,
+            method: None,
         }
     }
 
@@ -1760,6 +1902,7 @@ mod tests {
                 tokens_in: 100,
                 tokens_out_estimated: 500,
                 datacenter_id: None,
+                method: None,
             },
             scenarios: vec![],
             forecast: None,
@@ -2322,6 +2465,7 @@ gpt-4o-mini,200,700,
                     tokens_in: 100,
                     tokens_out_estimated: 500,
                     datacenter_id: None,
+                    method: None,
                 },
                 &state,
             )
@@ -2413,6 +2557,7 @@ gpt-4o-mini,200,700,
             tokens_in: 100,
             tokens_out_estimated: 500,
             datacenter_id: None,
+            method: None,
         };
         for _ in 0..3 {
             estimate_prompt(est_req.clone(), &state).unwrap();
@@ -2543,6 +2688,7 @@ gpt-4o-mini,200,700,
                     tokens_in: 100,
                     tokens_out_estimated: 500,
                     datacenter_id: None,
+                    method: None,
                 },
                 &state,
             )
@@ -2744,6 +2890,7 @@ gpt-4o-mini,200,700,
                 tokens_in: 100,
                 tokens_out_estimated: 500,
                 datacenter_id: None,
+                method: None,
             },
             scenarios: growth_pcts
                 .iter()
@@ -2892,6 +3039,7 @@ gpt-4o-mini,200,700,
             tokens_in: 100,
             tokens_out_estimated: 500,
             datacenter_id: None,
+            method: None,
         };
         for _ in 0..3 {
             estimate_prompt(est_req.clone(), &state).unwrap();
@@ -2954,6 +3102,7 @@ gpt-4o-mini,200,700,
                     enabled_modules: vec![ModuleId::M1, ModuleId::M22],
                     onboarded: true,
                     lang: "fr".into(),
+                    ..AppPreferencesDto::defaults()
                 },
                 &state,
             )

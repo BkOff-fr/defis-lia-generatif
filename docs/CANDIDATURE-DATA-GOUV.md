@@ -22,29 +22,46 @@ méthodologique** et **un angle territorial français unique**.
 
 L'application répond aux trois axes du défi data.gouv.fr :
 
-1. **Comprendre l'impact** : moteur Monte-Carlo N=10⁴ tirages, méthodologie
-   AFNOR SPEC 2314, validation croisée Luccioni 2023 / EcoLogits 2024 à ±15%.
+1. **Comprendre l'impact** : **catalogue de méthodologies** (AFNOR SPEC
+   2314 par défaut + EcoLogits 2026-01 peer-reviewed). Monte-Carlo
+   N=10⁴ tirages sur l'engine AFNOR, port direct des formules
+   EcoLogits reproduit à ≤ 1 %. Calculs reproductibles en Python dans
+   [`notebook/validation.qmd`](../notebook/validation.qmd).
 2. **Visualiser** : 13 modules dont 7 dataviz (carte Europe Leaflet,
    Sankey énergétique, distributions log-normales bornées, waterfall
-   contributions, time series cumulatives).
+   contributions, time series cumulatives) + nouvelle page **catalogue
+   méthodologies** + panneau **« Voir aussi »** comparatif côté Atelier.
 3. **Sensibiliser & changer** : 5 personas (étudiant·e, pro tech,
    entreprise, collectivité, chercheur·se) avec bundles modulaires,
    eco-budget personnel, simulateur « Et si...? ».
 
-**Trois différenciateurs majeurs** par rapport à l'état de l'art :
+**Quatre différenciateurs majeurs** par rapport à l'état de l'art :
 
-- **Audit ledger chaîné SHA-256** : chaque estimation est journalisée
-  dans une chaîne cryptographique anti-tampering vérifiable. Aucun
-  concurrent (EcoLogits, GreenAlgorithms, AI Energy Score) ne propose
-  cette garantie de traçabilité. Critique pour la conformité **CSRD**
-  qui exige des preuves auditables.
-- **Pivot Territoire FR** : croisement entre les datasets officiels
+- **🏛️ Catalogue souverain de méthodologies** *(différenciateur C24,
+  unique au monde)* : Sobr.ia embarque **deux méthodologies
+  scientifiques** d'estimation au choix de l'utilisateur — AFNOR SPEC
+  2314 (référentiel français) et EcoLogits 2026-01 (peer-reviewed JOSS,
+  [doi:10.21105/joss.07471](https://doi.org/10.21105/joss.07471), port
+  direct CC BY-SA 4.0). L'utilisateur peut activer la seconde *« en
+  référence »* pour comparer les écarts dans l'Atelier. **Aucun
+  concurrent ne fait ça** : EcoLogits, BoaVizta, AI Energy Score,
+  GreenAlgorithms sont tous mono-méthodologie. Architecture extensible
+  v1.1+ (BoaVizta, Custom user CSV, etc.). Cf. [ADR-0012](adr/ADR-0012-multi-methodology-engine.md).
+- **🔐 Audit ledger chaîné SHA-256 avec méthodologie tracée** : chaque
+  estimation est journalisée dans une chaîne cryptographique
+  anti-tampering vérifiable, **avec sa méthodologie** (colonne `method`
+  du ledger v2). Un rapport CSRD régénéré 2 ans plus tard utilise
+  exactement la méthodologie qui était active au moment des calculs.
+  Aucun concurrent ne propose cette garantie de traçabilité
+  méthodologique historique.
+- **🇫🇷 Pivot Territoire FR** : croisement entre les datasets officiels
   **ComparIA** (Beta.gouv / Ministère de la Culture) et **RTE IRIS
   sites industriels** (ODRÉ, Etalab 2.0). Aucun outil existant ne fait
   ce croisement à la maille IRIS française.
-- **Datasheet Gebru 2018** : génération automatique du format académique
-  standard pour reproductibilité scientifique. Permet la publication
-  conjointe d'articles de recherche et de leurs traces d'estimation.
+- **📑 Datasheet Gebru 2018** : génération automatique du format
+  académique standard pour reproductibilité scientifique. Permet la
+  publication conjointe d'articles de recherche et de leurs traces
+  d'estimation.
 
 **Frugalité incarnée** : le code applicatif est en Rust + Tauri 2 (pas
 d'Electron), binaire ≈ 15 MB optimisé, zéro télémétrie, zéro appel
@@ -115,24 +132,114 @@ Gemini 2.0 Flash, GPT-4o-mini) est documenté dans
 - **Histogramme distributionnel** : 50 bins équi-width persistés dans
   chaque entrée d'audit, pour rejouer la distribution complète.
 
-### 3.4 Validation croisée
+### 3.4 Validation croisée — port direct EcoLogits
 
-Trois benchmarks de validation contre la littérature :
+L'audit B (mai 2026) a établi qu'aucune calibration unique d'une formule
+linéaire-par-token ne peut reproduire EcoLogits à ±15 % sur toute la
+gamme de modèles (8B → 200B), à cause de la non-linéarité d'EcoLogits
+(terme γ + facteur `n_GPU` discret + server overhead non-GPU). Plutôt
+que de bricoler un coefficient, **Sobr.ia v1.0 embarque les formules
+EcoLogits intégralement** dans un moteur dédié, en plus du moteur AFNOR
+SPEC 2314 (cf. ADR-0012).
 
-| Cas | Notre P50 | Cible | Référence |
-|---|---|---|---|
-| GPT-3 1024 tokens | 2.95 g | 2.8-3.4 g | Luccioni 2023 |
-| LLaMA 7B inference | 0.34 g | 0.28-0.42 g | EcoLogits 2024 |
-| Datacenter FR baseline | 56 g/kWh | 56 g/kWh | RTE Bilan 2023 |
+**Trois `ReproductionCase` ciblent l'`EcoLogitsEngine`** — port direct
+de leurs formules (`f_E`, `f_L`, `n_GPU`, `E_server_noGPU`, embodied)
+depuis la documentation publique (Rincé & Banse 2025, JOSS 2025,
+[doi:10.21105/joss.07471](https://doi.org/10.21105/joss.07471), CC BY-SA
+4.0). Les cibles sont recalculées en Python *de zéro* dans
+[`notebook/validation.qmd`](../notebook/validation.qmd), puis comparées
+au port Rust à tolérance **1 %** (port direct → seule l'arithmétique
+float64 introduit du bruit) :
 
-Tolérance : **±15%**. Tous les cas passent en CI (`cargo test`).
-Cf. [`docs/methodology/VALIDATION-CROISEE.md`](methodology/VALIDATION-CROISEE.md).
+| ID | Modèle | tokens (in/out) | Mix élec | Cible Python g | Rust port g | Écart |
+|---|---|---:|---:|---:|---:|---:|
+| A | Llama 3.1 70B | 100/500 | FR 56 g/kWh | 0.01843 | 0.01842 | **-0.08 %** ✓ |
+| B | Llama 3.1 70B | 100/2000 | US-VA 412 g/kWh | 0.542 | 0.54195 | **-0.01 %** ✓ |
+| C | Mistral Large 2 | 100/1000 | US-VA 412 g/kWh | 0.378 | 0.37712 | **-0.23 %** ✓ |
+
+**L'engine AFNOR Sobr.ia** est validé séparément par 6
+`PlausibilityCase` couvrant petits/gros modèles × mix FR/US-VA ×
+prompts courts/longs (plages 3-5 ordres de grandeur, garde-fou contre
+les bugs catastrophiques). Sa calibration `K_DECODE_MJ_PER_TOKEN_PER_B`
+a été corrigée d'un facteur 1000 en mai 2026 (audit B → C24) pour
+s'aligner sur les mesures HF AI Energy Score et ML.ENERGY.
+
+**Au runtime**, l'utilisateur compare lui-même les deux méthodologies
+côte-à-côte via le panneau « Voir aussi » de l'Atelier — pas besoin de
+nous croire sur parole.
+
+Tous les cas tournent en CI :
+```bash
+cargo test -p sobria-estimator validation
+quarto render notebook/validation.qmd
+```
+
+Cf. [`docs/methodology/VALIDATION-CROISEE.md`](methodology/VALIDATION-CROISEE.md),
+[ADR-0012 multi-méthodologie](adr/ADR-0012-multi-methodology-engine.md),
+et [`crates/sobria-estimator/src/validation/cases.rs`](../crates/sobria-estimator/src/validation/cases.rs).
 
 ---
 
 ## 4. Différenciateurs et innovations
 
-### 4.1 Audit ledger SHA-256 chaîné
+### 4.1 Catalogue souverain de méthodologies (C24)
+
+**Le différenciateur central de Sobr.ia v1.0.** Le constat à l'origine
+du chantier C24 (mai 2026) : tous les outils d'estimation d'empreinte
+LLM existants sont **mono-méthodologie**. EcoLogits propose sa méthode,
+BoaVizta la sienne, AI Energy Score la sienne, GreenAlgorithms la
+sienne. L'utilisateur final ne peut pas comparer, est obligé de croire
+sur parole, et perd toute traçabilité méthodologique si l'outil change
+ses formules.
+
+**Sobr.ia inverse la logique** : la méthodologie devient un **objet de
+premier ordre** que l'utilisateur sélectionne, et dont la trace est
+journalisée dans l'audit ledger. Concrètement :
+
+1. **Catalogue exposé via la page `/methodologies`** : chaque méthodo
+   disponible est présentée avec son DOI, sa licence, son année de
+   publication et son statut de calibration (peer-reviewed reproduit /
+   méthode publique en cours de calibration / indicative).
+2. **Sélection par l'utilisateur** : une méthodologie par défaut + une
+   ou plusieurs méthodologies activables en référence (panneau « Voir
+   aussi » à côté du résultat principal côté Atelier).
+3. **Traçabilité historique** : chaque entrée du ledger d'audit
+   porte sa méthodo dans la colonne `method` (migration v2 idempotente
+   pour les ledgers préexistants).
+4. **Architecture extensible** : un trait Rust `EmpreinteEngine`
+   commun, factory `engine_for(method)`. Ajouter `BoaViztaEngine` ou
+   `AIEnergyScoreEngine` en v1.1+ = implémenter le trait + une entrée
+   dans le registry compile-time.
+
+**v1.0 embarque 2 méthodologies** :
+
+| Méthodologie | Description | Validation Sobr.ia |
+|---|---|---|
+| **AFNOR SPEC 2314 (Sobr.ia)** | Référentiel français officiel, formule linéaire-par-token + Monte-Carlo N=10⁴, intervalles P5/P50/P95 distributionnels. Méthodologie souveraine native. | 6 PlausibilityCase (ordres de grandeur), calibration en cours |
+| **EcoLogits 2026-01** | Méthode peer-reviewed JOSS 2025, port direct des formules officielles (`f_E`, `f_L`, `n_GPU`, server overhead, embodied). Référence internationale. | 3 ReproductionCase reproduits **à ≤ 1 %** vs cibles Python |
+
+**Pourquoi c'est unique au monde** :
+- Aucun concurrent ne propose plusieurs méthodologies simultanées avec
+  switch utilisateur. Sobr.ia est *le premier outil*.
+- La **souveraineté méthodologique française** est préservée : AFNOR
+  SPEC 2314 reste la méthodo par défaut au premier lancement, pas un
+  citoyen de seconde zone vs EcoLogits.
+- **Honnêteté radicale** : Sobr.ia ne cache pas les écarts entre
+  méthodologies — au contraire, il les *montre* à l'écran pour que
+  l'utilisateur prenne sa décision en connaissance de cause.
+
+**Use case démonstratif** : un journaliste compare l'empreinte d'un
+article généré par Claude 3.5 Sonnet selon les 2 méthodologies. Si elles
+divergent de 200 %, c'est un sujet d'enquête en soi. Si elles convergent
+à ≤ 10 %, son lectorat peut prendre l'estimation au sérieux. Dans les
+deux cas, Sobr.ia donne *la matière à creuser*, pas un chiffre
+imposé.
+
+Cf. [ADR-0012 Multi-méthodologie](adr/ADR-0012-multi-methodology-engine.md),
+[`briefs/chantiers/C24-multi-methodologie-ecologits.md`](../briefs/chantiers/C24-multi-methodologie-ecologits.md)
+et [`crates/sobria-estimator/src/engine_trait.rs`](../crates/sobria-estimator/src/engine_trait.rs).
+
+### 4.2 Audit ledger SHA-256 chaîné
 
 Chaque estimation produit une entrée dans le ledger SQLite ACID + WAL,
 avec :
@@ -153,7 +260,7 @@ cryptographiquement.
 Cf. [`crates/sobria-audit/`](../crates/sobria-audit/) — 13 tests dont
 2 tests anti-tampering explicites.
 
-### 4.2 Croisement ComparIA × RTE IRIS
+### 4.3 Croisement ComparIA × RTE IRIS
 
 Le module **M20 Territoire FR** consomme deux datasets officiels :
 
@@ -179,7 +286,7 @@ sites industriels les plus consommateurs, et produit un JSON traçable
 
 Cf. [`docs/sources/CATALOGUE-TERRITOIRE-FR.md`](sources/CATALOGUE-TERRITOIRE-FR.md).
 
-### 4.3 Datasheet Gebru 2018
+### 4.4 Datasheet Gebru 2018
 
 Le module **M17 Empreinte projet** génère automatiquement un
 **datasheet JSON-LD** selon le standard académique Gebru et al. 2018
@@ -207,7 +314,7 @@ JSON-LD, le joint à son papier. Tout reproducteur peut télécharger le
 JSON-LD, vérifier le SHA-256, rejouer les estimations avec le même
 seed → résultats identiques.
 
-### 4.4 Rapport CSRD/AGEC
+### 4.5 Rapport CSRD/AGEC
 
 Le module **M22 Rapport CSRD/AGEC** génère un **PDF officiel** pour le
 reporting réglementaire :
@@ -309,18 +416,20 @@ Le PDF inclut :
 
 ## 8. Comparaison avec l'état de l'art
 
-| Outil | Domaine | Audit chaîné | Territoire FR | Datasheet Gebru | Privacy local | Méthodo AFNOR |
-|---|---|:--:|:--:|:--:|:--:|:--:|
-| **Sobr.ia** | Estimation + audit + reporting | ✅ | ✅ | ✅ | ✅ | ✅ |
-| EcoLogits | Estimation Python lib | ❌ | ❌ | ❌ | ⚠️ (lib) | ⚠️ partiel |
-| AI Energy Score | Benchmark plateforme | ❌ | ❌ | ❌ | ❌ (web) | ⚠️ partiel |
-| GreenAlgorithms | Calculator simple | ❌ | ❌ | ❌ | ❌ (web) | ❌ |
-| BoaVizta IA | Estimation hardware | ❌ | ❌ | ❌ | ⚠️ (lib) | ⚠️ partiel |
-| CarbonAware SDK | Optimisation ordonnancement | ❌ | ❌ | ❌ | ⚠️ | ❌ |
+| Outil | Multi-méthodologies | Audit chaîné | Territoire FR | Datasheet Gebru | Privacy local | Méthodo AFNOR FR |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|
+| **Sobr.ia** | ✅ **AFNOR + EcoLogits** *(C24)* | ✅ | ✅ | ✅ | ✅ | ✅ |
+| EcoLogits | ❌ (leur méthodo seule) | ❌ | ❌ | ❌ | ⚠️ (lib) | ❌ |
+| AI Energy Score | ❌ | ❌ | ❌ | ❌ | ❌ (web) | ❌ |
+| GreenAlgorithms | ❌ | ❌ | ❌ | ❌ | ❌ (web) | ❌ |
+| BoaVizta IA | ❌ | ❌ | ❌ | ❌ | ⚠️ (lib) | ❌ |
+| CarbonAware SDK | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ |
 
-Sobr.ia est, à notre connaissance, **le seul outil simultanément
-auditable cryptographiquement, ciblé territoire FR, conforme datasheet
-Gebru, et local-first**.
+Sobr.ia est, à notre connaissance, **le premier outil au monde à
+embarquer plusieurs méthodologies scientifiques d'estimation d'empreinte
+LLM avec switch utilisateur et audit cryptographique de la méthodologie
+utilisée**. Combinée au territoire FR, à la datasheet Gebru et au
+local-first, c'est une combinaison unique.
 
 ---
 
@@ -365,14 +474,44 @@ Gebru, et local-first**.
 6. Génère le datasheet Gebru JSON-LD → joint au papier de recherche.
    Tout reviewer peut vérifier la reproductibilité.
 
+### Scenario 4 — Journaliste tech / Investigation comparative *(C24)*
+
+1. Onboarding, choix « 🔬 Chercheur·se ».
+2. Va sur `/methodologies` (rail Audit) → découvre le catalogue.
+   Méthodologie par défaut : AFNOR SPEC 2314 (Sobr.ia). Coche **EcoLogits
+   2026-01** dans "Afficher en référence".
+3. Retourne sur `/` (Atelier). Estime un prompt typique de son cas
+   d'étude (résumé d'article, génération de 800 tokens) sur Llama 3.1
+   70B avec mix électrique FR.
+4. Le résultat AFNOR Sobr.ia s'affiche en grand. **Juste en dessous, le
+   panneau "Voir aussi" affiche automatiquement le résultat EcoLogits**
+   avec :
+   - CO₂eq P50 EcoLogits
+   - Énergie P50 EcoLogits
+   - **Écart relatif vs Sobr.ia** (par ex. `+12 %`, lime si > 0)
+   - Lien vers l'audit ID correspondant (`#42`)
+   - Lien DOI vers la documentation EcoLogits
+5. **Cas où les méthodos divergent (>50 %)** : le journaliste a un sujet
+   d'enquête — pourquoi les deux outils peer-reviewed ne convergent
+   pas ? Quelle hypothèse interne diffère ?
+6. **Cas où elles convergent (<10 %)** : son lectorat peut prendre le
+   chiffre au sérieux (deux méthodos indépendantes le confirment).
+7. Dans les deux cas, l'audit ledger conserve les deux estimations avec
+   leur méthodologie tracée (`method = 'afnor_sobria'` et `method =
+   'ecologits'`). Reproductible 5 ans plus tard, même si EcoLogits ou
+   AFNOR évoluent dans l'intervalle.
+
 ---
 
 ## 10. Conclusion
 
 Sobr.ia répond aux 4 axes du défi data.gouv.fr :
 
-1. **Comprendre** : méthodologie AFNOR SPEC 2314 + Monte-Carlo, validation
-   croisée à ±15%, transparence des paramètres.
+1. **Comprendre** : **catalogue de méthodologies scientifiques** (AFNOR
+   SPEC 2314 par défaut + EcoLogits 2026-01 peer-reviewed, port direct
+   reproduit à ≤ 1 %). Monte-Carlo N=10⁴ sur l'engine AFNOR,
+   déterministe sur l'engine EcoLogits, transparence complète des
+   paramètres et des hypothèses (cliquables vers les sources).
 2. **Visualiser** : 7 dataviz interactives (carte EU, Sankey, histogrammes,
    waterfall, time series, donut, barres).
 3. **Sensibiliser & transformer** : 5 personas, simulateur, eco-budget,
@@ -385,17 +524,22 @@ Les données embarquées sont sous Etalab 2.0. La méthodologie est
 **reproductible** par n'importe qui via le seed Monte-Carlo déterministe.
 
 **Sobr.ia n'est pas juste un calculateur d'empreinte. C'est un outil de
-gouvernance environnementale auditable de l'IA générative.**
+gouvernance environnementale auditable de l'IA générative — et le
+premier outil au monde à donner à l'utilisateur le choix
+souverain de sa méthodologie scientifique d'estimation, avec
+traçabilité cryptographique de ce choix.**
 
 ---
 
 ## Annexes
 
 - [Cahier des charges v1.4](CAHIER-DES-CHARGES-v1.0.md)
-- [11 ADR architecturaux](adr/)
+- [12 ADR architecturaux](adr/) (dont [ADR-0012 multi-méthodologie](adr/ADR-0012-multi-methodology-engine.md))
 - [Méthodologie complète](methodology/)
+- [Notebook de validation Quarto](../notebook/validation.qmd)
 - [Catalogue des sources](sources/)
 - [Sources de données embarquées](sources/CATALOGUE-DATACENTERS.md)
+- [Brief chantier C24 multi-méthodologie](../briefs/chantiers/C24-multi-methodologie-ecologits.md)
 
 ---
 

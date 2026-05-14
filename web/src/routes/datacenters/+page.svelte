@@ -201,7 +201,7 @@
     <p class="hero-sub">
       Les 28 datacenters européens servant l'inférence LLM des hyperscalers et opérateurs
       souverains. Drill-down par site : PUE, WUE, intensité carbone locale (Electricity Maps) et
-      profil de charge 24h (ENTSO-E).
+      profil de charge 24h typique (forme modélisée v1.0, pull ENTSO-E live prévu v1.1).
     </p>
   </section>
 

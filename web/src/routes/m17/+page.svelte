@@ -372,10 +372,7 @@
     try {
       await deleteProject(id);
       projects = projects.filter((p) => p.id !== id);
-      if (
-        (panel.kind === 'edit' || panel.kind === 'datasheet') &&
-        panel.projectId === id
-      ) {
+      if ((panel.kind === 'edit' || panel.kind === 'datasheet') && panel.projectId === id) {
         panel = { kind: 'empty' };
         datasheet = null;
       }
@@ -475,13 +472,15 @@
   }
 
   function slugify(s: string): string {
-    return s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80) || 'projet';
+    return (
+      s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80) || 'projet'
+    );
   }
 
   // ─── Erreurs ────────────────────────────────────────────────────────────
@@ -612,8 +611,8 @@
     </h1>
     <p class="hero-sub">
       Regroupe tes estimations en projets nommés et génère leur datasheet selon le standard
-      académique adopté par NeurIPS, ICML et FAccT. Format JSON-LD reproductible — schema.org,
-      W3C PROV-O, DCAT.
+      académique adopté par NeurIPS, ICML et FAccT. Format JSON-LD reproductible — schema.org, W3C
+      PROV-O, DCAT.
     </p>
   </section>
 
@@ -627,8 +626,8 @@
         <strong>Application non lancée via Tauri</strong>
         <span>
           L'application doit être lancée via <span class="mono">cargo run -p sobria-app</span> (ou
-          <span class="mono">cargo tauri dev</span>). Les projets et leurs datasheets restent
-          100 % locaux — aucun envoi externe.
+          <span class="mono">cargo tauri dev</span>). Les projets et leurs datasheets restent 100 %
+          locaux — aucun envoi externe.
         </span>
       </div>
     </div>
@@ -678,8 +677,8 @@
               Créez votre premier projet pour générer un datasheet selon le standard académique
               <strong>Gebru et al. 2018</strong>.
             {:else}
-              Lance l'app via <span class="mono">cargo run -p sobria-app</span> pour charger
-              tes projets et générer leurs datasheets.
+              Lance l'app via <span class="mono">cargo run -p sobria-app</span> pour charger tes projets
+              et générer leurs datasheets.
             {/if}
           </p>
         </div>
@@ -750,7 +749,7 @@
           </p>
         </div>
 
-      <!-- ─── Formulaire CREATE ─────────────────────────────────────── -->
+        <!-- ─── Formulaire CREATE ─────────────────────────────────────── -->
       {:else if panel.kind === 'create'}
         <header class="panel-head">
           <div>
@@ -808,7 +807,9 @@
 
           <div class="row-2">
             <div class="field">
-              <label for="f-pstart">Période — début<span class="req" aria-hidden="true">*</span></label>
+              <label for="f-pstart"
+                >Période — début<span class="req" aria-hidden="true">*</span></label
+              >
               <input id="f-pstart" type="date" bind:value={fPeriodStart} required />
             </div>
             <div class="field">
@@ -847,7 +848,9 @@
                 bind:value={fTagInput}
                 onkeydown={onTagKeydown}
                 onblur={tryAddTag}
-                placeholder={fTags.length >= TAGS_MAX ? `Limite ${TAGS_MAX} atteinte` : 'Ajouter un tag puis Entrée'}
+                placeholder={fTags.length >= TAGS_MAX
+                  ? `Limite ${TAGS_MAX} atteinte`
+                  : 'Ajouter un tag puis Entrée'}
                 disabled={fTags.length >= TAGS_MAX}
                 aria-describedby={fTagError ? 'f-tag-err' : undefined}
               />
@@ -889,7 +892,7 @@
           </div>
         </form>
 
-      <!-- ─── Formulaire EDIT ───────────────────────────────────────── -->
+        <!-- ─── Formulaire EDIT ───────────────────────────────────────── -->
       {:else if panel.kind === 'edit'}
         <header class="panel-head">
           <div>
@@ -1000,7 +1003,9 @@
                 bind:value={fTagInput}
                 onkeydown={onTagKeydown}
                 onblur={tryAddTag}
-                placeholder={fTags.length >= TAGS_MAX ? `Limite ${TAGS_MAX} atteinte` : 'Ajouter un tag puis Entrée'}
+                placeholder={fTags.length >= TAGS_MAX
+                  ? `Limite ${TAGS_MAX} atteinte`
+                  : 'Ajouter un tag puis Entrée'}
                 disabled={fTags.length >= TAGS_MAX}
                 aria-describedby={fTagError ? 'f-tag-err-e' : undefined}
               />
@@ -1042,7 +1047,7 @@
           </div>
         </form>
 
-      <!-- ─── DATASHEET VIEW ────────────────────────────────────────── -->
+        <!-- ─── DATASHEET VIEW ────────────────────────────────────────── -->
       {:else if panel.kind === 'datasheet'}
         {@const pid = panel.projectId}
         <header class="panel-head">
@@ -1163,9 +1168,12 @@
                       <p class="gebru-text">
                         {fmtInt(c.total_requests)} requêtes,
                         {c.unique_models.length} modèle(s) unique(s),
-                        {co2.v} {co2.u} cumulé (P50),
-                        {en.v} {en.u},
-                        {wa.v} {wa.u}.
+                        {co2.v}
+                        {co2.u} cumulé (P50),
+                        {en.v}
+                        {en.u},
+                        {wa.v}
+                        {wa.u}.
                       </p>
                     {:else if section.k === 'distribution'}
                       {@const dist = gebruDistribution()}
@@ -1179,7 +1187,8 @@
                             <dt>Licence code</dt>
                             <dd>
                               <a href={dist.license} target="_blank" rel="noopener noreferrer">
-                                {dist.license} <ArrowUpRight size={10} strokeWidth={2} />
+                                {dist.license}
+                                <ArrowUpRight size={10} strokeWidth={2} />
                               </a>
                             </dd>
                           {/if}
@@ -1272,11 +1281,7 @@
             <p>
               <BookOpen size={11} strokeWidth={1.8} />
               <strong>Standard utilisé :</strong>
-              <a
-                href="https://arxiv.org/abs/1803.09010"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href="https://arxiv.org/abs/1803.09010" target="_blank" rel="noopener noreferrer">
                 Gebru et al. 2018 — Datasheets for Datasets (arXiv:1803.09010)
                 <ArrowUpRight size={10} strokeWidth={2} />
               </a>
@@ -1291,7 +1296,11 @@
                 W3C PROV-O <ArrowUpRight size={10} strokeWidth={2} />
               </a>
               <span class="sep">·</span>
-              <a href="https://www.w3.org/TR/vocab-dcat-3/" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://www.w3.org/TR/vocab-dcat-3/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 DCAT <ArrowUpRight size={10} strokeWidth={2} />
               </a>
             </p>

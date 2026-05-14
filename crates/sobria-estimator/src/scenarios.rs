@@ -13,10 +13,14 @@ use sobria_core::{EstimationRequest, EstimationResult, Indicator};
 
 use crate::{
     distributions::Distribution,
-    engine::MonteCarloEngine,
     error::{EstimatorError, EstimatorResult},
     params::EstimationParams,
 };
+// `MonteCarloEngine` n'est plus référencé par la signature publique
+// (`simulate` prend désormais `&dyn EmpreinteEngine`, C24) ; il reste utilisé
+// par les tests internes.
+#[cfg(test)]
+use crate::engine::MonteCarloEngine;
 
 /// Borne haute du nombre de scénarios autorisés par requête (anti-abus).
 pub const MAX_SCENARIOS: usize = 20;
@@ -140,13 +144,19 @@ pub struct SimulationResult {
 
 /// Exécute le baseline + tous les scénarios + la projection.
 ///
+/// Polish G (C24) — Le paramètre `engine` est devenu `&dyn EmpreinteEngine`
+/// pour que la simulation honore la méthodologie choisie par l'utilisateur
+/// (AFNOR Sobr.ia ou EcoLogits 2026-01). Les wrappers existants qui
+/// passaient `&MonteCarloEngine` continuent de fonctionner via coercion
+/// `&MonteCarloEngine` → `&dyn EmpreinteEngine` (trait impl additif).
+///
 /// **Erreurs** :
 /// - `Schema` si plus de `MAX_SCENARIOS` scénarios,
 /// - `Schema` si forecast hors bornes,
 /// - `Schema` si deux scénarios partagent le même `label` (anti-confusion UI),
-/// - propage les erreurs de `MonteCarloEngine::estimate` (model inconnu, etc.).
+/// - propage les erreurs de `engine.estimate` (model inconnu, etc.).
 pub fn simulate(
-    engine: &MonteCarloEngine,
+    engine: &dyn crate::engine_trait::EmpreinteEngine,
     request: &SimulationRequest,
 ) -> EstimatorResult<SimulationResult> {
     if request.scenarios.len() > MAX_SCENARIOS {
@@ -468,7 +478,7 @@ mod tests {
     #[test]
     fn too_many_scenarios_rejected() {
         let engine = MonteCarloEngine::new(42);
-        let scenarios = (0..MAX_SCENARIOS + 1)
+        let scenarios = (0..=MAX_SCENARIOS)
             .map(|i| Scenario {
                 label: format!("scenario_{i}"),
                 overrides: ParamOverrides::default(),

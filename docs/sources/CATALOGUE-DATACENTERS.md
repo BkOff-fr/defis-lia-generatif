@@ -17,7 +17,7 @@ pas exhaustivité. Pull request ouverte pour ajouter des DC manquants en v1.1.
 |---|---|---|---|
 | PUE / WUE annuel par DC | Rapports Sustainability des opérateurs | Annuelle | Propriétaire (cité) |
 | IF élec moyen pays (gCO₂eq/kWh) | Electricity Maps + AIB European Residual Mix | Annuelle | CC-BY-4.0 |
-| Profils horaires charge pays | ENTSO-E Transparency Platform | Mensuelle | CC-BY-4.0 |
+| Profils horaires charge pays | **v1.0** : courbe typique modélisée (forme demande UE moyenne). **v1.1** : pull ENTSO-E Transparency Platform (TOTAL LOAD A65, mensuel, CC-BY-4.0) avec clé API utilisateur. | À l'usage | CC-BY-4.0 |
 | Coordonnées DC | Sites publics opérateurs / OpenStreetMap | À la demande | ODbL |
 
 ## 3. Tableau complet (28 DC, 13 pays)

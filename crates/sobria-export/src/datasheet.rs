@@ -40,6 +40,11 @@ pub struct Composition {
     pub total_water_l_p50: f64,
     pub date_first_entry: Option<DateTime<Utc>>,
     pub date_last_entry: Option<DateTime<Utc>>,
+    /// Polish G (C24) — Méthodologies effectivement utilisées par les
+    /// entrées de la période. Tracé dans le JSON-LD du datasheet pour
+    /// la reproductibilité scientifique (un lecteur Gebru doit savoir
+    /// quelle méthodo a produit les chiffres).
+    pub methodologies_used: Vec<sobria_core::EmpreinteMethod>,
 }
 
 /// Résultat de génération de datasheet.
@@ -73,6 +78,22 @@ impl Default for DatasheetOptions {
     }
 }
 
+/// Polish G (C24) — Libellé long d'une méthodologie pour rendu JSON-LD.
+/// Stable et machine-readable (utilisable par tout parseur Gebru externe).
+#[must_use]
+fn methodology_jsonld_label(method: sobria_core::EmpreinteMethod) -> &'static str {
+    match method {
+        sobria_core::EmpreinteMethod::AfnorSobria => {
+            "AFNOR SPEC 2314 (Sobr.ia) — référentiel français, formule \
+             linéaire-par-token + Monte-Carlo N=10⁴"
+        },
+        sobria_core::EmpreinteMethod::EcoLogits => {
+            "EcoLogits 2026-01 — port direct des formules officielles \
+             (doi:10.21105/joss.07471, CC BY-SA 4.0)"
+        },
+    }
+}
+
 /// Construit un datasheet Gebru à partir d'un projet et des entrées d'audit
 /// dans sa période.
 #[must_use]
@@ -101,6 +122,8 @@ fn compose(entries: &[AuditEntry]) -> Composition {
     let mut count: u32 = 0;
     let mut first_ts: Option<DateTime<Utc>> = None;
     let mut last_ts: Option<DateTime<Utc>> = None;
+    let mut methods_seen: std::collections::HashSet<sobria_core::EmpreinteMethod> =
+        std::collections::HashSet::new();
     for e in entries {
         count = count.saturating_add(1);
         first_ts = match first_ts {
@@ -120,6 +143,8 @@ fn compose(entries: &[AuditEntry]) -> Composition {
             continue;
         };
         unique.insert(r.request.model_id.clone());
+        // Polish G — collecte des méthodologies pour traçabilité Gebru.
+        methods_seen.insert(r.method);
         for ind in &r.indicators {
             match ind.indicator {
                 Indicator::Co2Eq => total_co2 += ind.interval.p50,
@@ -129,6 +154,12 @@ fn compose(entries: &[AuditEntry]) -> Composition {
             }
         }
     }
+    let mut methodologies_used: Vec<sobria_core::EmpreinteMethod> =
+        methods_seen.into_iter().collect();
+    methodologies_used.sort_by_key(|m| match m {
+        sobria_core::EmpreinteMethod::AfnorSobria => 0,
+        sobria_core::EmpreinteMethod::EcoLogits => 1,
+    });
     Composition {
         total_requests: count,
         unique_models: unique.into_iter().collect(),
@@ -137,6 +168,7 @@ fn compose(entries: &[AuditEntry]) -> Composition {
         total_water_l_p50: total_water,
         date_first_entry: first_ts,
         date_last_entry: last_ts,
+        methodologies_used,
     }
 }
 
@@ -176,6 +208,25 @@ fn build_jsonld(
             .map_or(Value::Null, |d| Value::String(d.to_rfc3339())),
     });
 
+    // Polish G — Liste les méthodologies réellement utilisées dans la
+    // période plutôt que de hard-coder "AFNOR SPEC 2314". Critique pour
+    // la reproductibilité scientifique (cf. Gebru et al. 2018 §3.3).
+    let methods_label = match composition.methodologies_used.len() {
+        0 => "(aucune entrée dans la période)".to_string(),
+        1 => methodology_jsonld_label(composition.methodologies_used[0]).to_string(),
+        _ => composition
+            .methodologies_used
+            .iter()
+            .map(|m| methodology_jsonld_label(*m))
+            .collect::<Vec<_>>()
+            .join(" + "),
+    };
+    let methods_array: Vec<&'static str> = composition
+        .methodologies_used
+        .iter()
+        .map(|m| methodology_jsonld_label(*m))
+        .collect();
+
     let datasheet_node = json!({
         "@id": datasheet_id,
         "@type": "sobria:Datasheet",
@@ -183,11 +234,14 @@ fn build_jsonld(
         "sobria:motivation": motivation_text,
         "sobria:composition": composition_jsonld,
         "sobria:collectionProcess": format!(
-            "Estimations Monte-Carlo produites par sobria-estimator v{} (seed {}, N={}). \
-             Méthode : AFNOR SPEC 2314. Chaque entrée provient d'un acte utilisateur \
+            "Estimations produites par sobria-estimator v{} (seed {}, N={}). \
+             Méthodologie(s) : {}. Chaque entrée provient d'un acte utilisateur \
              unique journalisé dans le ledger d'audit ACID (SHA-256 chaîné).",
-            opts.estimator_version, opts.estimator_seed, opts.estimator_n
+            opts.estimator_version, opts.estimator_seed, opts.estimator_n, methods_label
         ),
+        // Champ structuré (Polish G) pour parseurs JSON-LD : permet aux
+        // chercheurs / reviewers de filtrer par méthodologie.
+        "sobria:methodologiesUsed": methods_array,
         "sobria:preprocessing": "Aucune transformation des résultats Monte-Carlo. \
              Les valeurs P5/P50/P95 publiées sont les quantiles directs sur N tirages.",
         "sobria:uses": opts.intended_uses.clone(),
@@ -243,11 +297,12 @@ mod tests {
     use super::*;
     use chrono::TimeZone;
     use sobria_core::{
-        EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
+        EmpreinteMethod, EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
     };
 
     fn make_entry(id: i64, ts: DateTime<Utc>, model: &str, co2: f64) -> AuditEntry {
         let result = EstimationResult {
+            method: EmpreinteMethod::AfnorSobria,
             request: EstimationRequest {
                 model_id: model.into(),
                 tokens_in: 100,

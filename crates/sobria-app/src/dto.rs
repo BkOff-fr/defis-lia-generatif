@@ -96,6 +96,13 @@ pub struct EstimationRequestDto {
     pub tokens_out_estimated: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub datacenter_id: Option<String>,
+    /// Méthodologie utilisée pour ce calcul (C24).
+    ///
+    /// `None` → fallback sur la méthodologie par défaut de l'utilisateur
+    /// (`AppPreferencesDto::default_method`), ou `EmpreinteMethod::default_method()`
+    /// si aucune préférence n'est encore enregistrée.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub method: Option<sobria_core::EmpreinteMethod>,
 }
 
 impl EstimationRequestDto {
@@ -187,6 +194,9 @@ impl From<&Hypothesis> for HypothesisDto {
 /// Résultat d'estimation complet renvoyé au frontend.
 #[derive(Debug, Clone, Serialize)]
 pub struct EstimationResultDto {
+    /// Méthodologie utilisée pour produire ce résultat (C24).
+    /// Affiché en badge dans `ResultBlock.svelte` + dans le journal d'audit.
+    pub method: sobria_core::EmpreinteMethod,
     pub request: EstimationRequestEchoDto,
     pub indicators: Vec<IndicatorDto>,
     pub equivalents: Vec<EquivalentDto>,
@@ -194,6 +204,7 @@ pub struct EstimationResultDto {
     pub computed_at: String,
     pub seed: u64,
     /// ID de l'entrée du ledger d'audit qui journalise ce résultat.
+    /// `0` = estimation éphémère (non journalisée, cf. estimate_for_comparison).
     pub audit_id: i64,
 }
 
@@ -225,6 +236,7 @@ impl EstimationResultDto {
     #[must_use]
     pub fn from_result(r: &EstimationResult, audit_id: i64) -> Self {
         Self {
+            method: r.method,
             request: (&r.request).into(),
             indicators: r.indicators.iter().map(Into::into).collect(),
             equivalents: r.equivalents.iter().map(Into::into).collect(),
@@ -270,22 +282,30 @@ pub struct AuditEntrySummaryDto {
     pub co2eq_p50: f64,
     pub sig_short: String,
     pub purged: bool,
+    /// Méthodologie qui a produit cette entrée (C24).
+    /// Extraite du payload JSON. Pour les entrées historiques pré-C24,
+    /// vaut `AfnorSobria` (seul moteur disponible à l'époque) via le
+    /// `#[serde(default)]` sur `EstimationResult.method`.
+    pub method: sobria_core::EmpreinteMethod,
 }
 
 impl AuditEntrySummaryDto {
-    /// Construit le résumé en extrayant `model_id` + `co2eq_p50` du payload.
-    /// Si le payload est purgé ou mal formé, on remplit avec des sentinelles.
+    /// Construit le résumé en extrayant `model_id` + `co2eq_p50` + `method`
+    /// du payload. Si le payload est purgé ou mal formé, on remplit avec
+    /// des sentinelles (méthode → AfnorSobria par défaut, cohérent avec
+    /// les ledgers historiques).
     #[must_use]
     pub fn from_entry(e: &AuditEntry) -> Self {
-        let (model_id, co2eq_p50) = parse_payload(&e.estimation_result_json);
+        let parsed = parse_payload_full(&e.estimation_result_json);
         let sig_short = e.sig.chars().take(16).collect();
         Self {
             id: e.id,
             timestamp: e.timestamp.to_rfc3339(),
-            model_id,
-            co2eq_p50,
+            model_id: parsed.model_id,
+            co2eq_p50: parsed.co2eq_p50,
             sig_short,
             purged: e.is_purged(),
+            method: parsed.method,
         }
     }
 }
@@ -539,6 +559,9 @@ pub struct CompositionDto {
     pub date_first_entry: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date_last_entry: Option<String>,
+    /// Polish G (C24) — Méthodologies utilisées pour les entrées de la
+    /// période. Surfacé par l'UI M17 pour info chercheur.
+    pub methodologies_used: Vec<sobria_core::EmpreinteMethod>,
 }
 
 impl From<&sobria_export::Composition> for CompositionDto {
@@ -551,6 +574,7 @@ impl From<&sobria_export::Composition> for CompositionDto {
             total_water_l_p50: c.total_water_l_p50,
             date_first_entry: c.date_first_entry.map(|d| d.to_rfc3339()),
             date_last_entry: c.date_last_entry.map(|d| d.to_rfc3339()),
+            methodologies_used: c.methodologies_used.clone(),
         }
     }
 }
@@ -592,6 +616,16 @@ pub struct DailySeriesPointDto {
     pub water_l_p50: f64,
 }
 
+/// Total agrégé pour une méthodologie unique sur la période (Polish E, C24).
+#[derive(Debug, Clone, Serialize)]
+pub struct MethodTotalDto {
+    pub method: sobria_core::EmpreinteMethod,
+    pub request_count: u32,
+    pub total_co2eq_g_p50: f64,
+    pub total_energy_wh_p50: f64,
+    pub total_water_l_p50: f64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DashboardSummaryDto {
     pub period_label: String,
@@ -605,6 +639,11 @@ pub struct DashboardSummaryDto {
     pub vs_previous: Option<DashboardComparisonDto>,
     pub top_models: Vec<TopModelDto>,
     pub daily_series: Vec<DailySeriesPointDto>,
+    /// Polish E (C24) — Breakdown par méthodologie présente dans la période.
+    pub method_breakdown: Vec<MethodTotalDto>,
+    /// `true` si la période contient + d'une méthodologie. Le frontend
+    /// affiche alors un warning : sommer 2 méthodos n'est pas scientifique.
+    pub warning_multi_method: bool,
 }
 
 impl From<&crate::dashboard::DashboardSummary> for DashboardSummaryDto {
@@ -643,6 +682,18 @@ impl From<&crate::dashboard::DashboardSummary> for DashboardSummaryDto {
                     water_l_p50: p.water_l_p50,
                 })
                 .collect(),
+            method_breakdown: s
+                .method_breakdown
+                .iter()
+                .map(|m| MethodTotalDto {
+                    method: m.method,
+                    request_count: m.request_count,
+                    total_co2eq_g_p50: m.total_co2eq_g_p50,
+                    total_energy_wh_p50: m.total_energy_wh_p50,
+                    total_water_l_p50: m.total_water_l_p50,
+                })
+                .collect(),
+            warning_multi_method: s.warning_multi_method,
         }
     }
 }
@@ -1152,6 +1203,14 @@ pub struct AppPreferencesDto {
     pub onboarded: bool,
     /// Langue UI : `"fr"` ou `"en"`.
     pub lang: String,
+    /// Méthodologie utilisée par défaut pour les calculs (C24).
+    /// AFNOR SPEC 2314 (Sobr.ia) au premier lancement — choix souverain.
+    #[serde(default)]
+    pub default_method: sobria_core::EmpreinteMethod,
+    /// Méthodologies additionnelles à afficher en référence dans le
+    /// panneau "Voir aussi" (C24). Liste vide par défaut.
+    #[serde(default)]
+    pub also_show_methods: Vec<sobria_core::EmpreinteMethod>,
 }
 
 impl AppPreferencesDto {
@@ -1165,27 +1224,119 @@ impl AppPreferencesDto {
             enabled_modules: Persona::ProTech.default_modules(),
             onboarded: false,
             lang: "fr".into(),
+            default_method: sobria_core::EmpreinteMethod::default_method(),
+            also_show_methods: Vec::new(),
         }
     }
 }
 
-fn parse_payload(payload: &str) -> (String, f64) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Catalogue de méthodologies (C24)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Métadonnées d'une méthodologie d'empreinte LLM, exposées au frontend
+/// pour affichage dans `Settings → Méthodologies` (page `/methodologies`).
+///
+/// Voir [`sobria_estimator::MethodologyInfo`] côté backend pour la source
+/// de vérité ; ce DTO en est une projection 1:1 sérialisable.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MethodologyInfoDto {
+    /// Identifiant stable (`afnor_sobria` / `ecologits`).
+    pub method: sobria_core::EmpreinteMethod,
+    /// Nom affiché en UI (langue FR).
+    pub display_name: String,
+    /// Courte description 1-2 phrases (langue FR).
+    pub short_description: String,
+    /// URL de référence (DOI ou doc officielle).
+    pub reference_url: String,
+    /// DOI normalisé si dispo.
+    pub doi: Option<String>,
+    /// Licence de la méthodologie publiée.
+    pub license: String,
+    /// Statut de calibration ("peer_reviewed_reproduced" / "public_method_calibration_pending" / "indicative").
+    pub calibration: String,
+    /// Année de publication de la méthodologie de référence.
+    pub year_published: u16,
+    /// Organisation qui maintient la méthodologie de référence.
+    pub maintained_by: String,
+}
+
+impl From<&sobria_estimator::MethodologyInfo> for MethodologyInfoDto {
+    fn from(info: &sobria_estimator::MethodologyInfo) -> Self {
+        let calibration = match info.calibration {
+            sobria_estimator::MethodologyCalibration::PeerReviewedReproduced => {
+                "peer_reviewed_reproduced"
+            },
+            sobria_estimator::MethodologyCalibration::PublicMethodCalibrationPending => {
+                "public_method_calibration_pending"
+            },
+            sobria_estimator::MethodologyCalibration::Indicative => "indicative",
+        };
+        Self {
+            method: info.method,
+            display_name: info.display_name.into(),
+            short_description: info.short_description.into(),
+            reference_url: info.reference_url.into(),
+            doi: info.doi.map(Into::into),
+            license: info.license.into(),
+            calibration: calibration.into(),
+            year_published: info.year_published,
+            maintained_by: info.maintained_by.into(),
+        }
+    }
+}
+
+/// Champs extraits d'un payload `estimation_result_json` du ledger.
+/// Utilisé par [`AuditEntrySummaryDto::from_entry`].
+struct ParsedPayload {
+    model_id: String,
+    co2eq_p50: f64,
+    method: sobria_core::EmpreinteMethod,
+}
+
+fn parse_payload_full(payload: &str) -> ParsedPayload {
     if payload == sobria_audit::PURGED_SENTINEL {
-        return ("(purgé)".into(), f64::NAN);
+        return ParsedPayload {
+            model_id: "(purgé)".into(),
+            co2eq_p50: f64::NAN,
+            // Une entrée purgée ne révèle plus sa méthode ; on défaut sur
+            // AfnorSobria (sentinel cohérent avec ledger v1 historique).
+            method: sobria_core::EmpreinteMethod::AfnorSobria,
+        };
     }
     let parsed: Result<EstimationResult, _> = serde_json::from_str(payload);
     match parsed {
         Ok(r) => {
             let model_id = r.request.model_id.clone();
-            let co2eq = r
+            let co2eq_p50 = r
                 .indicators
                 .iter()
                 .find(|i| matches!(i.indicator, Indicator::Co2Eq))
                 .map_or(f64::NAN, |i| i.interval.p50);
-            (model_id, co2eq)
+            ParsedPayload {
+                model_id,
+                co2eq_p50,
+                method: r.method,
+            }
         }
-        Err(_) => ("(invalide)".into(), f64::NAN),
+        Err(_) => ParsedPayload {
+            model_id: "(invalide)".into(),
+            co2eq_p50: f64::NAN,
+            method: sobria_core::EmpreinteMethod::AfnorSobria,
+        },
     }
+}
+
+/// Wrapper rétro-compat de [`parse_payload_full`] pour le code legacy qui
+/// ne veut que `(model_id, co2eq_p50)`. À supprimer quand tous les
+/// call-sites auront migré.
+///
+/// Aujourd'hui seul utilisé par les tests — gardé sous `#[cfg(test)]` en
+/// attendant la migration / suppression définitive.
+#[cfg(test)]
+fn parse_payload(payload: &str) -> (String, f64) {
+    let p = parse_payload_full(payload);
+    (p.model_id, p.co2eq_p50)
 }
 
 #[cfg(test)]
@@ -1200,6 +1351,7 @@ mod tests {
             tokens_in: 100,
             tokens_out_estimated: 500,
             datacenter_id: None,
+            method: None,
         };
         let json = serde_json::to_string(&dto).unwrap();
         let back: EstimationRequestDto = serde_json::from_str(&json).unwrap();
@@ -1223,6 +1375,7 @@ mod tests {
     #[test]
     fn parse_payload_valid_extracts_model_and_co2() {
         let result = EstimationResult {
+            method: sobria_core::EmpreinteMethod::AfnorSobria,
             request: EstimationRequest {
                 model_id: "claude-3-5-sonnet".into(),
                 tokens_in: 50,

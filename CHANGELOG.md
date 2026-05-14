@@ -5,6 +5,71 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.4.0] — 2026-05-14 — Catalogue multi-méthodologie (C24 + polish A-H)
+
+### Added — Catalogue multi-méthodologie (chantier C24)
+
+- **Trait `EmpreinteEngine`** dans `sobria-estimator` : interface commune
+  à toutes les méthodologies d'empreinte LLM embarquées.
+- **Type `EmpreinteMethod`** (sobria-core) : enum stable `afnor_sobria` /
+  `ecologits` partagé par tous les crates.
+- **`EcoLogitsEngine`** : port direct des formules officielles EcoLogits
+  2026-01 (Rincé & Banse 2025, doi:10.21105/joss.07471, CC BY-SA 4.0).
+  Reproduction validée à ≤ 1 % vs Python notebook.
+- **Page `/methodologies`** : catalogue UI permettant à l'utilisateur de
+  choisir sa méthodologie par défaut + d'activer d'autres méthodos en
+  référence (panneau « Voir aussi » dans M1 Atelier).
+- **IPC `list_methodologies` + `estimate_for_comparison`** : exposent le
+  catalogue et permettent les calculs comparatifs éphémères (non
+  journalisés).
+- **Migration audit ledger v1 → v2** : nouvelle colonne `method` sur
+  `audit_entries`, idempotente. Les ledgers historiques conservent leur
+  intégrité SHA-256 ; les entrées pré-C24 sont étiquetées rétroactivement
+  `afnor_sobria` (seul moteur historique).
+- **ADR-0012** : décision multi-méthodologie complète (contexte, 4
+  alternatives rejetées, conséquences).
+- **Notebook `notebook/validation.qmd`** : reproduction Python des 3
+  ReproductionCase EcoLogits, exécutable de bout en bout.
+
+### Fixed — Audit B (mai 2026)
+
+- **`K_DECODE_MJ_PER_TOKEN_PER_B`** recalibré de `0.025` à `25.0` (factor
+  1000 manquant). Toutes les estimations Sobr.ia produites avant 0.4
+  étaient sous-évaluées d'un facteur ~1000.
+- **Bug RTE eco2mix** : `FACTOR = 0.25/1e6` → `0.5/1e6` (le pas réalisé
+  est 30 min, pas 15 min). Production totale FR 2023 passe de 243 TWh
+  (faux) à 487 TWh (≈ 2 % du Bilan RTE 2023 publié).
+- **`REPRODUCTION_CASES` vide** : remplacé par 3 cas réels reproduits à
+  ≤ 1 % contre EcoLogits Python (Llama 3.1 70B FR/USVA + Mistral Large 2).
+
+### Changed — Cohérence multi-méthodologie (Polish A → H)
+
+- **A** Hygiène ledger : panneau « Voir aussi » via `estimate_for_comparison`
+  (non journalisé).
+- **B** Discoverability : cross-links `/methodo` ↔ `/methodologies`,
+  rail labels désambigus.
+- **C** Badges méthodo visibles : M1 ResultBlock + colonne Journal.
+- **D** M3 Comparer modèles honore `default_method`.
+- **E** Dashboard breakdown par méthodologie + warning multi-méthodo.
+- **F** PDF CSRD + sidecar PROV-O tracent les méthodos réellement utilisées.
+- **G** M9 fiche modèle, M12 datacenter, M13 simulateur, M16 forecaster,
+  M17 datasheet Gebru → tous routés via `engine_for(default_method)`.
+  `simulate()` et `forecast_yearly()` prennent désormais
+  `&dyn EmpreinteEngine`.
+- **H** Bump version 0.2.0 → 0.4.0, `/parametres` expose le choix
+  méthodologie, onboarding mentionne le catalogue, toggle FR/EN désactivé
+  (i18n v1.1), cleanup routes zombies (`/workbench`, `/importer`,
+  `/exporter`).
+
+### Removed
+
+- Faux toggle FR/EN dans `/parametres` désactivé (i18n non implémentée,
+  sera v1.1).
+- Routes orphelines `/workbench` (doublon `/m9`), `/importer` et
+  `/exporter` (ADR-0011 différé v1.1+).
+
+---
+
 ## [Unreleased]
 
 ### Added — Chantier C10 : Onboarding personas + module gating (S6 / S7) — `v0.3.0-onboarding`
