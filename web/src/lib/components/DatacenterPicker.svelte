@@ -9,6 +9,7 @@
 
   let { datacenters, selected = $bindable() }: Props = $props();
 
+  let root: HTMLDivElement | undefined = $state();
   let open = $state(false);
   let query = $state('');
   let activeIndex = $state(0);
@@ -88,22 +89,24 @@
     }
   }
 
-  function onClickOutside(e: MouseEvent) {
+  function onWindowClick(e: MouseEvent) {
     if (!open) return;
-    const root = e.currentTarget as HTMLElement;
-    if (!root.contains(e.target as Node)) open = false;
+    const target = e.target as Node | null;
+    if (target && root && !root.contains(target)) {
+      open = false;
+    }
   }
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onclick={onWindowClick} />
 
 <div
   class="picker"
+  bind:this={root}
   role="combobox"
   aria-expanded={open}
   aria-haspopup="listbox"
   aria-controls="dc-picker-listbox"
-  onclickcapture={onClickOutside}
 >
   <button type="button" class="trigger" onclick={toggle} aria-label="Choisir un datacenter">
     <span class="ico"><Server size={18} strokeWidth={1.6} /></span>
