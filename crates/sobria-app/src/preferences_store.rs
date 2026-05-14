@@ -272,7 +272,7 @@ mod tests {
             lang: Some("fr".into()),
             default_method: Some(EmpreinteMethod::EcoLogits),
             also_show_methods: Some(vec![EmpreinteMethod::AfnorSobria]),
-            default_datacenter_id: None,
+            default_datacenter_id: Some("ovh-gra-gravelines".into()),
         };
         store.write_all(&written).unwrap();
         let read = store.read_all().unwrap();
@@ -282,6 +282,7 @@ mod tests {
         assert_eq!(read.lang.as_deref(), Some("fr"));
         assert_eq!(read.default_method, Some(EmpreinteMethod::EcoLogits));
         assert_eq!(read.also_show_methods, Some(vec![EmpreinteMethod::AfnorSobria]));
+        assert_eq!(read.default_datacenter_id.as_deref(), Some("ovh-gra-gravelines"));
     }
 
     #[test]
