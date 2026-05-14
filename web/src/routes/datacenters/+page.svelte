@@ -225,12 +225,8 @@
   {/if}
 
   {#if !bootstrapping && tauriAvailable && datacenters.length > 0}
-    <div class="grid">
-      <div class="col-l">
-        <DatacenterFilters {datacenters} bind:state={filters} onreset={resetFilters} />
-      </div>
-
-      <div class="col-c">
+    <div class="dc-route">
+      <div class="dc-map-fill">
         <DatacenterMap
           datacenters={filteredDatacenters}
           countries={filteredCountries}
@@ -241,22 +237,30 @@
         />
       </div>
 
-      <div class="col-r">
-        {#if selectedDc}
+      <div class="dc-filters-overlay">
+        <DatacenterFilters {datacenters} bind:state={filters} onreset={resetFilters} />
+      </div>
+
+      {#if selectedDc}
+        <div class="dc-drill-overlay">
           <DatacenterDrillDown
             detail={dcDetail}
             loading={dcDetailLoading}
             error={dcDetailError}
             onclose={closeDc}
           />
-        {:else if selectedCountry}
+        </div>
+      {:else if selectedCountry}
+        <div class="dc-drill-overlay">
           <CountryDrillDown
             country={selectedCountry}
             {datacenters}
             onclose={closeCountry}
             onSelectDc={selectDc}
           />
-        {:else}
+        </div>
+      {:else}
+        <div class="dc-drill-overlay">
           <div class="placeholder">
             <Server size={18} strokeWidth={1.6} />
             <h4>Cliquez un marker</h4>
@@ -265,8 +269,8 @@
               ici.
             </p>
           </div>
-        {/if}
-      </div>
+        </div>
+      {/if}
     </div>
   {:else if !bootstrapping}
     <div class="empty-shell">
@@ -416,19 +420,36 @@
     color: var(--ivory-2);
   }
 
-  .grid {
-    display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(0, 2.2fr) minmax(300px, 1.1fr);
-    gap: 16px;
-    align-items: stretch;
+  .dc-route {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: calc(100vh - var(--app-header-h, 64px));
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
   }
-  .col-l,
-  .col-r {
-    min-width: 0;
+  .dc-map-fill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
-  .col-c {
-    min-width: 0;
-    display: flex;
+  .dc-filters-overlay {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 5;
+    max-width: 280px;
+  }
+  .dc-drill-overlay {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: 340px;
+    z-index: 5;
+    overflow-y: auto;
   }
 
   .placeholder {
@@ -488,8 +509,11 @@
   }
 
   @media (max-width: 1180px) {
-    .grid {
-      grid-template-columns: 1fr;
+    .dc-drill-overlay {
+      width: 300px;
+    }
+    .dc-filters-overlay {
+      max-width: 240px;
     }
   }
   @media (max-width: 960px) {
