@@ -20,15 +20,19 @@
   } from '@lucide/svelte';
   import {
     isTauriContext,
+    listDatacenters,
     listModels,
     simulateScenarios,
     SobriaIpcError,
+    type DatacenterSummaryDto,
+    type EstimationRequestDto,
     type IpcErrorCode,
     type ModelPresetDto,
     type ScenarioDto,
     type SimulationRequestDto,
     type SimulationResultDto
   } from '$lib/api';
+  import DatacenterPicker from '$lib/components/DatacenterPicker.svelte';
   import { preferences, type ModuleId } from '$lib/preferences';
 
   import LeverPanel, {
@@ -63,6 +67,13 @@
   let baselineTokensIn = $state<number>(100);
   let baselineTokensOut = $state<number>(500);
 
+  // C25 — Datacenter du baseline (M12). Les scénarios partent de ces
+  // valeurs PUE/IF/WUE, sauf override explicite via les leviers (mix, pue,
+  // wue). Catalogue chargé une fois au bootstrap ; pré-remplissage via
+  // `default_datacenter_id` des préférences utilisateur.
+  let datacenters = $state<DatacenterSummaryDto[]>([]);
+  let selectedDatacenter = $state<DatacenterSummaryDto | null>(null);
+
   // Lever state (right panel)
   let leverState = $state<LeverState>(makeInitialLeverState('', 500));
 
@@ -96,6 +107,21 @@
           const firstId = m[0]?.id ?? '';
           baselineModelId = firstId;
           leverState = makeInitialLeverState(firstId, baselineTokensOut);
+        }
+
+        // C25 — Catalogue datacenters (M12) + pré-remplissage depuis les
+        // préférences utilisateur. Non-bloquant : si l'IPC échoue, le
+        // picker reste actif avec une liste vide (l'utilisateur peut
+        // toujours simuler sans datacenter — l'estimateur retombe sur
+        // les PUE/IF par défaut côté Rust).
+        try {
+          datacenters = await listDatacenters();
+          const def = $preferences.default_datacenter_id;
+          if (def && !selectedDatacenter) {
+            selectedDatacenter = datacenters.find((d) => d.id === def) ?? null;
+          }
+        } catch (dcErr) {
+          console.warn('listDatacenters failed (M13)', dcErr);
         }
       } catch (err) {
         if (err instanceof SobriaIpcError) {
@@ -227,12 +253,18 @@
 
   function buildRequest(): SimulationRequestDto | null {
     if (!baselineModelId) return null;
+    // C25 — `exactOptionalPropertyTypes` interdit de passer
+    // `datacenter_id: undefined` explicitement → conditional spread.
+    // Les scénarios héritent du DC du baseline côté Rust (cf. C25 A8),
+    // sauf si un override explicite est passé via les leviers.
+    const baseline: EstimationRequestDto = {
+      model_id: baselineModelId,
+      tokens_in: baselineTokensIn,
+      tokens_out_estimated: baselineTokensOut,
+      ...(selectedDatacenter ? { datacenter_id: selectedDatacenter.id } : {})
+    };
     return {
-      baseline: {
-        model_id: baselineModelId,
-        tokens_in: baselineTokensIn,
-        tokens_out_estimated: baselineTokensOut
-      },
+      baseline,
       scenarios: buildScenarios(leverState),
       ...(forecastVolume > 0
         ? {
@@ -299,6 +331,7 @@
     void leverState.touched.wue;
     void forecastVolume;
     void forecastGrowth;
+    void selectedDatacenter?.id;
 
     if (!tauriAvailable || bootstrapping) return;
     const req = buildRequest();
@@ -479,6 +512,20 @@
                 class="b-num mono"
               />
             </label>
+          </div>
+
+          <!-- C25 — Datacenter du baseline. Les 5 scénarios "isolate" et
+               le waterfall partent de ces valeurs PUE/IF/WUE, sauf si un
+               levier explicite (mix, pue, wue) est touché : c'est pile la
+               sémantique de l'estimateur côté Rust (cf. C25 A8). -->
+          <div class="dc-block">
+            <div class="dc-block-head">
+              <span class="dc-block-title">Datacenter (baseline)</span>
+              <span class="dc-block-hint mono"
+                >Les scénarios partent de ces valeurs PUE/IF/WUE, sauf override explicite.</span
+              >
+            </div>
+            <DatacenterPicker {datacenters} bind:selected={selectedDatacenter} />
           </div>
         </section>
 
@@ -756,6 +803,35 @@
   }
   .mono {
     font-family: var(--font-mono);
+  }
+
+  /* C25 — Datacenter (baseline). Bloc dédié sous les b-fields, avec un
+     filet pointillé pour signaler que le picker partage la même carte
+     que les inputs baseline mais conceptuellement plus "lourd". */
+  .dc-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+  }
+  .dc-block-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .dc-block-title {
+    font: 500 10px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ivory-3);
+  }
+  .dc-block-hint {
+    font: 400 10px/1.3 var(--font-mono);
+    color: var(--ivory-4);
   }
 
   /* Loading state */
