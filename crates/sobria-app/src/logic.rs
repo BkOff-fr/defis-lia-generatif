@@ -1505,6 +1505,11 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         lang: Some(prefs.lang),
         default_method: Some(prefs.default_method),
         also_show_methods: Some(prefs.also_show_methods),
+        // C25 : non géré par ce DTO — la valeur courante est préservée via
+        // `set_default_datacenter_id` dédié, on laisse `None` pour ne pas
+        // écraser l'éventuelle clé existante (write_all ne touche pas la
+        // ligne quand le champ est `None`).
+        default_datacenter_id: None,
     };
 
     let mut store = state

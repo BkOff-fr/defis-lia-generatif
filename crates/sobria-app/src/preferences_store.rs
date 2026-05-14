@@ -37,6 +37,8 @@ pub const KEY_LANG: &str = "lang";
 pub const KEY_DEFAULT_METHOD: &str = "default_method";
 /// Clé qui stocke la liste JSON des méthodologies affichées en référence (C24).
 pub const KEY_ALSO_SHOW_METHODS: &str = "also_show_methods";
+/// Clé qui stocke l'id du datacenter sélectionné par défaut (C25).
+pub const KEY_DEFAULT_DATACENTER: &str = "default_datacenter_id";
 
 /// Représentation interne des préférences avant traversée IPC.
 ///
@@ -61,6 +63,10 @@ pub struct StoredPreferences {
     /// à côté du résultat principal (C24). `None` → liste vide (aucune
     /// référence comparée par défaut, l'utilisateur active manuellement).
     pub also_show_methods: Option<Vec<EmpreinteMethod>>,
+    /// Dernier datacenter sélectionné par l'utilisateur dans /estimate,
+    /// /comparer ou /simuler (C25). `None` = aucun choisi → l'estimation
+    /// utilise les `EstimationParams` par défaut.
+    pub default_datacenter_id: Option<String>,
 }
 
 /// Magasin de préférences adossé à SQLite (`referentiel.sqlite`).
@@ -113,6 +119,7 @@ impl PreferencesStore {
             .map(|v| serde_json::from_str::<Vec<EmpreinteMethod>>(&v))
             .transpose()
             .map_err(AppError::from)?;
+        let default_datacenter_id = self.read_raw(KEY_DEFAULT_DATACENTER)?;
         Ok(StoredPreferences {
             persona,
             enabled_modules,
@@ -120,6 +127,7 @@ impl PreferencesStore {
             lang,
             default_method,
             also_show_methods,
+            default_datacenter_id,
         })
     }
 
@@ -166,6 +174,11 @@ impl PreferencesStore {
             upsert(&tx, KEY_ALSO_SHOW_METHODS, &v, &now)?;
         }
 
+        // default_datacenter_id (C25)
+        if let Some(id) = &prefs.default_datacenter_id {
+            upsert(&tx, KEY_DEFAULT_DATACENTER, id, &now)?;
+        }
+
         tx.commit()?;
         Ok(())
     }
@@ -180,6 +193,31 @@ impl PreferencesStore {
             )
             .optional()?;
         Ok(v)
+    }
+
+    fn write_raw(&mut self, key: &str, value: &str) -> Result<(), AppError> {
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "INSERT INTO app_preferences (key, value, updated_at) \
+             VALUES (?1, ?2, ?3) \
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            params![key, value, now],
+        )?;
+        Ok(())
+    }
+
+    fn delete_raw(&mut self, key: &str) -> Result<(), AppError> {
+        self.conn
+            .execute("DELETE FROM app_preferences WHERE key = ?1", params![key])?;
+        Ok(())
+    }
+
+    /// Persiste l'id du datacenter par défaut (C25). `None` efface la clé.
+    pub fn set_default_datacenter_id(&mut self, id: Option<&str>) -> Result<(), AppError> {
+        match id {
+            Some(v) => self.write_raw(KEY_DEFAULT_DATACENTER, v),
+            None => self.delete_raw(KEY_DEFAULT_DATACENTER),
+        }
     }
 }
 
@@ -230,6 +268,7 @@ mod tests {
             lang: Some("fr".into()),
             default_method: Some(EmpreinteMethod::EcoLogits),
             also_show_methods: Some(vec![EmpreinteMethod::AfnorSobria]),
+            default_datacenter_id: None,
         };
         store.write_all(&written).unwrap();
         let read = store.read_all().unwrap();
@@ -283,6 +322,22 @@ mod tests {
             .write_all(&StoredPreferences::default())
             .unwrap();
         assert!(store.read_all().unwrap().persona.is_none());
+    }
+
+    #[test]
+    fn default_datacenter_id_round_trip() {
+        let (_tmp, mut store) = open_temp();
+        assert!(store.read_all().unwrap().default_datacenter_id.is_none());
+
+        store
+            .set_default_datacenter_id(Some("aws-us-east-1"))
+            .unwrap();
+        let back = store.read_all().unwrap().default_datacenter_id;
+        assert_eq!(back.as_deref(), Some("aws-us-east-1"));
+
+        // Reverting to None must also persist.
+        store.set_default_datacenter_id(None).unwrap();
+        assert!(store.read_all().unwrap().default_datacenter_id.is_none());
     }
 
     #[test]
