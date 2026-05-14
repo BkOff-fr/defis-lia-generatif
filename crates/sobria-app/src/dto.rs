@@ -1211,6 +1211,11 @@ pub struct AppPreferencesDto {
     /// panneau "Voir aussi" (C24). Liste vide par défaut.
     #[serde(default)]
     pub also_show_methods: Vec<sobria_core::EmpreinteMethod>,
+    /// Dernier datacenter sélectionné, pré-rempli au prochain chargement
+    /// des routes /estimate, /comparer, /simuler (C25). `None` = pas de
+    /// préfill, l'utilisateur part d'un picker vide.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_datacenter_id: Option<String>,
 }
 
 impl AppPreferencesDto {
@@ -1226,6 +1231,7 @@ impl AppPreferencesDto {
             lang: "fr".into(),
             default_method: sobria_core::EmpreinteMethod::default_method(),
             also_show_methods: Vec::new(),
+            default_datacenter_id: None,
         }
     }
 }
@@ -1370,6 +1376,35 @@ mod tests {
     fn parse_payload_invalid_returns_invalid_marker() {
         let (id, _co2) = parse_payload("{not valid json");
         assert_eq!(id, "(invalide)");
+    }
+
+    #[test]
+    fn app_preferences_dto_round_trip_with_default_datacenter_id() {
+        let dto = AppPreferencesDto {
+            persona: None,
+            enabled_modules: vec![],
+            onboarded: false,
+            lang: "fr".into(),
+            default_method: sobria_core::EmpreinteMethod::AfnorSobria,
+            also_show_methods: vec![],
+            default_datacenter_id: Some("ovh-gra-gravelines".into()),
+        };
+        let json = serde_json::to_string(&dto).unwrap();
+        assert!(json.contains("default_datacenter_id"));
+        let back: AppPreferencesDto = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.default_datacenter_id.as_deref(), Some("ovh-gra-gravelines"));
+
+        // Backward-compat: a JSON without the field must deserialize with None.
+        let legacy = serde_json::json!({
+            "persona": null,
+            "enabled_modules": [],
+            "onboarded": false,
+            "lang": "fr",
+            "default_method": "afnor_sobria",
+            "also_show_methods": []
+        });
+        let parsed: AppPreferencesDto = serde_json::from_value(legacy).unwrap();
+        assert!(parsed.default_datacenter_id.is_none());
     }
 
     #[test]

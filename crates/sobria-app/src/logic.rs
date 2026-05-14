@@ -1481,6 +1481,9 @@ pub fn get_app_preferences(state: &AppState) -> IpcResult<AppPreferencesDto> {
         lang: stored.lang.unwrap_or(defaults.lang),
         default_method: stored.default_method.unwrap_or(defaults.default_method),
         also_show_methods: stored.also_show_methods.unwrap_or(defaults.also_show_methods),
+        default_datacenter_id: stored
+            .default_datacenter_id
+            .or(defaults.default_datacenter_id),
     })
 }
 
@@ -1505,10 +1508,12 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         lang: Some(prefs.lang),
         default_method: Some(prefs.default_method),
         also_show_methods: Some(prefs.also_show_methods),
-        // C25 : non géré par ce DTO — la valeur courante est préservée via
-        // `set_default_datacenter_id` dédié, on laisse `None` pour ne pas
-        // écraser l'éventuelle clé existante (write_all ne touche pas la
-        // ligne quand le champ est `None`).
+        // C25 : `write_all` ne fait qu'`UPSERT` quand `Some` et ignore les
+        // `None` (sémantique skip-on-None documentée dans
+        // `preferences_store::write_all`). Pour un set IPC qui doit refléter
+        // une suppression explicite (`None` côté DTO ⇒ ligne supprimée), on
+        // appelle `set_default_datacenter_id` après `write_all` ci-dessous.
+        // On laisse donc le champ à `None` ici pour éviter un double UPSERT.
         default_datacenter_id: None,
     };
 
@@ -1517,6 +1522,12 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         .lock()
         .map_err(|e| AppError::Poisoned(format!("preferences: {e}")))?;
     store.write_all(&stored).map_err(IpcError::from)?;
+    // C25 : applique l'intention explicite du DTO (Some → UPSERT, None →
+    // DELETE). Fait après `write_all` pour rester atomique avec le reste
+    // par-paquet, et parce que ce setter gère lui-même sa propre transaction.
+    store
+        .set_default_datacenter_id(prefs.default_datacenter_id.as_deref())
+        .map_err(IpcError::from)?;
     info!(
         persona = ?stored.persona,
         onboarded = ?stored.onboarded,
