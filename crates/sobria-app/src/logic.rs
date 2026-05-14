@@ -3356,6 +3356,47 @@ gpt-4o-mini,200,700,
     }
 
     #[test]
+    fn benchmark_with_datacenter_applies_to_every_model() {
+        // C25-A7 — `benchmark_models` boucle en appelant `estimate_prompt`
+        // pour chaque modèle. Comme A5 a câblé `apply_datacenter_override`
+        // dans `estimate_prompt`, l'override `datacenter_id` doit se
+        // propager à TOUS les outcomes du benchmark.
+        let (_tmp, state) = fresh_state();
+        let baseline = benchmark_models(
+            BenchmarkRequestDto {
+                model_ids: vec!["gpt-4o-mini".into(), "claude-3-5-sonnet".into()],
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: None,
+            },
+            &state,
+        )
+        .unwrap();
+        let with_dc = benchmark_models(
+            BenchmarkRequestDto {
+                model_ids: vec!["gpt-4o-mini".into(), "claude-3-5-sonnet".into()],
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: Some("ovh-gra-gravelines".into()),
+            },
+            &state,
+        )
+        .unwrap();
+        // Chaque outcome doit voir son CO2 P50 bouger quand on change le DC.
+        for (b, d) in baseline.outcomes.iter().zip(with_dc.outcomes.iter()) {
+            let b_co2 = pick_p50_from_dto(&b.result, "co2eq");
+            let d_co2 = pick_p50_from_dto(&d.result, "co2eq");
+            assert!(
+                (b_co2 - d_co2).abs() > 1e-4,
+                "model {} unchanged (baseline {} vs dc {})",
+                b.model_id,
+                b_co2,
+                d_co2
+            );
+        }
+    }
+
+    #[test]
     fn estimate_prompt_persists_default_datacenter_id() {
         let (_tmp, state) = fresh_state();
         let _ = estimate_prompt(
