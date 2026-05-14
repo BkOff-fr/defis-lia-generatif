@@ -51,7 +51,7 @@
   const anyActive = $derived(state.enabledOperators.size > 0 || state.enabledCountries.size > 0);
 </script>
 
-<aside class="filters" aria-label="Filtres datacenters">
+<aside class="filters glass" aria-label="Filtres datacenters">
   <header class="fh">
     <div>
       <div class="eyebrow"><Filter size={11} strokeWidth={1.8} /> Filtres</div>
@@ -124,10 +124,16 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    padding: 18px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.005));
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
+  }
+  /* C25 B2 — surface verre dépoli pour l'overlay /datacenters */
+  .glass {
+    background: color-mix(in oklab, var(--surface) 70%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    border: 1px solid color-mix(in oklab, var(--ink-mute) 12%, transparent);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px color-mix(in oklab, black 12%, transparent);
+    padding: 14px;
   }
   .fh {
     display: flex;
