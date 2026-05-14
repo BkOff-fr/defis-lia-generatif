@@ -6,7 +6,6 @@
     ArrowDownToLine,
     ArrowUpFromLine,
     SlidersHorizontal,
-    Server,
     Zap,
     Edit2,
     Sparkles,
@@ -14,7 +13,8 @@
     GitCompare,
     Check
   } from '@lucide/svelte';
-  import type { Calibration, ModelPresetDto } from '$lib/api';
+  import type { Calibration, DatacenterSummaryDto, ModelPresetDto } from '$lib/api';
+  import DatacenterPicker from './DatacenterPicker.svelte';
 
   type Props = {
     models: ModelPresetDto[];
@@ -23,6 +23,8 @@
     tokensOut: number;
     estimating: boolean;
     onsubmit: () => void;
+    datacenters: DatacenterSummaryDto[];
+    selectedDatacenter: DatacenterSummaryDto | null;
   };
 
   let {
@@ -31,7 +33,9 @@
     prompt = $bindable(),
     tokensOut = $bindable(),
     estimating,
-    onsubmit
+    onsubmit,
+    datacenters,
+    selectedDatacenter = $bindable()
   }: Props = $props();
 
   let popoverOpen = $state(false);
@@ -198,19 +202,7 @@
   </div>
 
   <div class="context-row">
-    <div class="context-card">
-      <div class="ico">
-        <Server size={18} strokeWidth={1.6} />
-      </div>
-      <div class="col">
-        <div class="ll">Datacenter (auto)</div>
-        <div class="vv">US-East · Virginie</div>
-        <div class="vm">PUE 1,30 · détecté via géoloc</div>
-      </div>
-      <span class="edit" aria-hidden="true">
-        <Edit2 size={14} strokeWidth={1.8} />
-      </span>
-    </div>
+    <DatacenterPicker {datacenters} bind:selected={selectedDatacenter} />
     <div class="context-card">
       <div class="ico blue">
         <Zap size={18} strokeWidth={1.6} />

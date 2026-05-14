@@ -20,11 +20,14 @@
     estimateForComparison,
     estimatePrompt,
     isTauriContext,
+    listDatacenters,
     listMethodologies,
     listModels,
     SobriaIpcError,
+    type DatacenterSummaryDto,
     type EmpreinteMethod,
     type EquivalentDto,
+    type EstimationRequestDto,
     type EstimationResultDto,
     type IpcErrorCode,
     type MethodologyInfoDto,
@@ -102,6 +105,14 @@
   );
   let tokensOut = $state(720);
 
+  // ─── C25 — Datacenters (M12) ─────────────────────────────────────────
+  // Le catalogue est chargé une fois au bootstrap via IPC. Le picker
+  // (cf. Composer.svelte → DatacenterPicker) bind ce state à `selected`.
+  // Pré-remplissage : si l'utilisateur a un `default_datacenter_id` dans
+  // ses préférences, on l'applique automatiquement au démarrage.
+  let datacenters = $state<DatacenterSummaryDto[]>([]);
+  let selectedDatacenter = $state<DatacenterSummaryDto | null>(null);
+
   let result = $state<EstimationResultDto | null>(null);
   let loading = $state(false);
   let bootstrapping = $state(true);
@@ -156,6 +167,21 @@
         const fromUrl = urlModel ? list.find((m) => m.id === urlModel)?.id : undefined;
         selectedModelId =
           fromUrl ?? list.find((m) => m.id === 'gpt-4o-mini')?.id ?? list[0]?.id ?? '';
+
+        // C25 — Catalogue datacenters (M12) + pré-remplissage depuis les
+        // préférences utilisateur. Non-bloquant : si l'IPC échoue, le
+        // picker reste actif avec une liste vide (l'utilisateur peut
+        // toujours soumettre sans datacenter — l'estimateur retombe sur
+        // les PUE/IF par défaut côté Rust).
+        try {
+          datacenters = await listDatacenters();
+          const def = $preferences.default_datacenter_id;
+          if (def && !selectedDatacenter) {
+            selectedDatacenter = datacenters.find((d) => d.id === def) ?? null;
+          }
+        } catch (dcErr) {
+          console.warn('listDatacenters failed', dcErr);
+        }
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           error = { code: err.code, message: err.message };
@@ -180,11 +206,16 @@
       // Même heuristique que Composer (3,3 chars/token FR). Cf. note dans
       // Composer.svelte — tokenizer réel en v0.3 (chantier outillage).
       const tokensIn = Math.max(1, Math.ceil(prompt.length / 3.3));
-      const r = await estimatePrompt({
+      // C25 — On n'ajoute `datacenter_id` que s'il y en a un choisi.
+      // `exactOptionalPropertyTypes` interdit de passer `undefined`
+      // explicitement sur un champ optionnel.
+      const req: EstimationRequestDto = {
         model_id: selectedModelId,
         tokens_in: tokensIn,
-        tokens_out_estimated: Math.max(1, tokensOut)
-      });
+        tokens_out_estimated: Math.max(1, tokensOut),
+        ...(selectedDatacenter ? { datacenter_id: selectedDatacenter.id } : {})
+      };
+      const r = await estimatePrompt(req);
       result = r;
       // Scroll smooth vers le bloc résultat, après que le DOM ait été
       // recalculé. Respecte `prefers-reduced-motion` via le param `behavior`.
@@ -410,6 +441,8 @@
       bind:tokensOut
       estimating={loading}
       onsubmit={submitEstimation}
+      {datacenters}
+      bind:selectedDatacenter
     />
   {/if}
 
