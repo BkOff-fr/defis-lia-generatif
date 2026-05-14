@@ -42,6 +42,7 @@
     defaultModulesFor,
     moduleCategory,
     moduleDescription,
+    moduleHref,
     moduleLabel,
     personaLabel,
     personaTagline,
@@ -118,7 +119,8 @@
         onboarded: $preferences.onboarded,
         lang: $preferences.lang,
         default_method: $preferences.default_method,
-        also_show_methods: $preferences.also_show_methods
+        also_show_methods: $preferences.also_show_methods,
+        default_datacenter_id: $preferences.default_datacenter_id
       });
     } catch (e) {
       saveError = errorOf(e);
@@ -138,13 +140,18 @@
         onboarded: $preferences.onboarded,
         lang: $preferences.lang,
         default_method: $preferences.default_method,
-        also_show_methods: $preferences.also_show_methods
+        also_show_methods: $preferences.also_show_methods,
+        default_datacenter_id: $preferences.default_datacenter_id
       });
     } catch (e) {
       saveError = errorOf(e);
     }
   }
 
+  // Parqué v1.1 — la toggle FR/EN est désactivée dans le markup en attendant
+  // les traductions ; cette fonction reste prête à être recâblée (cf. ancre
+  // « parked-helpers » en fin de script pour la référence qui satisfait
+  // `noUnusedLocals`).
   async function setLang(l: 'fr' | 'en') {
     saveError = null;
     try {
@@ -154,7 +161,8 @@
         onboarded: $preferences.onboarded,
         lang: l,
         default_method: $preferences.default_method,
-        also_show_methods: $preferences.also_show_methods
+        also_show_methods: $preferences.also_show_methods,
+        default_datacenter_id: $preferences.default_datacenter_id
       });
     } catch (e) {
       saveError = errorOf(e);
@@ -175,7 +183,8 @@
         onboarded: $preferences.onboarded,
         lang: $preferences.lang,
         default_method: m,
-        also_show_methods: filtered
+        also_show_methods: filtered,
+        default_datacenter_id: $preferences.default_datacenter_id
       });
     } catch (e) {
       saveError = errorOf(e);
@@ -197,13 +206,16 @@
         onboarded: $preferences.onboarded,
         lang: $preferences.lang,
         default_method: $preferences.default_method,
-        also_show_methods: next
+        also_show_methods: next,
+        default_datacenter_id: $preferences.default_datacenter_id
       });
     } catch (e) {
       saveError = errorOf(e);
     }
   }
 
+  // Parqué — helper de lookup pour la future card de détail méthodologie
+  // (tooltip, drawer). Sera consommé par le markup en cours d'itération.
   function methodInfo(m: EmpreinteMethod): MethodologyInfoDto | undefined {
     return methodologies.find((x) => x.method === m);
   }
@@ -217,7 +229,8 @@
         onboarded: false,
         lang: $preferences.lang,
         default_method: $preferences.default_method,
-        also_show_methods: $preferences.also_show_methods
+        also_show_methods: $preferences.also_show_methods,
+        default_datacenter_id: $preferences.default_datacenter_id
       });
       // `window.location.replace` plutôt que `goto`/`$app/navigation`
       // (cf. note dans +layout.svelte).
@@ -252,6 +265,12 @@
   });
 
   const disabledModules = $derived(ALL_MODULES.filter((id) => !enabled.has(id)));
+  // Feature I5 — Split modules non-activés en deux groupes pour la
+  // discoverability : ceux qu'on peut activer maintenant vs ceux différés
+  // v1.1+ (cf. ADR-0011). L'user voit ainsi clairement ce qui existe et
+  // ce qui arrive plus tard, plutôt que de chercher en vain dans le rail.
+  const disabledAvailable = $derived(disabledModules.filter((id) => moduleHref(id) !== null));
+  const disabledDeferred = $derived(disabledModules.filter((id) => moduleHref(id) === null));
 
   const CATEGORY_ORDER: ModuleCategory[] = [
     'estimation',
@@ -259,6 +278,14 @@
     'reporting',
     'pedagogie'
   ];
+
+  // ─── parked-helpers ──────────────────────────────────────────────────
+  // Référence-ancre : `setLang` (toggle FR/EN désactivée jusqu'à v1.1) et
+  // `methodInfo` (à câbler dans la card méthodologie) sont déclarés mais
+  // pas encore utilisés par le markup. Cette ligne les marque comme « lus »
+  // pour `noUnusedLocals` / `@typescript-eslint/no-unused-vars`, sans
+  // impact runtime (`void` discard l'expression).
+  void [setLang, methodInfo];
 </script>
 
 <svelte:head>
@@ -441,19 +468,19 @@
     {/if}
   </section>
 
-  <!-- ╭─── Section 3 : Modules disponibles non activés ────────╮ -->
+  <!-- ╭─── Section 3a : Modules disponibles à activer ────────╮ -->
   <section class="section">
     <header class="section-head">
       <PlusCircle size={16} strokeWidth={1.8} />
       <h2>Modules disponibles</h2>
-      <span class="section-hint mono">non activés · {disabledModules.length} dispo.</span>
+      <span class="section-hint mono">activables · {disabledAvailable.length} dispo.</span>
     </header>
 
-    {#if disabledModules.length === 0}
-      <p class="empty">Tous les modules sont déjà dans votre atelier.</p>
+    {#if disabledAvailable.length === 0}
+      <p class="empty">Tous les modules disponibles sont déjà dans votre atelier.</p>
     {:else}
       <ul class="modules-list compact">
-        {#each disabledModules as m (m)}
+        {#each disabledAvailable as m (m)}
           <li>
             <label class="module-line" data-checked="false">
               <input
@@ -476,20 +503,48 @@
     {/if}
   </section>
 
+  <!-- ╭─── Section 3b (Feature I5) : Modules à venir en v1.1+ ────╮ -->
+  {#if disabledDeferred.length > 0}
+    <section class="section">
+      <header class="section-head">
+        <PlusCircle size={16} strokeWidth={1.8} />
+        <h2>À venir en v1.1+</h2>
+        <span class="section-hint mono">{disabledDeferred.length} modules différés · ADR-0011</span>
+      </header>
+      <p class="section-intro">
+        Ces modules ont été <strong>différés à v1.1+</strong> pour focaliser v1.0 (cible candidature data.gouv)
+        sur les 13 modules essentiels. Ils restent dans le référentiel et peuvent être activés ; l'écran
+        dédié n'est pas encore livré.
+      </p>
+      <ul class="modules-list compact">
+        {#each disabledDeferred as m (m)}
+          <li>
+            <div class="module-line is-deferred" data-module={m}>
+              <span class="check-box deferred" aria-hidden="true">v1.1</span>
+              <span class="module-body">
+                <span class="module-id mono">{m.toUpperCase()}</span>
+                <span class="module-label">{moduleLabel(m)}</span>
+                <span class="module-desc">{moduleDescription(m)}</span>
+              </span>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
   <!-- ╭─── Polish H2 : Méthodologie scientifique (C24) ──────────╮ -->
   <section class="section">
     <header class="section-head">
       <Layers size={16} strokeWidth={1.8} />
       <h2>Méthodologie scientifique</h2>
-      <a class="section-hint mono section-hint-link" href="/methodologies"
-        >→ catalogue complet</a
-      >
+      <a class="section-hint mono section-hint-link" href="/methodologies">→ catalogue complet</a>
     </header>
     <p class="section-intro">
       Sobr.ia embarque <strong>plusieurs méthodologies d'estimation d'empreinte LLM</strong>
-      au choix. La méthodologie par défaut est utilisée par tous les calculs (M1 Atelier, M3
-      Comparer, M13 Simulateur, M22 Rapport CSRD…). Les méthodologies en référence
-      apparaissent dans le panneau « Voir aussi » à côté du résultat principal.
+      au choix. La méthodologie par défaut est utilisée par tous les calculs (M1 Atelier, M3 Comparer,
+      M13 Simulateur, M22 Rapport CSRD…). Les méthodologies en référence apparaissent dans le panneau
+      « Voir aussi » à côté du résultat principal.
     </p>
 
     {#if methodologies.length === 0}
@@ -508,7 +563,12 @@
                 </span>
               {/if}
               {#if m.doi}
-                <a class="doi mono" href={m.reference_url} target="_blank" rel="noopener noreferrer">
+                <a
+                  class="doi mono"
+                  href={m.reference_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   doi:{m.doi}
                 </a>
               {/if}
@@ -569,8 +629,8 @@
       <div class="dual-col">
         <h3 class="dual-title">Langue de l'interface</h3>
         <p class="dual-sub">
-          La traduction anglaise est prévue en v1.1 (chantier C12 non démarré). Le sélecteur
-          est désactivé : l'interface reste en français quel que soit le choix sauvegardé.
+          La traduction anglaise est prévue en v1.1 (chantier C12 non démarré). Le sélecteur est
+          désactivé : l'interface reste en français quel que soit le choix sauvegardé.
         </p>
         <div
           class="lang-toggle is-disabled"
@@ -578,13 +638,7 @@
           aria-label="Langue de l'interface (désactivé, v1.1)"
           title="Le sélecteur sera réactivé en v1.1 quand les chaînes EN seront disponibles."
         >
-          <button
-            type="button"
-            class="lang-btn active"
-            disabled
-            role="radio"
-            aria-checked="true"
-          >
+          <button type="button" class="lang-btn active" disabled role="radio" aria-checked="true">
             FR
           </button>
           <button
@@ -1089,6 +1143,27 @@
   .module-line[data-checked='true'] .check-box {
     background: var(--lime);
     border-color: var(--lime);
+  }
+  /* Feature I5 — modules différés (v1.1+) : non-interactif, badge clair */
+  .module-line.is-deferred {
+    cursor: default;
+    opacity: 0.85;
+  }
+  .module-line.is-deferred:hover {
+    border-color: var(--border);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .check-box.deferred {
+    width: auto;
+    height: auto;
+    padding: 2px 6px;
+    background: var(--surface-hi);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-pill);
+    font: 500 9px/1 var(--font-mono);
+    color: var(--ivory-3);
+    letter-spacing: 0.04em;
+    margin-top: 4px;
   }
   .module-body {
     display: grid;

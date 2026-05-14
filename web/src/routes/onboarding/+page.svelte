@@ -121,7 +121,8 @@
         onboarded: true,
         lang: 'fr',
         default_method: 'afnor_sobria',
-        also_show_methods: []
+        also_show_methods: [],
+        default_datacenter_id: undefined
       });
       // `window.location.replace` plutôt que `goto`/`$app/navigation`
       // (cf. note dans +layout.svelte).
@@ -421,7 +422,8 @@
           <span class="ready-ico" aria-hidden="true"><Layers size={20} strokeWidth={1.6} /></span>
           <span class="ready-title">2 méthodologies au choix</span>
           <span class="ready-sub">
-            <strong>AFNOR SPEC 2314 (Sobr.ia)</strong> par défaut · <strong>EcoLogits 2026-01</strong>
+            <strong>AFNOR SPEC 2314 (Sobr.ia)</strong> par défaut ·
+            <strong>EcoLogits 2026-01</strong>
             disponible. Switcher à tout moment via <em>Méthodologies (choix)</em> dans le rail.
           </span>
         </li>

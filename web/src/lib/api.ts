@@ -792,6 +792,8 @@ export interface AppPreferencesDto {
   default_method: EmpreinteMethod;
   /** Méthodologies additionnelles affichées en référence ("Voir aussi"). */
   also_show_methods: EmpreinteMethod[];
+  /** Dernier datacenter choisi pour pré-remplir le picker (C25). */
+  default_datacenter_id?: string | undefined;
 }
 
 export function getAppPreferences(): Promise<AppPreferencesDto> {

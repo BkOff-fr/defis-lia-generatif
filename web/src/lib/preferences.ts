@@ -35,6 +35,7 @@ const INITIAL: PreferencesState = {
   lang: 'fr',
   default_method: 'afnor_sobria',
   also_show_methods: [],
+  default_datacenter_id: undefined,
   loaded: false
 };
 
@@ -194,7 +195,8 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
   m2: {
     id: 'm2',
     label: 'Workbench multi-prompts',
-    description: 'Estimer plusieurs prompts en série dans un même atelier. (Différé v1.1+, cf. ADR-0011.)',
+    description:
+      'Estimer plusieurs prompts en série dans un même atelier. (Différé v1.1+, cf. ADR-0011.)',
     category: 'estimation',
     href: null
   },
@@ -208,7 +210,8 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
   m5: {
     id: 'm5',
     label: 'Exporter rapport',
-    description: 'PDF, CSV ou JSON sourcé — pour intégrer un dossier. (Différé v1.1+, voir M22 Rapport CSRD pour le PDF officiel.)',
+    description:
+      'PDF, CSV ou JSON sourcé — pour intégrer un dossier. (Différé v1.1+, voir M22 Rapport CSRD pour le PDF officiel.)',
     category: 'reporting',
     href: null
   },
@@ -243,7 +246,8 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
   m10: {
     id: 'm10',
     label: 'Importer batch',
-    description: 'Charger un CSV/JSON de prompts pour estimation groupée. (Différé v1.1+, backend M18 disponible mais UI dédiée non livrée.)',
+    description:
+      'Charger un CSV/JSON de prompts pour estimation groupée. (Différé v1.1+, backend M18 disponible mais UI dédiée non livrée.)',
     category: 'estimation',
     href: null
   },
