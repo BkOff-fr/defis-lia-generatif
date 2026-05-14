@@ -16,7 +16,7 @@ use sobria_geoloc::{
     find_site_by_code_iris, generate_sankey_fr, load_rte_mix, load_territoire_fr, DatacenterRecord,
     TerritoireFrArtifact, TerritoireFrError,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::{
     batch,
@@ -69,10 +69,6 @@ fn user_default_method(state: &AppState) -> sobria_core::EmpreinteMethod {
 /// Erreurs :
 /// - `InvalidRequest` si l'id est inconnu (la liste UI vient toujours de
 ///   `list_datacenters` donc un id orphelin est forcément un bug).
-//
-// Note dead_code : helper introduit en C25 / A4 ; câblé dans
-// `estimate_prompt` et autres call-sites par les tâches A5+.
-#[allow(dead_code)]
 fn apply_datacenter_override(
     params: &mut sobria_estimator::params::EstimationParams,
     datacenter_id: Option<&str>,
@@ -230,8 +226,10 @@ pub fn estimate_prompt(
 
     let model_id = req.model_id.clone();
     let method_override = req.method;
+    let datacenter_id = req.datacenter_id.clone();
     let core_req = req.into_core(Utc::now());
-    let params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
+    let mut params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
+    apply_datacenter_override(&mut params, datacenter_id.as_deref())?;
 
     // Choix de la méthodologie : surcharge explicite > préférence user > défaut.
     let method = method_override.unwrap_or_else(|| {
@@ -257,6 +255,16 @@ pub fn estimate_prompt(
     let entry = ledger.append(&result).map_err(AppError::from)?;
     let audit_id = entry.id;
     drop(ledger);
+
+    // Persistance "last used" (C25). Best-effort : un échec ne casse pas
+    // l'estimation, on log et on continue. La valeur courante (Some ou None)
+    // est sauvegardée — symétrique, l'utilisateur peut revenir à
+    // "aucun choisi" et ça persiste.
+    if let Ok(mut store) = state.preferences.lock() {
+        if let Err(e) = store.set_default_datacenter_id(datacenter_id.as_deref()) {
+            warn!(error = ?e, "set_default_datacenter_id échoué (non-bloquant)");
+        }
+    }
 
     info!(
         model = %model_id,
@@ -3228,5 +3236,98 @@ gpt-4o-mini,200,700,
         // PartialEq n'est pas dérivé sur Distribution ; on compare la repr
         // Debug comme proxy peu coûteux.
         assert_eq!(format!("{:?}", params.pue), original_pue_dbg);
+    }
+
+    #[test]
+    fn estimate_prompt_with_datacenter_overrides_indicators() {
+        let (_tmp, state) = fresh_state();
+        let baseline = estimate_prompt(
+            EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: None,
+                method: None,
+            },
+            &state,
+        )
+        .unwrap();
+        let with_dc = estimate_prompt(
+            EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: Some("ovh-gra-gravelines".into()),
+                method: None,
+            },
+            &state,
+        )
+        .unwrap();
+        let baseline_co2 = baseline
+            .indicators
+            .iter()
+            .find(|i| i.indicator == "co2eq")
+            .unwrap()
+            .p50;
+        let with_dc_co2 = with_dc
+            .indicators
+            .iter()
+            .find(|i| i.indicator == "co2eq")
+            .unwrap()
+            .p50;
+        assert!(
+            (baseline_co2 - with_dc_co2).abs() > 1e-9,
+            "DC override should move CO2 P50 ({baseline_co2} vs {with_dc_co2})"
+        );
+    }
+
+    #[test]
+    fn estimate_prompt_with_unknown_datacenter_returns_invalid_request() {
+        let (_tmp, state) = fresh_state();
+        let err = estimate_prompt(
+            EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: Some("does-not-exist".into()),
+                method: None,
+            },
+            &state,
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn estimate_prompt_persists_default_datacenter_id() {
+        let (_tmp, state) = fresh_state();
+        let _ = estimate_prompt(
+            EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: Some("ovh-gra-gravelines".into()),
+                method: None,
+            },
+            &state,
+        )
+        .unwrap();
+        let stored = state.preferences.lock().unwrap().read_all().unwrap();
+        assert_eq!(stored.default_datacenter_id.as_deref(), Some("ovh-gra-gravelines"));
+
+        // Reverting to None must also persist.
+        let _ = estimate_prompt(
+            EstimationRequestDto {
+                model_id: "gpt-4o-mini".into(),
+                tokens_in: 100,
+                tokens_out_estimated: 500,
+                datacenter_id: None,
+                method: None,
+            },
+            &state,
+        )
+        .unwrap();
+        let stored2 = state.preferences.lock().unwrap().read_all().unwrap();
+        assert!(stored2.default_datacenter_id.is_none());
     }
 }
