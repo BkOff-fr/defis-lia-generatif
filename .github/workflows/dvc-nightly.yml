@@ -1,0 +1,149 @@
+# Pipeline médaillon nocturne — voir docs/operations/dvc.md et chantier C26.4.
+#
+# Ce workflow rejoue le pipeline complet (`dvc repro`) chaque nuit, pousse
+# les nouveaux snapshots vers le remote DVC configuré et notifie en cas
+# d'échec. Il peut aussi être déclenché à la main (`workflow_dispatch`).
+#
+# Pré-requis côté repo (Settings → Secrets) :
+#   - DVC_REMOTE_URL          → ex: s3://my-bucket/sobria/dvc
+#   - DVC_REMOTE_ACCESS_KEY   → AWS_ACCESS_KEY_ID
+#   - DVC_REMOTE_SECRET_KEY   → AWS_SECRET_ACCESS_KEY
+#   - SOBRIA_GPG_KEY_ID       → (optionnel) clé pour signer MANIFEST.sha256
+#   - SOBRIA_GPG_PRIVATE_KEY  → (optionnel) clé privée ASCII-armored
+#
+# En l'absence de ces secrets le job s'exécute en remote local et ne push
+# rien — utile pour valider le repro localement via `act`.
+
+name: dvc-nightly
+
+on:
+  schedule:
+    # Tous les jours à 03:00 UTC = 04:00 Europe/Paris en hiver / 05:00 en été.
+    # Choisi pour finir avant l'heure de pointe matinale et profiter des
+    # snapshots data.gouv.fr fraîchement publiés.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Forcer la ré-exécution de tous les stages (dvc repro --force)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dvc-nightly
+  cancel-in-progress: false
+
+jobs:
+  repro:
+    name: Pipeline médaillon
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain (stable + cache)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: dvc-nightly
+          workspaces: . -> target
+
+      - name: Setup Python (DVC requirement)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install DVC + S3 backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install "dvc>=3.50,<4" "dvc-s3>=3,<4"
+          dvc --version
+
+      - name: Configure DVC remote
+        if: env.DVC_REMOTE_URL != ''
+        env:
+          DVC_REMOTE_URL: ${{ secrets.DVC_REMOTE_URL }}
+          DVC_REMOTE_ACCESS_KEY: ${{ secrets.DVC_REMOTE_ACCESS_KEY }}
+          DVC_REMOTE_SECRET_KEY: ${{ secrets.DVC_REMOTE_SECRET_KEY }}
+        run: |
+          dvc remote modify --local s3-prod url "$DVC_REMOTE_URL"
+          dvc remote modify --local s3-prod access_key_id "$DVC_REMOTE_ACCESS_KEY"
+          dvc remote modify --local s3-prod secret_access_key "$DVC_REMOTE_SECRET_KEY"
+          dvc remote default s3-prod
+
+      - name: Configure GPG (optionnel)
+        if: env.SOBRIA_GPG_PRIVATE_KEY != ''
+        env:
+          SOBRIA_GPG_PRIVATE_KEY: ${{ secrets.SOBRIA_GPG_PRIVATE_KEY }}
+        run: |
+          echo "$SOBRIA_GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --list-secret-keys
+
+      - name: dvc pull (récupère les snapshots existants)
+        continue-on-error: true # première exécution → cache vide, OK
+        run: dvc pull
+
+      - name: Build sobria-ingest (release)
+        run: cargo build -p sobria-ingest --release
+
+      - name: dvc repro
+        env:
+          SOBRIA_SEED: "42"
+          SOBRIA_USE_REAL_DATA: "1"
+          SOBRIA_GPG_KEY_ID: ${{ secrets.SOBRIA_GPG_KEY_ID }}
+          RUST_LOG: "info,sobria_ingest=debug"
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            dvc repro --force
+          else
+            dvc repro
+          fi
+
+      - name: Verify Gold integrity (validate)
+        run: cargo run -p sobria-ingest --release -- validate
+
+      - name: dvc push (publish)
+        if: env.DVC_REMOTE_URL != ''
+        env:
+          DVC_REMOTE_URL: ${{ secrets.DVC_REMOTE_URL }}
+        run: dvc push
+
+      - name: Upload Gold artifacts (always — disponible dans le run GitHub)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-artifacts
+          path: |
+            data/gold/referentiel.sqlite
+            data/gold/analytics.parquet
+            data/gold/datasheet.jsonld
+            data/gold/MANIFEST.sha256
+            data/gold/MANIFEST.sha256.asc
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Pipeline médaillon (nightly)"
+            echo ""
+            if [ -f data/gold/referentiel.sqlite ]; then
+              echo "- referentiel.sqlite : $(du -h data/gold/referentiel.sqlite | cut -f1)"
+              echo "- SHA-256 : $(sha256sum data/gold/referentiel.sqlite | cut -d' ' -f1)"
+            fi
+            if [ -f data/gold/MANIFEST.sha256 ]; then
+              echo ""
+              echo "### MANIFEST.sha256"
+              echo '```'
+              cat data/gold/MANIFEST.sha256
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

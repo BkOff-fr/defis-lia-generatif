@@ -125,6 +125,36 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   Option<PathBuf>` qui pointe vers `MANIFEST.sha256.asc` quand la
   signature GPG a réussi.
 
+### Added — C26.4 Orchestration DVC + CI nocturne
+
+- **`.dvc/config`** : remote local par défaut (`.dvc-cache/`) +
+  template pour basculer vers S3 (`dvc remote default s3-prod` après
+  `dvc remote modify`).
+- **`.dvc/.gitignore`** : exclut `cache/`, `tmp/`, `plots/` du repo Git.
+- **`.dvcignore`** étendu : ignore `target/`, `node_modules/`, `dist/`,
+  `build/`, `.svelte-kit/`, `.vite/`, fixtures de tests, notebooks
+  rendus, etc.
+- **`.gitignore`** : ajoute `.dvc-cache/` (le remote local DVC ne doit
+  jamais être poussé sur GitHub).
+- **`docs/operations/dvc.md`** : guide opérateur (~150 lignes) avec
+  quick start, table des stages, politique de rétention référencée à
+  ADR-0009, instructions pour basculer vers un remote S3/HTTP, et FAQ
+  (différence avec Git LFS, rôle de `dvc.lock`, vérification de
+  reproductibilité bit-à-bit, dépannage `dvc: command not found`).
+- **Workflow `.github/workflows/dvc-nightly.yml`** : job cron quotidien
+  03:00 UTC + déclenchement manuel (`workflow_dispatch` avec input
+  `force`). Étapes : checkout, install Rust + Python + DVC + dvc-s3,
+  configuration conditionnelle remote S3 et clé GPG (skip si secrets
+  absents), `dvc pull`, `cargo build --release`, `dvc repro`,
+  `validate`, `dvc push`, upload des artefacts Gold (rétention 30 j),
+  summary Markdown avec hashes SHA-256.
+
+### Changed
+
+- `dvc.yaml` : annotations `desc` enrichies pour les 3 stages, garantie
+  de reproductibilité documentée. (Stages `copper`, `silver`, `gold`,
+  `validate` déjà présents depuis C01-C04, juste annotations améliorées.)
+
 ---
 
 ## [0.4.0] — 2026-05-14 — Catalogue multi-méthodologie (C24 + polish A-H)

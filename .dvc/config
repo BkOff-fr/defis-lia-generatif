@@ -1,0 +1,12 @@
+[core]
+    remote = local
+    autostage = true
+['remote "local"']
+    url = .dvc-cache
+['remote "s3-prod"']
+    # Activé en CI nocturne via :
+    #     dvc remote modify s3-prod url s3://<bucket>/sobria/dvc
+    #     dvc remote modify s3-prod access_key_id $DVC_S3_ACCESS_KEY
+    #     dvc remote modify s3-prod secret_access_key $DVC_S3_SECRET_KEY
+    # En local, on bascule simplement avec :  dvc remote default s3-prod
+    url = s3://placeholder/sobria/dvc

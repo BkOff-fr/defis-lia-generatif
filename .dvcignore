@@ -1,8 +1,50 @@
-# Fichiers ignorés par DVC lors du tracking
+# Fichiers et dossiers que DVC doit IGNORER quand il calcule les
+# checksums et résout les dépendances. Voir
+# <https://dvc.org/doc/user-guide/project-structure/dvcignore-files>.
+
+# Git
 .git/
-node_modules/
+
+# Build artefacts Rust + Node + Tauri
 target/
-.svelte-kit/
+node_modules/
+**/dist/
+**/build/
+**/.svelte-kit/
+**/.vite/
+src-tauri/target/
+
+# Fichiers temporaires OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
 *.log
 *.tmp
-.DS_Store
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tests fixtures locaux (les vrais snapshots sont dans data/copper/)
+**/tests/fixtures/
+**/tests/snapshots/
+
+# Notebooks rendus (sources versionnées, sorties non)
+notebook/_freeze/
+notebook/_site/
+notebook/*.html
+notebook/*.pdf
+
+# Outputs locaux
+output/
+tmp/
+*.bak
+
+# Audits
+audit-report.json
+*.sbom.json

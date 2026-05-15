@@ -17,7 +17,9 @@ src-tauri/target/
 .dvc/cache
 .dvc/tmp
 .dvc/plots
-.dvc/.gitignore
+
+# Cache DVC local (remote par défaut, voir .dvc/config et docs/operations/dvc.md)
+.dvc-cache/
 
 # Données (versionnées via DVC, voir ADR-0007 et ADR-0009)
 /data/copper/
