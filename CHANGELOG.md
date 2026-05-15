@@ -68,6 +68,38 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - Routes orphelines `/workbench` (doublon `/m9`), `/importer` et
   `/exporter` (ADR-0011 différé v1.1+).
 
+### Fixed — Bugs UAT I1 → I5 (post-polish)
+
+- **I1 — Dashboard M15 axe X illisible** (`web/src/routes/m15/+page.svelte`) :
+  labels « ma18 ma19 ma10 » qui se chevauchaient. `shouldShowXLabel` passe
+  d'un seuil binaire à un stride adaptatif `ceil(n / 10)`, garantissant
+  au plus ~10 labels visibles quelle que soit la fenêtre.
+- **I2 — M25 Eco-budget bouton « Enregistrer » muet**
+  (`web/src/routes/m25/+page.svelte`) : Svelte 5 + `<input type="number">`
+  + `bind:value` coerce silencieusement en `number`, le `.trim()` ultérieur
+  faisait planter le handler. Passage en `type="text" inputmode="decimal"`
+  + parsing explicite `parseFloat(value.replace(',', '.'))`.
+- **I3 — M20 Territoire FR carte vide malgré données présentes**
+  (`crates/sobria-geoloc/src/{sankey_fr,territoire_fr}.rs` + UI) :
+  fichiers présents dans le repo mais absents du `data_root` au runtime.
+  Fix : `const DEFAULT_*_JSON: &str = include_str!(...)` avec fallback
+  embarqué dans `load_*()`. Ajout d'un bouton « Recharger » (icône
+  `RefreshCw`) côté UI pour invalidation manuelle.
+- **I4 — M12 Datacenters carte invisible**
+  (`web/package.json` + `web/src/lib/components/m12/DatacenterMap.svelte`
+  + `web/src/routes/datacenters/+page.svelte`) : root cause = `leaflet`
+  et `@types/leaflet` absents de `package.json`. Le dynamic import
+  échouait silencieusement. Fix dépendances + défensifs CSS :
+  `.map-wrapper { height: 560px }` explicite, `requestAnimationFrame`
+  avant `map.invalidateSize()`, `ResizeObserver` sur le conteneur,
+  `.col-c { display: block }` au lieu de flex. M20 bénéficie du même fix
+  (même pattern Leaflet).
+- **I5 — Modules différés invisibles dans `/parametres`**
+  (`web/src/routes/parametres/+page.svelte`) : section unique « Modules
+  disponibles » splittée en deux — _Modules disponibles_ (activables tout
+  de suite) et _À venir en v1.1+_ (badge `v1.1` lime, contrôles désactivés
+  pour les modules ADR-0011 différés).
+
 ---
 
 ## [Unreleased]
