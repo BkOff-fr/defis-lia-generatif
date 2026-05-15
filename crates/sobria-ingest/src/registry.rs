@@ -14,9 +14,7 @@ use crate::{
     context::Context,
     error::IngestResult,
     gold::{assemble_gold, GoldArtifacts},
-    layer::{
-        CopperSnapshot, DataLayer, GoldContribution, HealthReport, SilverEntity,
-    },
+    layer::{CopperSnapshot, DataLayer, GoldContribution, HealthReport, SilverEntity},
     lineage::{GoldLineage, SilverLineage},
 };
 
@@ -32,12 +30,18 @@ pub struct StepResult<T> {
 impl<T> StepResult<T> {
     /// Helper constructeur succès.
     pub fn ok(source_id: impl Into<String>, value: T) -> Self {
-        Self { source_id: source_id.into(), result: Ok(value) }
+        Self {
+            source_id: source_id.into(),
+            result: Ok(value),
+        }
     }
 
     /// Helper constructeur échec.
     pub fn err(source_id: impl Into<String>, error: impl ToString) -> Self {
-        Self { source_id: source_id.into(), result: Err(error.to_string()) }
+        Self {
+            source_id: source_id.into(),
+            result: Err(error.to_string()),
+        }
     }
 
     /// `true` si l'étape a réussi.
@@ -69,17 +73,28 @@ impl PipelineReport {
     /// Nombre de sources ayant réussi toute la chaîne.
     #[must_use]
     pub fn fully_successful_count(&self) -> usize {
-        let copper_ok: std::collections::BTreeSet<&str> =
-            self.copper.iter().filter(|r| r.is_ok()).map(|r| r.source_id.as_str()).collect();
-        let silver_ok: std::collections::BTreeSet<&str> =
-            self.silver.iter().filter(|r| r.is_ok()).map(|r| r.source_id.as_str()).collect();
+        let copper_ok: std::collections::BTreeSet<&str> = self
+            .copper
+            .iter()
+            .filter(|r| r.is_ok())
+            .map(|r| r.source_id.as_str())
+            .collect();
+        let silver_ok: std::collections::BTreeSet<&str> = self
+            .silver
+            .iter()
+            .filter(|r| r.is_ok())
+            .map(|r| r.source_id.as_str())
+            .collect();
         let gold_ok: std::collections::BTreeSet<&str> = self
             .gold_contributions
             .iter()
             .filter(|r| r.is_ok())
             .map(|r| r.source_id.as_str())
             .collect();
-        copper_ok.intersection(&silver_ok).filter(|s| gold_ok.contains(*s)).count()
+        copper_ok
+            .intersection(&silver_ok)
+            .filter(|s| gold_ok.contains(*s))
+            .count()
     }
 
     /// Liste des sources ayant échoué à au moins une étape.
@@ -114,14 +129,21 @@ impl LayerRegistry {
     /// Crée un registre vide.
     #[must_use]
     pub fn new() -> Self {
-        Self { sources: Vec::new() }
+        Self {
+            sources: Vec::new(),
+        }
     }
 
-    /// Construit le registre standard.
-    /// TODO(sobria-003) : instancier ComparIA, RTE IRIS, ADEME, ...
+    /// Construit le registre standard : `ComparIA` + `RTE IRIS` (Tier 1 du défi
+    /// data.gouv.fr). Les sources Tier 2/3 (ADEME, HuggingFace, CodeCarbon,
+    /// ML.Energy, Papers, GeoLite2) sont mentionnées dans ADR-0009 §"Registry"
+    /// mais restent à brancher (chantiers C26+ ou v1.x).
     #[must_use]
     pub fn standard() -> Self {
-        Self::new()
+        let mut reg = Self::new();
+        reg.register(Arc::new(crate::sources::ComparIASource::new()));
+        reg.register(Arc::new(crate::sources::RteIrisSource::new()));
+        reg
     }
 
     /// Enregistre une source.
@@ -258,7 +280,10 @@ impl LayerRegistry {
     /// Pipeline complet Copper → Silver → Gold + assemblage des artefacts.
     pub async fn run_full_pipeline(&self, ctx: &Context) -> IngestResult<PipelineReport> {
         let started_at = Utc::now();
-        info!(source_count = self.sources.len(), "pipeline médaillon : démarrage");
+        info!(
+            source_count = self.sources.len(),
+            "pipeline médaillon : démarrage"
+        );
 
         let copper = self.run_copper(ctx).await;
         let silver = self.run_silver(ctx, &copper).await;
@@ -268,17 +293,16 @@ impl LayerRegistry {
         // datasheet.jsonld, MANIFEST.sha256. Voir chantier C04.
         let sources_meta: Vec<crate::layer::SourceMeta> =
             self.sources.iter().map(|s| s.meta()).collect();
-        let gold_artifacts =
-            match assemble_gold(ctx, &silver, &sources_meta, &gold_lineage).await {
-                Ok(artifacts) => {
-                    info!("gold: assemblage terminé");
-                    Some(artifacts)
-                },
-                Err(e) => {
-                    warn!(error = %e, "gold: assemblage échoué");
-                    None
-                },
-            };
+        let gold_artifacts = match assemble_gold(ctx, &silver, &sources_meta, &gold_lineage).await {
+            Ok(artifacts) => {
+                info!("gold: assemblage terminé");
+                Some(artifacts)
+            },
+            Err(e) => {
+                warn!(error = %e, "gold: assemblage échoué");
+                None
+            },
+        };
 
         let finished_at = Utc::now();
         let report = PipelineReport {

@@ -34,12 +34,7 @@ const RETRY_BASE_MS: u64 = 500;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Headers HTTP conservés dans le manifest pour traçabilité.
-const TRACKED_HEADERS: &[&str] = &[
-    "etag",
-    "last-modified",
-    "content-type",
-    "content-length",
-];
+const TRACKED_HEADERS: &[&str] = &["etag", "last-modified", "content-type", "content-length"];
 
 /// Résultat d'un téléchargement.
 #[derive(Debug, Clone)]
@@ -86,13 +81,19 @@ impl Downloader {
             .user_agent(concat!("sobria-ingest/", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("client reqwest construit avec valeurs par défaut valides");
-        Self { client, max_retries: DEFAULT_MAX_RETRIES }
+        Self {
+            client,
+            max_retries: DEFAULT_MAX_RETRIES,
+        }
     }
 
     /// Crée un téléchargeur avec un client `reqwest` custom (tests, proxy…).
     #[must_use]
     pub fn with_client(client: reqwest::Client) -> Self {
-        Self { client, max_retries: DEFAULT_MAX_RETRIES }
+        Self {
+            client,
+            max_retries: DEFAULT_MAX_RETRIES,
+        }
     }
 
     /// Définit le nombre max de tentatives.
@@ -207,9 +208,7 @@ impl Downloader {
 fn is_transient(err: &IngestError) -> bool {
     match err {
         IngestError::Http(e) => {
-            e.is_timeout()
-                || e.is_connect()
-                || matches!(e.status(), Some(s) if s.is_server_error())
+            e.is_timeout() || e.is_connect() || matches!(e.status(), Some(s) if s.is_server_error())
         },
         // Une erreur d'I/O fugace peut bénéficier d'un retry.
         IngestError::Io(_) => true,
@@ -263,7 +262,10 @@ mod tests {
         let dest = dir.path().join("out.bin");
 
         let dl = Downloader::new();
-        let out = dl.fetch_to_file(&url, &dest, Some(HELLO_SHA256)).await.unwrap();
+        let out = dl
+            .fetch_to_file(&url, &dest, Some(HELLO_SHA256))
+            .await
+            .unwrap();
         assert_eq!(out.bytes, HELLO.len() as u64);
         assert_eq!(out.sha256, HELLO_SHA256);
         assert_eq!(out.status, DownloadStatus::Downloaded);
@@ -299,7 +301,11 @@ mod tests {
         // Pas de mock serveur configuré : si la requête part, ça doit échouer.
         let dl = Downloader::new();
         let out = dl
-            .fetch_to_file("http://127.0.0.1:1/should-not-be-called", &dest, Some(HELLO_SHA256))
+            .fetch_to_file(
+                "http://127.0.0.1:1/should-not-be-called",
+                &dest,
+                Some(HELLO_SHA256),
+            )
             .await
             .unwrap();
         assert_eq!(out.status, DownloadStatus::CachedHit);
@@ -325,7 +331,10 @@ mod tests {
         let dest = dir.path().join("out.bin");
 
         let dl = Downloader::new().with_max_retries(3);
-        let out = dl.fetch_to_file(&url, &dest, Some(HELLO_SHA256)).await.unwrap();
+        let out = dl
+            .fetch_to_file(&url, &dest, Some(HELLO_SHA256))
+            .await
+            .unwrap();
         assert_eq!(out.bytes, HELLO.len() as u64);
     }
 
@@ -366,7 +375,10 @@ mod tests {
 
         let dl = Downloader::new();
         let out = dl.fetch_to_file(&url, &dest, None).await.unwrap();
-        assert_eq!(out.headers.get("etag").map(String::as_str), Some("\"abc123\""));
+        assert_eq!(
+            out.headers.get("etag").map(String::as_str),
+            Some("\"abc123\"")
+        );
         assert_eq!(
             out.headers.get("content-type").map(String::as_str),
             Some("application/octet-stream"),

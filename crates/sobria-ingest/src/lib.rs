@@ -14,6 +14,7 @@
 #![allow(clippy::duration_suboptimal_units)]
 #![allow(clippy::needless_pass_by_value)]
 
+pub mod cli;
 pub mod context;
 pub mod download;
 pub mod error;
@@ -23,6 +24,7 @@ pub mod layer;
 pub mod lineage;
 pub mod manifest;
 pub mod registry;
+pub mod silver_validate;
 pub mod sources;
 
 pub use context::Context;

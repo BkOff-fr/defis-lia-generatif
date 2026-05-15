@@ -1,3 +1,8 @@
+---
+source: crates/sobria-ingest/tests/silver_validation.rs
+assertion_line: 150
+expression: s
+---
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sobr.ia/schemas/silver/rte_iris_consommation-v1.json",

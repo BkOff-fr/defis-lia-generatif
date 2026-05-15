@@ -105,8 +105,8 @@ async fn build_referentiel_sqlite(
         if path.exists() {
             std::fs::remove_file(&path)?;
         }
-        let mut conn = Connection::open(&path)
-            .map_err(|e| IngestError::Other(format!("open sqlite: {e}")))?;
+        let mut conn =
+            Connection::open(&path).map_err(|e| IngestError::Other(format!("open sqlite: {e}")))?;
         conn.execute_batch("PRAGMA journal_mode = WAL;")
             .map_err(|e| IngestError::Other(format!("wal: {e}")))?;
         conn.execute_batch(
@@ -139,7 +139,8 @@ async fn build_referentiel_sqlite(
         )
         .map_err(|e| IngestError::Other(format!("schema: {e}")))?;
 
-        let tx = conn.transaction()
+        let tx = conn
+            .transaction()
             .map_err(|e| IngestError::Other(format!("tx: {e}")))?;
 
         for src in &sources {
@@ -147,7 +148,14 @@ async fn build_referentiel_sqlite(
                 "INSERT OR REPLACE INTO sources \
                  (id, name, url, license, update_frequency, tier) \
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![src.id, src.name, src.url, src.license, src.update_frequency, src.tier],
+                params![
+                    src.id,
+                    src.name,
+                    src.url,
+                    src.license,
+                    src.update_frequency,
+                    src.tier
+                ],
             )
             .map_err(|e| IngestError::Other(format!("insert sources: {e}")))?;
         }
@@ -214,8 +222,11 @@ async fn build_analytics_parquet(
                 source_id.push(src.clone());
                 schema_version.push(e.schema_version.clone());
                 row_count.push(i64::try_from(e.row_count).unwrap_or(i64::MAX));
-                let hashes: Vec<String> =
-                    e.copper_refs.iter().map(|r| r.file_sha256.clone()).collect();
+                let hashes: Vec<String> = e
+                    .copper_refs
+                    .iter()
+                    .map(|r| r.file_sha256.clone())
+                    .collect();
                 copper_sha256_list.push(hashes.join(","));
             }
         }
@@ -252,17 +263,11 @@ async fn build_analytics_parquet(
 }
 
 /// Écrit le `MANIFEST.sha256` au format `sha256sum` standard.
-async fn write_manifest_sha256(
-    manifest_path: &Path,
-    files: &[&Path],
-) -> IngestResult<()> {
+async fn write_manifest_sha256(manifest_path: &Path, files: &[&Path]) -> IngestResult<()> {
     let mut lines = Vec::new();
     for p in files {
         let digest = hash::sha256_file(p).await?;
-        let name = p
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
+        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
         // Format standard sha256sum : "<hash><deux espaces><nom>"
         lines.push(format!("{digest}  {name}"));
     }
@@ -276,7 +281,6 @@ async fn write_manifest_sha256(
 mod tests {
     use super::*;
     use crate::{lineage::CopperRef, SilverEntity};
-    use chrono::Utc;
 
     fn sample_silver(source: &str, entity: &str, hash_byte: char) -> SilverEntity {
         SilverEntity {
@@ -314,8 +318,14 @@ mod tests {
         };
 
         let silver: Vec<StepResult<Vec<SilverEntity>>> = vec![
-            StepResult::ok("comparia", vec![sample_silver("comparia", "comparia_conversations", 'a')]),
-            StepResult::ok("rte-iris", vec![sample_silver("rte-iris", "rte_iris_consommation", 'b')]),
+            StepResult::ok(
+                "comparia",
+                vec![sample_silver("comparia", "comparia_conversations", 'a')],
+            ),
+            StepResult::ok(
+                "rte-iris",
+                vec![sample_silver("rte-iris", "rte_iris_consommation", 'b')],
+            ),
         ];
         let metas = vec![sample_meta("comparia", 1), sample_meta("rte-iris", 1)];
 
@@ -369,7 +379,9 @@ mod tests {
         let mut lineage = GoldLineage::empty();
         lineage.add_artifact("referentiel.sqlite");
 
-        let artifacts = assemble_gold(&ctx, &silver, &metas, &lineage).await.unwrap();
+        let artifacts = assemble_gold(&ctx, &silver, &metas, &lineage)
+            .await
+            .unwrap();
 
         // Re-ouvrir la SQLite et vérifier les contenus.
         let sqlite_path = artifacts.referentiel_sqlite.clone();
@@ -427,7 +439,9 @@ mod tests {
         let mut lineage = GoldLineage::empty();
         lineage.add_artifact("analytics.parquet");
 
-        let artifacts = assemble_gold(&ctx, &silver, &metas, &lineage).await.unwrap();
+        let artifacts = assemble_gold(&ctx, &silver, &metas, &lineage)
+            .await
+            .unwrap();
 
         let path = artifacts.analytics_parquet.clone();
         tokio::task::spawn_blocking(move || {
@@ -465,7 +479,9 @@ mod tests {
         let mut lineage = GoldLineage::empty();
         lineage.add_artifact("referentiel.sqlite");
 
-        let artifacts = assemble_gold(&ctx, &silver, &metas, &lineage).await.unwrap();
+        let artifacts = assemble_gold(&ctx, &silver, &metas, &lineage)
+            .await
+            .unwrap();
         assert!(artifacts.referentiel_sqlite.exists());
         assert!(artifacts.analytics_parquet.exists());
         assert!(artifacts.datasheet_jsonld.exists());

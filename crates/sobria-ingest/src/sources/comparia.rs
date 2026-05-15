@@ -37,9 +37,7 @@ use crate::{
     context::Context,
     download::Downloader,
     error::{IngestError, IngestResult},
-    layer::{
-        CopperSnapshot, DataLayer, GoldContribution, HealthReport, SilverEntity, SourceMeta,
-    },
+    layer::{CopperSnapshot, DataLayer, GoldContribution, HealthReport, SilverEntity, SourceMeta},
     lineage::CopperRef,
     manifest::{CopperManifest, ManifestFileEntry},
 };
@@ -145,9 +143,10 @@ impl DataLayer for ComparIASource {
             .build()
             .map_err(IngestError::Http)?;
         match client.head(url).send().await {
-            Ok(r) if r.status().is_success() => {
-                Ok(HealthReport::ok(format!("data.gouv.fr joignable ({}).", r.status())))
-            },
+            Ok(r) if r.status().is_success() => Ok(HealthReport::ok(format!(
+                "data.gouv.fr joignable ({}).",
+                r.status()
+            ))),
             Ok(r) => Ok(HealthReport::ko(format!("statut HTTP {}", r.status()))),
             Err(e) => Ok(HealthReport::ko(format!("réseau : {e}"))),
         }
@@ -166,10 +165,7 @@ impl DataLayer for ComparIASource {
         for (filename, url, _silver_name) in self.files() {
             let dest = snapshot_dir.join(&filename);
             info!(source = SOURCE_ID, file = %filename, "copper: téléchargement");
-            let outcome = self
-                .downloader
-                .fetch_to_file(&url, &dest, None)
-                .await?;
+            let outcome = self.downloader.fetch_to_file(&url, &dest, None).await?;
 
             manifest.add_file(ManifestFileEntry {
                 name: filename.clone(),
@@ -187,7 +183,11 @@ impl DataLayer for ComparIASource {
         }
 
         manifest.save(&manifest_path).await?;
-        info!(source = SOURCE_ID, files = copper_refs.len(), "copper: snapshot écrit");
+        info!(
+            source = SOURCE_ID,
+            files = copper_refs.len(),
+            "copper: snapshot écrit"
+        );
 
         Ok(CopperSnapshot {
             source_id: SOURCE_ID.into(),
@@ -206,11 +206,8 @@ impl DataLayer for ComparIASource {
         let silver_root = ctx.silver_root(SOURCE_ID);
         tokio::fs::create_dir_all(&silver_root).await?;
 
-        let file_to_silver: std::collections::HashMap<String, String> = self
-            .files()
-            .into_iter()
-            .map(|(f, _u, s)| (f, s))
-            .collect();
+        let file_to_silver: std::collections::HashMap<String, String> =
+            self.files().into_iter().map(|(f, _u, s)| (f, s)).collect();
 
         let mut entities = Vec::new();
         for copper_ref in &snapshot.files {
@@ -233,13 +230,17 @@ impl DataLayer for ComparIASource {
             .await?;
             debug!(rows = row_count, "silver: parquet écrit");
 
-            entities.push(SilverEntity {
+            let entity = SilverEntity {
                 name: silver_name.clone(),
                 path: silver_path,
                 schema_version: "v1".into(),
                 copper_refs: vec![copper_ref.clone()],
                 row_count,
-            });
+            };
+            // Validation structurelle ADR-0009 : refuse de promouvoir une entité
+            // dont le Parquet ne respecte pas son schéma versionné.
+            crate::silver_validate::validate_silver(&entity).await?;
+            entities.push(entity);
         }
         Ok(entities)
     }
@@ -336,9 +337,15 @@ mod tests {
 
     #[test]
     fn silver_name_mapping() {
-        assert_eq!(silver_name_for("conversations.parquet"), Some("comparia_conversations"));
+        assert_eq!(
+            silver_name_for("conversations.parquet"),
+            Some("comparia_conversations")
+        );
         assert_eq!(silver_name_for("votes.parquet"), Some("comparia_votes"));
-        assert_eq!(silver_name_for("reactions.parquet"), Some("comparia_reactions"));
+        assert_eq!(
+            silver_name_for("reactions.parquet"),
+            Some("comparia_reactions")
+        );
         assert_eq!(silver_name_for("inconnu.parquet"), None);
     }
 

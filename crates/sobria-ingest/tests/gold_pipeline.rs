@@ -117,7 +117,10 @@ async fn full_pipeline_assembles_gold_for_two_sources() {
     assert!(report.failed_sources().is_empty());
 
     // === Gold artefacts présents ===
-    let arts = report.gold_artifacts.as_ref().expect("gold artifacts présents");
+    let arts = report
+        .gold_artifacts
+        .as_ref()
+        .expect("gold artifacts présents");
     assert!(arts.referentiel_sqlite.exists());
     assert!(arts.analytics_parquet.exists());
     assert!(arts.datasheet_jsonld.exists());
@@ -130,7 +133,10 @@ async fn full_pipeline_assembles_gold_for_two_sources() {
         let nb_sources: i64 = conn
             .query_row("SELECT COUNT(*) FROM sources", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(nb_sources, 2, "2 sources enregistrées (comparia + rte-iris)");
+        assert_eq!(
+            nb_sources, 2,
+            "2 sources enregistrées (comparia + rte-iris)"
+        );
 
         // ComparIA produit 3 entités Silver, RTE IRIS en produit 1 → 4 au total
         let nb_entities: i64 = conn
@@ -183,15 +189,15 @@ async fn full_pipeline_assembles_gold_for_two_sources() {
     .unwrap();
 
     // === Vérifier datasheet.jsonld ===
-    let ds: serde_json::Value = serde_json::from_slice(
-        &tokio::fs::read(&arts.datasheet_jsonld).await.unwrap(),
-    )
-    .unwrap();
+    let ds: serde_json::Value =
+        serde_json::from_slice(&tokio::fs::read(&arts.datasheet_jsonld).await.unwrap()).unwrap();
     assert!(ds.get("@context").is_some());
     assert!(ds["schema:distribution"].is_array());
 
     // === Vérifier MANIFEST.sha256 ===
-    let manifest_content = tokio::fs::read_to_string(&arts.manifest_sha256).await.unwrap();
+    let manifest_content = tokio::fs::read_to_string(&arts.manifest_sha256)
+        .await
+        .unwrap();
     let lines: Vec<&str> = manifest_content.lines().collect();
     assert_eq!(lines.len(), 3, "manifest = 3 artefacts hashés");
     for line in &lines {

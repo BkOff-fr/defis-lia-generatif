@@ -13,7 +13,7 @@
 //!   déterministe (top N par conso) et mapping département → région ISO
 //!   (référence INSEE 2024, statique et auditée).
 
-use std::{collections::HashMap, path::Path, time::Duration};
+use std::{collections::HashMap, fmt::Write, path::Path, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
@@ -48,7 +48,7 @@ fn dept_to_region(dept: &str) -> Option<&'static str> {
         // Auvergne-Rhône-Alpes
         "01" | "03" | "07" | "15" | "26" | "38" | "42" | "43" | "63" | "69" | "73" | "74" => {
             Some("FR-ARA")
-        }
+        },
         // Bourgogne-Franche-Comté
         "21" | "25" | "39" | "58" | "70" | "71" | "89" | "90" => Some("FR-BFC"),
         // Bretagne
@@ -68,11 +68,10 @@ fn dept_to_region(dept: &str) -> Option<&'static str> {
         // Nouvelle-Aquitaine
         "16" | "17" | "19" | "23" | "24" | "33" | "40" | "47" | "64" | "79" | "86" | "87" => {
             Some("FR-NAQ")
-        }
+        },
         // Occitanie
-        "09" | "11" | "12" | "30" | "31" | "32" | "34" | "46" | "48" | "65" | "66" | "81" | "82" => {
-            Some("FR-OCC")
-        }
+        "09" | "11" | "12" | "30" | "31" | "32" | "34" | "46" | "48" | "65" | "66" | "81"
+        | "82" => Some("FR-OCC"),
         // Pays de la Loire
         "44" | "49" | "53" | "72" | "85" => Some("FR-PDL"),
         // Provence-Alpes-Côte d'Azur
@@ -121,14 +120,7 @@ pub struct RegionMeta {
 }
 
 impl RegionMeta {
-    fn new(
-        iso: &str,
-        name: &str,
-        insee: &str,
-        lat: f64,
-        lon: f64,
-        nuclear: f64,
-    ) -> Self {
+    fn new(iso: &str, name: &str, insee: &str, lat: f64, lon: f64, nuclear: f64) -> Self {
         Self {
             region_iso: iso.into(),
             name: name.into(),
@@ -307,9 +299,7 @@ pub async fn discover_datasets(keyword: &str, limit: u32) -> Result<Vec<DatasetM
             .get("publisher")
             .and_then(Value::as_str)
             .map(str::to_string);
-        let explore_url = format!(
-            "https://odre.opendatasoft.com/explore/dataset/{dataset_id}/"
-        );
+        let explore_url = format!("https://odre.opendatasoft.com/explore/dataset/{dataset_id}/");
         matches.push(DatasetMatch {
             dataset_id,
             title,
@@ -330,6 +320,7 @@ pub async fn discover_datasets(keyword: &str, limit: u32) -> Result<Vec<DatasetM
 /// obtenir au moins `target_limit` records valides. Sort côté client par
 /// consommation décroissante après collecte (pas de `order_by` qui dépend
 /// d'un nom de champ exact ODRÉ).
+#[allow(clippy::too_many_lines)]
 pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArtifact> {
     let client = reqwest::Client::builder()
         .timeout(HTTP_TIMEOUT)
@@ -348,11 +339,8 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
     let mut offset: u32 = 0;
     while offset < over_sample {
         let limit = ODRE_PAGE_SIZE.min(over_sample - offset);
-        let url = format!(
-            "{base}/{slug}/records?limit={limit}&offset={offset}",
-            base = ODRE_API_BASE,
-            slug = ODRE_IRIS_DATASET,
-        );
+        let url =
+            format!("{ODRE_API_BASE}/{ODRE_IRIS_DATASET}/records?limit={limit}&offset={offset}");
         info!(%url, "fetching ODRÉ IRIS page");
         if first_url.is_none() {
             first_url = Some(url.clone());
@@ -373,8 +361,8 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
             );
         }
         combined_sha.update(&bytes);
-        let payload: Value = serde_json::from_slice(&bytes)
-            .context("payload ODRÉ IRIS non-JSON")?;
+        let payload: Value =
+            serde_json::from_slice(&bytes).context("payload ODRÉ IRIS non-JSON")?;
         let page = payload
             .get("results")
             .and_then(Value::as_array)
@@ -384,7 +372,7 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
             debug!(offset, "page vide → fin de pagination");
             break;
         }
-        let got = page.len() as u32;
+        let got = u32::try_from(page.len()).unwrap_or(u32::MAX);
         all_records.extend(page);
         offset += got;
         if got < limit {
@@ -431,15 +419,12 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
         let digest = combined_sha.finalize();
         let mut s = String::with_capacity(64);
         for b in digest {
-            s.push_str(&format!("{b:02x}"));
+            let _ = write!(s, "{b:02x}");
         }
         s
     };
-    let url_for_meta = first_url.unwrap_or_else(|| format!(
-        "{base}/{slug}/records",
-        base = ODRE_API_BASE,
-        slug = ODRE_IRIS_DATASET
-    ));
+    let url_for_meta =
+        first_url.unwrap_or_else(|| format!("{ODRE_API_BASE}/{ODRE_IRIS_DATASET}/records"));
     let meta = ArtifactMeta {
         version: "1.0.0".into(),
         fetched_at: Utc::now().to_rfc3339(),
@@ -466,13 +451,15 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
 }
 
 /// Télécharge eco2mix année complète et agrège en TWh.
+#[allow(clippy::too_many_lines)]
 pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
     let where_clause = format!(
         "date_heure>=date'{y}-01-01' AND date_heure<date'{y_plus}-01-01'",
         y = year,
         y_plus = year + 1
     );
-    let select_cols = "nucleaire,hydraulique,eolien,solaire,gaz,charbon,fioul,bioenergies,pompage,ech_physiques";
+    let select_cols =
+        "nucleaire,hydraulique,eolien,solaire,gaz,charbon,fioul,bioenergies,pompage,ech_physiques";
     let url = format!(
         "{base}/{slug}/exports/json?lang=fr&timezone=UTC&where={where_enc}&select={select_enc}",
         base = ODRE_API_BASE,
@@ -528,12 +515,12 @@ pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
     //
     // Source : <https://odre.opendatasoft.com/explore/dataset/eco2mix-national-cons-def/information/>
     // Vérification : voir test `rte_mix_total_within_5pct_of_rte_bilan_2023`.
-    const FACTOR: f64 = 0.5 / 1_000_000.0;
+    let factor: f64 = 0.5 / 1_000_000.0;
     let mut n: u32 = 0;
     for rec in &records {
-        for (key, total) in totals.iter_mut() {
+        for (key, total) in &mut totals {
             if let Some(v) = rec.get(*key).and_then(Value::as_f64) {
-                *total += v * FACTOR;
+                *total += v * factor;
             }
         }
         n += 1;
@@ -575,9 +562,11 @@ pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
             "Mix électrique national FR — agrégat annuel TWh par source.".into(),
             "Calcul : Σ(MW × 0.5h)/1e6 sur les pas 30-min réalisés.".into(),
             "Données originales RTE eco2mix (pas 30-min pour les valeurs \
-             réalisées, conformément à la documentation ODRÉ).".into(),
+             réalisées, conformément à la documentation ODRÉ)."
+                .into(),
             "Validé contre Bilan RTE 2023 (production totale ≈ 494 TWh, \
-             nucléaire ≈ 320 TWh) à < 2 %.".into(),
+             nucléaire ≈ 320 TWh) à < 2 %."
+                .into(),
         ],
     };
     info!(
@@ -593,6 +582,7 @@ pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_lines)] // parsing pas-à-pas du record ODRÉ — découpage purement cosmétique sans bénéfice de lecture
 fn parse_industrial_record(rec: &Value) -> Option<IndustrialSite> {
     // Département : `code_insee_departement` est la string officielle
     // (ex: "01", "75", "2A"). On garde "01" zéro-paddé pour le mapping.
@@ -653,24 +643,31 @@ fn parse_industrial_record(rec: &Value) -> Option<IndustrialSite> {
     let pdl_elec = rec
         .get("pdl_electricite_rte")
         .and_then(Value::as_u64)
-        .unwrap_or(0) as u32;
+        .and_then(|v| u32::try_from(v).ok())
+        .unwrap_or(0);
     let pdl_grtgaz = rec
         .get("pdl_gaz_grtgaz")
         .and_then(Value::as_u64)
-        .unwrap_or(0) as u32;
+        .and_then(|v| u32::try_from(v).ok())
+        .unwrap_or(0);
     let pdl_terega = rec
         .get("pdl_gaz_terega")
         .and_then(Value::as_u64)
-        .unwrap_or(0) as u32;
+        .and_then(|v| u32::try_from(v).ok())
+        .unwrap_or(0);
     let pdl_total = rec
         .get("pdl_total")
         .and_then(Value::as_u64)
-        .map(|v| v as u32)
+        .and_then(|v| u32::try_from(v).ok())
         .unwrap_or_else(|| pdl_elec + pdl_grtgaz + pdl_terega);
 
     Some(IndustrialSite {
         code_iris,
-        commune: rec.get("commune").and_then(Value::as_str).unwrap_or("").into(),
+        commune: rec
+            .get("commune")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .into(),
         commune_code: rec
             .get("code_insee_commune")
             .and_then(Value::as_str)
@@ -693,7 +690,11 @@ fn parse_industrial_record(rec: &Value) -> Option<IndustrialSite> {
         pdl_count_elec: pdl_elec,
         pdl_count_gas: pdl_grtgaz + pdl_terega,
         pdl_total,
-        year: rec.get("annee").and_then(Value::as_u64).unwrap_or(0) as u32,
+        year: rec
+            .get("annee")
+            .and_then(Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok())
+            .unwrap_or(0),
     })
 }
 
@@ -701,7 +702,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     let mut s = String::with_capacity(64);
     for b in digest {
-        s.push_str(&format!("{b:02x}"));
+        let _ = write!(s, "{b:02x}");
     }
     s
 }
@@ -716,8 +717,10 @@ fn urlencoding(s: &str) -> String {
         match b {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 out.push(b as char);
-            }
-            _ => out.push_str(&format!("%{b:02X}")),
+            },
+            _ => {
+                let _ = write!(out, "%{b:02X}");
+            },
         }
     }
     out
@@ -726,14 +729,12 @@ fn urlencoding(s: &str) -> String {
 /// Sérialise un artefact et l'écrit dans un fichier JSON pretty-printed.
 pub fn write_artifact_json<T: Serialize>(artifact: &T, path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).with_context(|| {
-            format!("création du dossier {} échouée", parent.display())
-        })?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("création du dossier {} échouée", parent.display()))?;
     }
     let text = serde_json::to_string_pretty(artifact)?;
-    std::fs::write(path, text).with_context(|| {
-        format!("écriture du fichier {} échouée", path.display())
-    })?;
+    std::fs::write(path, text)
+        .with_context(|| format!("écriture du fichier {} échouée", path.display()))?;
     Ok(())
 }
 
@@ -857,7 +858,7 @@ mod tests {
 
     #[test]
     fn round3_truncates_to_3_decimals() {
-        assert!((round3(1.234567) - 1.235).abs() < 1e-9);
+        assert!((round3(1.234_567) - 1.235).abs() < 1e-9);
         assert!((round3(0.0001) - 0.0).abs() < 1e-9);
     }
 

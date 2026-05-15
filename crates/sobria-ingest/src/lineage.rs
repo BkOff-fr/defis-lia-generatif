@@ -14,10 +14,7 @@
 //! elle apparaît dans `GoldLineage::silver_inputs`. **Aucun hash Copper ne
 //! peut donc être perdu en remontant du Gold vers les sources.**
 
-use std::{
-    collections::BTreeSet,
-    path::PathBuf,
-};
+use std::{collections::BTreeSet, path::PathBuf};
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -48,8 +45,7 @@ impl CopperRef {
         if self.file_name.trim().is_empty() {
             return Err(IngestError::schema("CopperRef.file_name vide"));
         }
-        if self.file_sha256.len() != 64
-            || !self.file_sha256.chars().all(|c| c.is_ascii_hexdigit())
+        if self.file_sha256.len() != 64 || !self.file_sha256.chars().all(|c| c.is_ascii_hexdigit())
         {
             return Err(IngestError::schema(format!(
                 "CopperRef.file_sha256 invalide : {:?}",
@@ -337,7 +333,10 @@ mod tests {
         let g = sample_gold();
         let ld = g.to_jsonld();
         assert!(ld.get("@context").is_some());
-        assert_eq!(ld["@type"], serde_json::json!(["prov:Entity", "schema:Dataset"]));
+        assert_eq!(
+            ld["@type"],
+            serde_json::json!(["prov:Entity", "schema:Dataset"])
+        );
         assert!(ld["schema:dateCreated"].is_string());
         assert!(ld["schema:distribution"].is_array());
     }

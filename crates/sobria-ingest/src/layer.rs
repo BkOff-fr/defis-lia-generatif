@@ -1,5 +1,7 @@
 //! Trait fondateur du pipeline médaillon — voir ADR-0009.
 
+use std::path::Path;
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -7,8 +9,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     context::Context,
-    error::IngestResult,
+    error::{IngestError, IngestResult},
     lineage::CopperRef,
+    manifest::CopperManifest,
 };
 
 /// Métadonnées descriptives d'une source.
@@ -41,6 +44,50 @@ pub struct CopperSnapshot {
     pub files: Vec<CopperRef>,
     /// Licence détectée à l'ingestion.
     pub license: String,
+}
+
+impl CopperSnapshot {
+    /// Reconstruit un [`CopperSnapshot`] depuis un dossier Copper persistant
+    /// contenant un `manifest.json`. Permet à la sous-commande `silver` de
+    /// repartir d'un snapshot existant **sans ré-ingérer la source**.
+    ///
+    /// L'intégrité des fichiers est vérifiée (`CopperManifest::verify_files`) :
+    /// la fonction échoue si un fichier listé est absent ou si son SHA-256 ne
+    /// correspond plus au manifest.
+    ///
+    /// # Erreurs
+    ///
+    /// - [`IngestError::Io`] si `manifest.json` est introuvable.
+    /// - [`IngestError::Schema`] si le manifest est invalide ou si l'intégrité
+    ///   échoue.
+    pub async fn from_manifest(snapshot_dir: &Path) -> IngestResult<Self> {
+        let manifest_path = snapshot_dir.join("manifest.json");
+        if !manifest_path.exists() {
+            return Err(IngestError::schema(format!(
+                "manifest.json introuvable sous {} — le snapshot Copper est incomplet",
+                snapshot_dir.display()
+            )));
+        }
+        let manifest = CopperManifest::load(&manifest_path).await?;
+        manifest.verify_files(snapshot_dir).await?;
+        let files = manifest
+            .files
+            .iter()
+            .map(|f| CopperRef {
+                source_id: manifest.source_id.clone(),
+                manifest_path: manifest_path.clone(),
+                file_name: f.name.clone(),
+                file_sha256: f.sha256.clone(),
+            })
+            .collect();
+        Ok(Self {
+            source_id: manifest.source_id,
+            fetched_at: manifest.fetched_at,
+            path: snapshot_dir.to_path_buf(),
+            files,
+            license: manifest.license,
+        })
+    }
 }
 
 /// Une entité Silver écrite en Parquet.
@@ -84,13 +131,21 @@ impl HealthReport {
     /// Construit un rapport "OK".
     #[must_use]
     pub fn ok(message: impl Into<String>) -> Self {
-        Self { ok: true, message: message.into(), last_check: Utc::now() }
+        Self {
+            ok: true,
+            message: message.into(),
+            last_check: Utc::now(),
+        }
     }
 
     /// Construit un rapport "KO".
     #[must_use]
     pub fn ko(message: impl Into<String>) -> Self {
-        Self { ok: false, message: message.into(), last_check: Utc::now() }
+        Self {
+            ok: false,
+            message: message.into(),
+            last_check: Utc::now(),
+        }
     }
 }
 

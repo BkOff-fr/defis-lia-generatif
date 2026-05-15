@@ -11,9 +11,7 @@
 use std::{path::Path, sync::Arc};
 
 use polars::prelude::*;
-use sobria_ingest::{
-    sources::ComparIASource, Context, DataLayer, Downloader, LayerRegistry,
-};
+use sobria_ingest::{sources::ComparIASource, Context, DataLayer, Downloader, LayerRegistry};
 use wiremock::{
     matchers::{method, path as wm_path},
     Mock, MockServer, ResponseTemplate,
@@ -61,23 +59,17 @@ async fn comparia_full_pipeline_with_synthetic_data() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(wm_path("/conversations"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(convs_bytes.clone()),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(convs_bytes.clone()))
         .mount(&server)
         .await;
     Mock::given(method("GET"))
         .and(wm_path("/votes"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(votes_bytes.clone()),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(votes_bytes.clone()))
         .mount(&server)
         .await;
     Mock::given(method("GET"))
         .and(wm_path("/reactions"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(reacts_bytes.clone()),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(reacts_bytes.clone()))
         .mount(&server)
         .await;
 
@@ -131,7 +123,11 @@ async fn comparia_full_pipeline_with_synthetic_data() {
 
     for entity in &silver {
         assert_eq!(entity.schema_version, "v1");
-        assert!(entity.path.exists(), "Parquet Silver écrit : {:?}", entity.path);
+        assert!(
+            entity.path.exists(),
+            "Parquet Silver écrit : {:?}",
+            entity.path
+        );
         assert_eq!(entity.copper_refs.len(), 1, "1 ref Copper par entité");
         assert_eq!(entity.row_count, 3, "3 lignes synthétiques");
         assert!(
@@ -222,10 +218,7 @@ async fn comparia_silver_lineage_propagates_copper_sha256() {
     };
 
     let snap = source.ingest_copper(&ctx).await.expect("copper");
-    let silver = source
-        .promote_silver(&snap, &ctx)
-        .await
-        .expect("silver");
+    let silver = source.promote_silver(&snap, &ctx).await.expect("silver");
 
     // Sélectionne la première entité Silver et vérifie que sa colonne
     // _copper_sha256 contient bien le hash attendu.

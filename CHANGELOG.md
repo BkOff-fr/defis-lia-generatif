@@ -5,6 +5,76 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [Unreleased] — v0.5.0 en cours — Activation du pipeline médaillon (C26)
+
+### Added — C26.1 Câblage CLI sobria-ingest
+
+- **`LayerRegistry::standard()`** instancie désormais `ComparIASource` +
+  `RteIrisSource` (Tier 1 du défi data.gouv.fr). Avant 0.5.0 le registre
+  standard était vide (`TODO(sobria-003)`).
+- **Binaire `sobria-ingest`** complètement câblé : `pipeline run`, `copper`,
+  `silver`, `gold`, `validate` appellent les vraies méthodes du registre.
+  Plus de stubs `tracing::info!("... (stub)")`.
+- **Module `sobria-ingest::cli`** (testable) avec :
+  - `build_context(incremental)` honore `SOBRIA_DATA_ROOT` + `SOBRIA_SEED`.
+  - `build_context_with(data_root, seed, incremental)` variante injectable
+    pour les tests parallèles.
+  - `filter_registry(Option<&str>)` filtre le registre standard sur une
+    source (`--source <id>`) avec erreur claire si l'id est inconnu.
+  - `standard_source_ids()` introspection des sources Tier 1.
+- **`CopperManifest::verify_files(&self, dir)`** : recalcule le SHA-256 de
+  chaque fichier du snapshot et compare au hash enregistré. Utilisé par la
+  sous-commande `validate` pour détecter la corruption.
+- **Sous-commande `validate`** parcourt `data/copper/<source>/<date>/`,
+  charge chaque `manifest.json`, recalcule les hashes, et reporte OK/KO.
+  Code de sortie ≠ 0 si au moins un manifest est corrompu.
+
+### Added — C26.2 Schémas Silver versionnés + validation à l'écriture
+
+- **Module `sobria_ingest::silver_validate`** : valide chaque entité Silver
+  contre son schéma JSON Schema 2020-12 versionné (`schemas/silver/<entity>-v<n>.json`)
+  avant retour à l'orchestrateur. Lit le schéma Arrow du Parquet via
+  `polars::LazyFrame::scan_parquet`, vérifie la présence des colonnes
+  `required` et la compatibilité des types (`string` ↔ `Utf8`, `integer` ↔
+  `Int*`, etc.).
+- **Schémas Silver** : 4 schémas embarqués via `include_str!`
+  (`comparia_conversations`, `comparia_votes`, `comparia_reactions`,
+  `rte_iris_consommation`). Chaque schéma exige les colonnes lineage
+  systématiques `_copper_sha256` (regex hex 64) et `_ingested_at` (RFC 3339).
+  Le schéma RTE IRIS exige en plus la maille `code_iris` — clé de jointure
+  unique avec le référentiel INSEE et le futur `datacenter_iris_link` Gold.
+- **`CopperSnapshot::from_manifest(snapshot_dir)`** (sur `crates/sobria-ingest/src/layer.rs`) :
+  reconstruit un snapshot Copper à partir d'un dossier persistant
+  (`data/copper/<source>/<YYYY-MM-DD>/`) en chargeant `manifest.json` et
+  en vérifiant l'intégrité de chaque fichier (`verify_files`). Permet à la
+  sous-commande `silver` de repartir d'un Copper figé sans re-télécharger.
+- **`cli::latest_copper_snapshot(ctx, source_id)`** + **`cli::rehydrate_copper(ctx, registry)`**
+  exposés publiquement et testables. Le second produit un
+  `Vec<StepResult<CopperSnapshot>>` directement consommable par
+  `LayerRegistry::run_silver` — équivalent fonctionnel d'un `run_copper`
+  mais lu depuis disque.
+- **Tests** : `crates/sobria-ingest/tests/silver_validation.rs` (proptest +
+  golden snapshots insta sur les 4 schémas) et `tests/copper_rehydrate.rs`
+  (round-trip ingest → from_manifest → promote_silver, détection de
+  corruption, message d'erreur explicite quand aucun snapshot n'existe).
+
+### Changed
+
+- `LayerRegistry::standard()` n'est plus une simple alias de `new()` : elle
+  retourne le registre Tier 1 par défaut.
+- `print_pipeline_report` affiche désormais les chemins des 4 artefacts
+  Gold + le résumé chronométré du pipeline.
+- **`promote_silver` ComparIA + RTE IRIS** appelle systématiquement
+  `silver_validate::validate_silver` avant d'ajouter une entité au résultat.
+  Une entité dont le Parquet ne respecte pas son schéma versionné fait
+  échouer toute la promotion Silver de la source concernée.
+- **Sous-commande `silver`** : ne ré-ingère plus la couche Copper en amont.
+  Elle réhydrate les snapshots Copper persistants via `rehydrate_copper`
+  et échoue avec un message explicite si aucun snapshot n'est disponible
+  pour une source du registre filtré.
+
+---
+
 ## [0.4.0] — 2026-05-14 — Catalogue multi-méthodologie (C24 + polish A-H)
 
 ### Added — Catalogue multi-méthodologie (chantier C24)

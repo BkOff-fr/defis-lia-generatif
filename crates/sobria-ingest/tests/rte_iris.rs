@@ -12,9 +12,7 @@
 use std::{path::Path, sync::Arc};
 
 use polars::prelude::*;
-use sobria_ingest::{
-    sources::RteIrisSource, Context, DataLayer, Downloader, LayerRegistry,
-};
+use sobria_ingest::{sources::RteIrisSource, Context, DataLayer, Downloader, LayerRegistry};
 use wiremock::{
     matchers::{method, path as wm_path},
     Mock, MockServer, ResponseTemplate,
@@ -91,7 +89,11 @@ async fn rte_iris_full_pipeline_with_synthetic_data() {
     let snapshot = source.ingest_copper(&ctx).await.expect("ingest_copper ok");
     assert_eq!(snapshot.source_id, "rte-iris");
     assert_eq!(snapshot.files.len(), 2, "CSV + GeoJSON dans le manifest");
-    let names: Vec<&str> = snapshot.files.iter().map(|f| f.file_name.as_str()).collect();
+    let names: Vec<&str> = snapshot
+        .files
+        .iter()
+        .map(|f| f.file_name.as_str())
+        .collect();
     assert!(names.contains(&"consommation_iris.csv"));
     assert!(names.contains(&"iris_geometries.geojson"));
     for f in &snapshot.files {
@@ -128,10 +130,14 @@ async fn rte_iris_full_pipeline_with_synthetic_data() {
         .await
         .expect("contribute_gold ok");
     assert_eq!(gold.source_id, "rte-iris");
-    assert_eq!(gold.tables_touched, vec!["rte_iris_consommation".to_string()]);
+    assert_eq!(
+        gold.tables_touched,
+        vec!["rte_iris_consommation".to_string()]
+    );
     assert!(
-        gold.notes.iter().any(|n| n.to_lowercase().contains("odré")
-            || n.to_lowercase().contains("iris")),
+        gold.notes
+            .iter()
+            .any(|n| n.to_lowercase().contains("odré") || n.to_lowercase().contains("iris")),
         "note ODRÉ / IRIS attendue"
     );
 }

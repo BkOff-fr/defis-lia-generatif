@@ -89,6 +89,36 @@ impl CopperManifest {
         Ok(manifest)
     }
 
+    /// Recalcule le SHA-256 de chaque fichier du snapshot et compare au
+    /// hash enregistré dans le manifest. Échoue à la première divergence avec
+    /// un message identifiant le fichier fautif.
+    ///
+    /// `snapshot_dir` est le dossier qui contient le manifest et les fichiers
+    /// référencés (tous les `entry.name` sont résolus relativement à ce
+    /// chemin).
+    pub async fn verify_files(&self, snapshot_dir: &Path) -> IngestResult<()> {
+        use crate::hash;
+
+        for entry in &self.files {
+            let path = snapshot_dir.join(&entry.name);
+            if !path.exists() {
+                return Err(IngestError::schema(format!(
+                    "fichier manquant : {} (attendu sous {})",
+                    entry.name,
+                    snapshot_dir.display()
+                )));
+            }
+            let actual = hash::sha256_file(&path).await?;
+            if !actual.eq_ignore_ascii_case(&entry.sha256) {
+                return Err(IngestError::schema(format!(
+                    "hash divergent pour {} : attendu {}, observé {}",
+                    entry.name, entry.sha256, actual
+                )));
+            }
+        }
+        Ok(())
+    }
+
     /// Valide tous les invariants du manifest.
     pub fn validate(&self) -> IngestResult<()> {
         if self.schema_version != MANIFEST_SCHEMA_VERSION {
@@ -136,7 +166,6 @@ impl ManifestFileEntry {
         Ok(())
     }
 }
-
 
 /// Vérifie qu'une URL est acceptable pour un manifest :
 /// HTTPS partout, ou HTTP loopback (utile en tests avec wiremock).
@@ -189,7 +218,6 @@ mod tests {
             assert!(e.validate().is_ok(), "loopback {url} doit être accepté");
         }
     }
-
 
     #[test]
     fn entry_validates_hash_length() {
@@ -262,7 +290,52 @@ mod tests {
     async fn manifest_load_rejects_invalid_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("manifest.json");
-        tokio::fs::write(&path, br#"{"not_a_manifest": true}"#).await.unwrap();
+        tokio::fs::write(&path, br#"{"not_a_manifest": true}"#)
+            .await
+            .unwrap();
         assert!(CopperManifest::load(&path).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn verify_files_detects_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let manifest = sample_manifest();
+        // Fichier référencé absent
+        assert!(manifest.verify_files(dir.path()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn verify_files_ok_on_matching_hash() {
+        let dir = tempfile::tempdir().unwrap();
+        // Construit un fichier dont on connaît le hash SHA-256
+        let content = b"hello world";
+        tokio::fs::write(dir.path().join("conversations.parquet"), content)
+            .await
+            .unwrap();
+        let mut entry = sample_entry();
+        entry.sha256 = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9".into();
+        entry.size_bytes = content.len() as u64;
+        let mut manifest = CopperManifest::new("comparia", "Etalab 2.0");
+        manifest.add_file(entry);
+        manifest.verify_files(dir.path()).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn verify_files_detects_corruption() {
+        let dir = tempfile::tempdir().unwrap();
+        // Le manifest annonce un fichier de hash X, mais le contenu sur disque
+        // est Y → divergence.
+        tokio::fs::write(dir.path().join("conversations.parquet"), b"wrong content")
+            .await
+            .unwrap();
+        let mut entry = sample_entry();
+        entry.sha256 = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9".into();
+        let mut manifest = CopperManifest::new("comparia", "Etalab 2.0");
+        manifest.add_file(entry);
+        let err = manifest.verify_files(dir.path()).await.unwrap_err();
+        assert!(
+            format!("{err}").contains("hash divergent"),
+            "msg attendu : « hash divergent » ; reçu : {err}"
+        );
     }
 }

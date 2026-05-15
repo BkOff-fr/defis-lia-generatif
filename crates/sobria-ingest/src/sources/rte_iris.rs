@@ -27,9 +27,7 @@ use crate::{
     context::Context,
     download::Downloader,
     error::{IngestError, IngestResult},
-    layer::{
-        CopperSnapshot, DataLayer, GoldContribution, HealthReport, SilverEntity, SourceMeta,
-    },
+    layer::{CopperSnapshot, DataLayer, GoldContribution, HealthReport, SilverEntity, SourceMeta},
     lineage::CopperRef,
     manifest::{CopperManifest, ManifestFileEntry},
 };
@@ -78,7 +76,10 @@ impl RteIrisSource {
     /// Construit la source avec ses URLs réelles data.gouv.fr.
     #[must_use]
     pub fn new() -> Self {
-        Self { downloader: Downloader::new(), override_urls: None }
+        Self {
+            downloader: Downloader::new(),
+            override_urls: None,
+        }
     }
 
     /// Construit la source avec un downloader et des URLs personnalisés.
@@ -127,9 +128,10 @@ impl DataLayer for RteIrisSource {
             .build()
             .map_err(IngestError::Http)?;
         match client.head(self.csv_url()).send().await {
-            Ok(r) if r.status().is_success() => {
-                Ok(HealthReport::ok(format!("ODRÉ joignable ({}).", r.status())))
-            },
+            Ok(r) if r.status().is_success() => Ok(HealthReport::ok(format!(
+                "ODRÉ joignable ({}).",
+                r.status()
+            ))),
             Ok(r) => Ok(HealthReport::ko(format!("statut HTTP {}", r.status()))),
             Err(e) => Ok(HealthReport::ko(format!("réseau : {e}"))),
         }
@@ -149,7 +151,10 @@ impl DataLayer for RteIrisSource {
         info!(source = SOURCE_ID, file = %CSV_FILE, "copper: téléchargement");
         let csv_dest = snapshot_dir.join(CSV_FILE);
         let csv_url = self.csv_url();
-        let csv_outcome = self.downloader.fetch_to_file(&csv_url, &csv_dest, None).await?;
+        let csv_outcome = self
+            .downloader
+            .fetch_to_file(&csv_url, &csv_dest, None)
+            .await?;
         manifest.add_file(ManifestFileEntry {
             name: CSV_FILE.into(),
             url: csv_url,
@@ -187,7 +192,11 @@ impl DataLayer for RteIrisSource {
         });
 
         manifest.save(&manifest_path).await?;
-        info!(source = SOURCE_ID, files = copper_refs.len(), "copper: snapshot écrit");
+        info!(
+            source = SOURCE_ID,
+            files = copper_refs.len(),
+            "copper: snapshot écrit"
+        );
 
         Ok(CopperSnapshot {
             source_id: SOURCE_ID.into(),
@@ -229,13 +238,17 @@ impl DataLayer for RteIrisSource {
         .await?;
         debug!(rows = row_count, "silver: parquet écrit");
 
-        Ok(vec![SilverEntity {
+        let entity = SilverEntity {
             name: SILVER_ENTITY.into(),
             path: silver_path,
             schema_version: "v1".into(),
             copper_refs: vec![csv_ref.clone()],
             row_count,
-        }])
+        };
+        // Validation structurelle ADR-0009 : refuse de promouvoir une entité
+        // dont le Parquet ne respecte pas son schéma versionné.
+        crate::silver_validate::validate_silver(&entity).await?;
+        Ok(vec![entity])
     }
 
     async fn contribute_gold(
