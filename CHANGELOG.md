@@ -155,6 +155,58 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   de reproductibilité documentée. (Stages `copper`, `silver`, `gold`,
   `validate` déjà présents depuis C01-C04, juste annotations améliorées.)
 
+### Added — C26.5 Reconnexion app au Gold
+
+- **Crate `sobria-referentiel`** désormais fonctionnelle (auparavant
+  squelette vide) :
+  - `Referentiel::open(&Path)` ouvre le SQLite Gold en lecture seule
+    (mode WAL `SQLITE_OPEN_READ_ONLY`).
+  - `load()` honore `SOBRIA_REFERENTIEL_PATH` (défaut
+    `data/gold/referentiel.sqlite`).
+  - `Referentiel::status()` renvoie un `ReferentielStatus { version,
+    snapshot_date, sha256, source_count, model_count, path }` —
+    SHA-256 calculé en streaming pour les gros fichiers.
+  - Tolérant aux Gold legacy : si `model_overview` n'existe pas (Gold
+    pré-C26.3), `model_count` retourne 0 sans erreur.
+  - 5 tests unitaires + 1 doctest.
+- **IPC Tauri** (`get_referentiel_status`, `reload_referentiel`) :
+  - `get_referentiel_status` ne lance jamais d'erreur — encapsule
+    l'absence du fichier dans `available=false` + `message`, pour que
+    l'UI puisse proposer une action plutôt que crasher.
+  - `reload_referentiel` invoque `dvc pull` via `std::process::Command`,
+    capture stdout/stderr (tronqués à 4 ko), retourne le statut résultant.
+    Skip silencieux si DVC est absent du PATH (message d'aide explicite).
+- **`crates/sobria-app/src/dto.rs`** : `ReferentielStatusDto` +
+  `ReferentielReloadResultDto` (mirroir TS dans `web/src/lib/api.ts`).
+- **Web `web/src/lib/api.ts`** : types + fonctions
+  `getReferentielStatus()` / `reloadReferentiel()`.
+- **Page Paramètres `/parametres`** : nouvelle section "Référentiel"
+  (au-dessus de "Runtime") avec :
+  - Statut (available/unavailable badge + message).
+  - Version, snapshot (formaté FR), SHA-256 tronqué (12 chars + tooltip
+    full hash), nombre de sources, nombre de modèles, chemin du SQLite.
+  - Bouton "Recharger le référentiel" qui appelle `reload_referentiel`,
+    affiche le résultat (succès / erreur DVC).
+  - Callout warning explicite quand le Gold est absent.
+
+### Changed — C26.5
+
+- **`crates/sobria-geoloc/data/datacenters.json` → `datacenters_demo.json`**
+  pour distinguer la donnée **statique embarquée** (fallback hors-ligne
+  M9/M12) du **référentiel Gold dynamique** produit par le pipeline
+  médaillon. La doc-comment du module l'explicite. À terme, une source
+  Tier 2 (Cloud Carbon Footprint, Climatiq Datacenters…) alimentera
+  dynamiquement cette table dans le Gold ; le fichier embarqué restera
+  comme fallback.
+
+### Fixed — workspace clippy
+
+- Plusieurs lints `clippy::pedantic` / `clippy::cast_lossless` /
+  `clippy::manual_string_new` / `clippy::format_push_string` /
+  `clippy::same_item_push` corrigés dans `sobria-app` et `sobria-export`
+  pour permettre `cargo clippy --workspace --all-targets -- -D warnings`
+  propre.
+
 ---
 
 ## [0.4.0] — 2026-05-14 — Catalogue multi-méthodologie (C24 + polish A-H)

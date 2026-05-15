@@ -43,6 +43,47 @@ pub struct MetaInfo {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// referentiel (C26.5 — accès au Gold)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Statut compact du référentiel Gold pour la page Paramètres.
+/// Mirroir TS dans `web/src/lib/api.ts::ReferentielStatusDto`.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReferentielStatusDto {
+    /// `true` si le référentiel a pu être ouvert ; sinon les autres champs
+    /// peuvent être vides.
+    pub available: bool,
+    /// Message court lisible humain (raison de l'indisponibilité, ou OK).
+    pub message: String,
+    /// Version sémantique du référentiel (héritée de `sobria-ingest`).
+    pub version: String,
+    /// Date de dernière modification du fichier (RFC 3339).
+    pub snapshot_date: String,
+    /// SHA-256 hexadécimal du SQLite (intégrité).
+    pub sha256: String,
+    /// Nombre de sources contributrices.
+    pub source_count: u64,
+    /// Nombre de modèles distincts dans `model_overview`.
+    pub model_count: u64,
+    /// Chemin du SQLite consulté (info seule).
+    pub path: String,
+}
+
+/// Résultat d'une demande explicite de rechargement (`reload_referentiel`).
+/// Mirroir TS dans `web/src/lib/api.ts::ReferentielReloadResultDto`.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReferentielReloadResultDto {
+    /// `true` si `dvc pull` a réussi ET le référentiel est ouvert.
+    pub success: bool,
+    /// Message d'aide / d'erreur lisible humain.
+    pub message: String,
+    /// Stdout/stderr concaténés de `dvc pull` (debug, max ~4 ko).
+    pub dvc_output: String,
+    /// Statut résultant (None si reload a échoué avant ouverture).
+    pub status: Option<ReferentielStatusDto>,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // list_models
 // ─────────────────────────────────────────────────────────────────────────────
 

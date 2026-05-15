@@ -238,7 +238,7 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
                 "Methodologie utilisee : {}",
                 methodology_pdf_label(summary.methods_used[0])
             ),
-            n => format!("Methodologies utilisees dans la periode ({n}) :",),
+            n => format!("Methodologies utilisees dans la periode ({n}) :"),
         };
         layer.use_text(&methods_intro, 10.0, Mm(20.0), Mm(y), &font_body);
         y -= 6.0;

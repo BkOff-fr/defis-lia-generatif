@@ -328,7 +328,7 @@ mod tests {
         // HDF : 1 site, conso totale 800000
         let hdf = &agg[0];
         assert_eq!(hdf.site_count, 1);
-        assert!((hdf.total_consumption_mwh - 800000.0).abs() < 1e-9);
+        assert!((hdf.total_consumption_mwh - 800_000.0).abs() < 1e-9);
         assert!((hdf.nuclear_share_pct - 78.4).abs() < 1e-9);
         assert_eq!(hdf.top_sites.len(), 1);
         assert_eq!(hdf.top_sites[0].commune, "Dunkerque");
@@ -349,10 +349,10 @@ mod tests {
                 region_iso: "FR-IDF".into(),
                 lat: 48.86,
                 lon: 2.34,
-                consumption_mwh_elec: (1000 + i * 100) as f64,
+                consumption_mwh_elec: f64::from(1000 + i * 100),
                 consumption_mwh_gas_grtgaz: 0.0,
                 consumption_mwh_gas_terega: 0.0,
-                consumption_total_mwh: (1000 + i * 100) as f64,
+                consumption_total_mwh: f64::from(1000 + i * 100),
                 pdl_count_elec: 1,
                 pdl_count_gas: 0,
                 pdl_total: 1,

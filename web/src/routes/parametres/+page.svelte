@@ -26,14 +26,17 @@
     Microscope
   } from '@lucide/svelte';
   import {
+    getReferentielStatus,
     isTauriContext,
     listMethodologies,
     metaInfo,
+    reloadReferentiel,
     SobriaIpcError,
     type EmpreinteMethod,
     type IpcErrorCode,
     type MetaInfo,
-    type MethodologyInfoDto
+    type MethodologyInfoDto,
+    type ReferentielStatusDto
   } from '$lib/api';
   import {
     ALL_MODULES,
@@ -70,6 +73,10 @@
   let confirmPersona = $state<Persona | null>(null); // dialog de confirmation
   // Polish H2 — catalogue de méthodologies pour la section dédiée
   let methodologies = $state<MethodologyInfoDto[]>([]);
+  // C26.5 — Référentiel Gold (état + reload)
+  let referentiel = $state<ReferentielStatusDto | null>(null);
+  let reloading = $state(false);
+  let reloadMessage = $state<string | null>(null);
 
   const tauriAvailable = $derived(isTauriContext());
 
@@ -85,9 +92,14 @@
         return;
       }
       try {
-        const [m, list] = await Promise.all([metaInfo(), listMethodologies()]);
+        const [m, list, ref] = await Promise.all([
+          metaInfo(),
+          listMethodologies(),
+          getReferentielStatus()
+        ]);
         meta = m;
         methodologies = list;
+        referentiel = ref;
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           loadError = { code: err.code, message: err.message };
@@ -278,6 +290,43 @@
     'reporting',
     'pedagogie'
   ];
+
+  // ─── C26.5 — Recharger le référentiel Gold ───────────────────────────
+  async function handleReloadReferentiel() {
+    if (reloading) return;
+    reloading = true;
+    reloadMessage = null;
+    try {
+      const result = await reloadReferentiel();
+      if (result.status) {
+        referentiel = result.status;
+      }
+      reloadMessage = result.message;
+    } catch (e) {
+      const err = errorOf(e);
+      reloadMessage = err.message;
+    } finally {
+      reloading = false;
+    }
+  }
+
+  function shortHash(h: string): string {
+    if (!h || h.length < 12) return h;
+    return `${h.slice(0, 8)}…${h.slice(-4)}`;
+  }
+
+  function formatDate(iso: string): string {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return new Intl.DateTimeFormat('fr-FR', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(d);
+    } catch {
+      return iso;
+    }
+  }
 
   // ─── parked-helpers ──────────────────────────────────────────────────
   // Référence-ancre : `setLang` (toggle FR/EN désactivée jusqu'à v1.1) et
@@ -654,6 +703,81 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <!-- ╭─── Référentiel Gold (C26.5 — pipeline médaillon) ──────╮ -->
+  <section class="section">
+    <header class="section-head">
+      <Layers size={16} strokeWidth={1.8} />
+      <h2>Référentiel</h2>
+      <span class="section-hint mono"
+        >data/gold/referentiel.sqlite · `get_referentiel_status` IPC</span
+      >
+    </header>
+
+    {#if bootstrapping}
+      <div class="runtime-skel">Chargement…</div>
+    {:else if referentiel}
+      {#if referentiel.available}
+        <dl class="runtime-grid">
+          <div class="runtime-row">
+            <dt><Info size={12} strokeWidth={1.8} /> Version</dt>
+            <dd class="mono">{referentiel.version}</dd>
+          </div>
+          <div class="runtime-row">
+            <dt><Cpu size={12} strokeWidth={1.8} /> Snapshot</dt>
+            <dd class="mono">{formatDate(referentiel.snapshot_date)}</dd>
+          </div>
+          <div class="runtime-row">
+            <dt><Lock size={12} strokeWidth={1.8} /> SHA-256</dt>
+            <dd class="mono" title={referentiel.sha256}>{shortHash(referentiel.sha256)}</dd>
+          </div>
+          <div class="runtime-row">
+            <dt><PlugZap size={12} strokeWidth={1.8} /> Sources</dt>
+            <dd class="mono">{referentiel.source_count}</dd>
+          </div>
+          <div class="runtime-row">
+            <dt><Layers size={12} strokeWidth={1.8} /> Modèles</dt>
+            <dd class="mono">{referentiel.model_count}</dd>
+          </div>
+          <div class="runtime-row">
+            <dt><Folder size={12} strokeWidth={1.8} /> Chemin</dt>
+            <dd class="mono break">{referentiel.path}</dd>
+          </div>
+        </dl>
+      {:else}
+        <div class="callout callout-warn">
+          <AlertTriangle size={14} strokeWidth={1.8} />
+          <div>
+            <strong>Référentiel Gold indisponible.</strong>
+            <p class="callout-msg">{referentiel.message}</p>
+            <p class="callout-msg mono">{referentiel.path}</p>
+          </div>
+        </div>
+      {/if}
+      <div class="reload-row">
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick={handleReloadReferentiel}
+          disabled={reloading}
+          aria-busy={reloading}
+        >
+          <RefreshCw size={14} strokeWidth={1.8} />
+          {reloading ? 'Rechargement (dvc pull)…' : 'Recharger le référentiel'}
+        </button>
+        {#if reloadMessage}
+          <p class="reload-msg">{reloadMessage}</p>
+        {/if}
+      </div>
+    {/if}
+
+    <p class="section-foot">
+      <Hammer size={11} strokeWidth={1.8} />
+      Le référentiel Gold est généré par <code>cargo run -p sobria-ingest -- pipeline run</code>
+      et versionné via DVC. Voir
+      <a href="/methodo">Méthodologie</a> et <code>docs/operations/dvc.md</code>.
+    </p>
   </section>
 
   <!-- ╭─── Runtime (lecture seule via meta_info) ──────────────╮ -->
@@ -1521,6 +1645,64 @@
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+  }
+
+  /* C26.5 — Référentiel Gold (callout warn + bouton recharger) ─────── */
+  .callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 8px);
+    background: rgba(255, 255, 255, 0.02);
+    margin: 8px 0 14px;
+  }
+  .callout-warn {
+    border-color: rgba(255, 176, 0, 0.35);
+    background: rgba(255, 176, 0, 0.06);
+    color: var(--ivory, #f4f0e8);
+  }
+  .callout strong {
+    color: var(--ivory, #f4f0e8);
+    font-weight: 500;
+  }
+  .callout-msg {
+    font: 400 13px/1.5 var(--font-ui);
+    color: var(--ivory-2, rgba(244, 240, 232, 0.75));
+    margin: 4px 0 0;
+  }
+  .reload-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .reload-msg {
+    font: 400 12px/1.5 var(--font-ui);
+    color: var(--ivory-2, rgba(244, 240, 232, 0.7));
+    margin: 0;
+  }
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 13px/1 var(--font-ui);
+    color: var(--ivory, #f4f0e8);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    border-radius: var(--radius-sm, 6px);
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   @media (max-width: 720px) {

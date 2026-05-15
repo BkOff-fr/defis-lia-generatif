@@ -809,3 +809,34 @@ export async function setAppPreferences(prefs: AppPreferencesDto): Promise<void>
 export function listMethodologies(): Promise<MethodologyInfoDto[]> {
   return call<MethodologyInfoDto[]>('list_methodologies');
 }
+
+// ─── Référentiel Gold (C26.5 — pipeline médaillon) ────────────────────────
+//
+// Mirroir TypeScript de `crates/sobria-app/src/dto.rs::ReferentielStatusDto`.
+// Si `available` est `false`, les autres champs sont à valeur vide / 0 et
+// `message` explique pourquoi (snapshot pas encore généré, dvc absent…).
+export interface ReferentielStatusDto {
+  available: boolean;
+  message: string;
+  version: string;
+  snapshot_date: string; // RFC 3339
+  sha256: string; // 64 hex
+  source_count: number;
+  model_count: number;
+  path: string;
+}
+
+export interface ReferentielReloadResultDto {
+  success: boolean;
+  message: string;
+  dvc_output: string;
+  status: ReferentielStatusDto | null;
+}
+
+export function getReferentielStatus(): Promise<ReferentielStatusDto> {
+  return call<ReferentielStatusDto>('get_referentiel_status');
+}
+
+export function reloadReferentiel(): Promise<ReferentielReloadResultDto> {
+  return call<ReferentielReloadResultDto>('reload_referentiel');
+}

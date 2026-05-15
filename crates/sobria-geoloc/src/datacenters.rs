@@ -5,14 +5,24 @@
 //!
 //! Le dataset est chargé une seule fois via [`OnceLock`] depuis le fichier
 //! JSON inclus à la compilation (`include_str!`). Pas d'I/O runtime.
+//!
+//! ## C26.5 — Fichier `*_demo.json`
+//!
+//! Le suffixe `_demo` distingue cette donnée **statique embarquée**
+//! (fallback hors-ligne, M9/M12) du **référentiel Gold dynamique**
+//! produit par le pipeline médaillon (`data/gold/referentiel.sqlite`,
+//! voir crate `sobria-referentiel`). À terme une source Tier 2 (Cloud
+//! Carbon Footprint, Climatiq Datacenters…) alimentera dynamiquement
+//! cette table dans le Gold ; le fichier embarqué restera comme
+//! fallback hors-ligne.
 
 use std::{collections::HashMap, sync::OnceLock};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Bytes du fichier `data/datacenters.json` inclus à la compilation.
-const DATA_JSON: &str = include_str!("../data/datacenters.json");
+/// Bytes du fichier `data/datacenters_demo.json` inclus à la compilation.
+const DATA_JSON: &str = include_str!("../data/datacenters_demo.json");
 
 /// Fiche d'un datacenter.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]

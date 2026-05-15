@@ -5705,10 +5705,15 @@ name = "sobria-referentiel"
 version = "0.4.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "proptest",
+ "rusqlite",
+ "schemars 0.8.22",
  "serde",
  "serde_json",
+ "sha2",
  "sobria-core",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

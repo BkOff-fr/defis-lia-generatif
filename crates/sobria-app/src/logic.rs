@@ -103,6 +103,109 @@ pub fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
     Ok(available_models().into_iter().map(Into::into).collect())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Référentiel Gold (C26.5 — pipeline médaillon)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Statut du référentiel Gold (`data/gold/referentiel.sqlite` ou path
+/// défini par `SOBRIA_REFERENTIEL_PATH`). Toujours OK : si le fichier
+/// est absent, on retourne un statut `available=false` avec un message
+/// explicite plutôt qu'une erreur IPC — l'UI peut alors proposer une
+/// action de rechargement.
+pub fn get_referentiel_status() -> IpcResult<crate::dto::ReferentielStatusDto> {
+    Ok(referentiel_status_dto())
+}
+
+/// Tente de recharger le référentiel via `dvc pull`. Skip silencieux si
+/// `dvc` n'est pas installé sur le PATH (l'UI affichera le message
+/// d'erreur). Retourne le statut résultant.
+pub fn reload_referentiel() -> IpcResult<crate::dto::ReferentielReloadResultDto> {
+    use crate::dto::ReferentielReloadResultDto;
+
+    let pull = std::process::Command::new("dvc").arg("pull").output();
+    match pull {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            // Limite ~4 ko pour éviter de spammer l'UI.
+            let mut combined = format!("{stdout}\n{stderr}");
+            if combined.len() > 4096 {
+                combined.truncate(4096);
+                combined.push_str("\n…(tronqué)");
+            }
+            let status = referentiel_status_dto();
+            let success = out.status.success() && status.available;
+            let message = if success {
+                "dvc pull terminé, référentiel rechargé.".to_string()
+            } else if !out.status.success() {
+                format!(
+                    "dvc pull a échoué (code {:?}). Voir docs/operations/dvc.md.",
+                    out.status.code()
+                )
+            } else {
+                "dvc pull OK mais le référentiel reste indisponible.".to_string()
+            };
+            Ok(ReferentielReloadResultDto {
+                success,
+                message,
+                dvc_output: combined,
+                status: Some(status),
+            })
+        },
+        Err(e) => Ok(ReferentielReloadResultDto {
+            success: false,
+            message: format!(
+                "Impossible de lancer `dvc pull` : {e}. Installez DVC (`pip install dvc`) ou \
+                 lancez manuellement `cargo run -p sobria-ingest -- pipeline run`."
+            ),
+            dvc_output: String::new(),
+            status: Some(referentiel_status_dto()),
+        }),
+    }
+}
+
+/// Helper interne : ouvre le référentiel et fabrique un DTO. Capture les
+/// erreurs en `available=false` plutôt que de les propager — laisse l'UI
+/// décider.
+fn referentiel_status_dto() -> crate::dto::ReferentielStatusDto {
+    use crate::dto::ReferentielStatusDto;
+    match sobria_referentiel::load() {
+        Ok(r) => match r.status() {
+            Ok(s) => ReferentielStatusDto {
+                available: true,
+                message: "Référentiel Gold opérationnel.".to_string(),
+                version: s.version,
+                snapshot_date: s.snapshot_date.to_rfc3339(),
+                sha256: s.sha256,
+                source_count: s.source_count,
+                model_count: s.model_count,
+                path: s.path,
+            },
+            Err(e) => ReferentielStatusDto {
+                available: false,
+                message: format!("Référentiel ouvert mais lecture KO : {e}"),
+                version: String::new(),
+                snapshot_date: String::new(),
+                sha256: String::new(),
+                source_count: 0,
+                model_count: 0,
+                path: String::new(),
+            },
+        },
+        Err(e) => ReferentielStatusDto {
+            available: false,
+            message: format!("{e}"),
+            version: String::new(),
+            snapshot_date: String::new(),
+            sha256: String::new(),
+            source_count: 0,
+            model_count: 0,
+            path: std::env::var(sobria_referentiel::REFERENTIEL_PATH_ENV)
+                .unwrap_or_else(|_| sobria_referentiel::DEFAULT_REFERENTIEL_PATH.to_string()),
+        },
+    }
+}
+
 /// Liste les méthodologies d'empreinte LLM embarquées dans Sobr.ia (C24).
 ///
 /// Cette commande IPC alimente la page `/methodologies` (catalogue) et
@@ -1611,6 +1714,7 @@ fn validate_modules(modules: &[ModuleId], onboarded: bool) -> IpcResult<()> {
 }
 
 #[cfg(test)]
+#[allow(unused_variables)] // certains tests gardent `tmp` uniquement comme drop-guard RAII
 mod tests {
     use super::*;
 
@@ -1622,7 +1726,7 @@ mod tests {
 
     #[test]
     fn meta_info_returns_version() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let m = meta_info(&state).unwrap();
         assert!(!m.app_version.is_empty());
         assert_eq!(m.estimator_n, sobria_estimator::DEFAULT_N);
@@ -1641,7 +1745,7 @@ mod tests {
 
     #[test]
     fn estimate_unknown_model_returns_unknown_model_code() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = EstimationRequestDto {
             model_id: "n-existe-pas".into(),
             tokens_in: 10,
@@ -1655,7 +1759,7 @@ mod tests {
 
     #[test]
     fn estimate_zero_tokens_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = EstimationRequestDto {
             model_id: "gpt-4o-mini".into(),
             tokens_in: 0,
@@ -1669,7 +1773,7 @@ mod tests {
 
     #[test]
     fn estimate_happy_path_journalises() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = EstimationRequestDto {
             model_id: "gpt-4o-mini".into(),
             tokens_in: 100,
@@ -1692,7 +1796,7 @@ mod tests {
 
     #[test]
     fn verify_audit_is_valid_after_appends() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = EstimationRequestDto {
             model_id: "gpt-4o-mini".into(),
             tokens_in: 50,
@@ -1710,7 +1814,7 @@ mod tests {
 
     #[test]
     fn list_audit_entries_pagination() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = EstimationRequestDto {
             model_id: "claude-3-5-sonnet".into(),
             tokens_in: 10,
@@ -1759,7 +1863,7 @@ mod tests {
 
     #[test]
     fn get_preferences_returns_defaults_on_empty_db() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let prefs = get_app_preferences(&state).unwrap();
         assert!(prefs.persona.is_none(), "persona doit être None par défaut");
         assert!(!prefs.onboarded, "onboarded false par défaut");
@@ -1774,7 +1878,7 @@ mod tests {
 
     #[test]
     fn set_then_get_preferences_round_trips() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let written = AppPreferencesDto {
             persona: Some(Persona::Enterprise),
             enabled_modules: vec![ModuleId::M1, ModuleId::M7, ModuleId::M22],
@@ -1789,7 +1893,7 @@ mod tests {
 
     #[test]
     fn set_then_get_preferences_preserves_default_datacenter_id() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
 
         // Some(id) round-trips through the IPC pair.
         let written = AppPreferencesDto {
@@ -1815,7 +1919,7 @@ mod tests {
 
     #[test]
     fn set_preferences_rejects_unknown_lang() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let prefs = AppPreferencesDto {
             persona: Some(Persona::Student),
             enabled_modules: vec![ModuleId::M1],
@@ -1830,7 +1934,7 @@ mod tests {
 
     #[test]
     fn set_preferences_rejects_empty_modules_when_onboarded() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let prefs = AppPreferencesDto {
             persona: Some(Persona::Student),
             enabled_modules: vec![],
@@ -1845,7 +1949,7 @@ mod tests {
     #[test]
     fn set_preferences_allows_empty_modules_when_not_onboarded() {
         // Au tout début de l'onboarding, l'utilisateur n'a encore rien coché.
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let prefs = AppPreferencesDto {
             persona: None,
             enabled_modules: vec![],
@@ -1858,7 +1962,7 @@ mod tests {
 
     #[test]
     fn set_preferences_rejects_duplicate_modules() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let prefs = AppPreferencesDto {
             persona: Some(Persona::Student),
             enabled_modules: vec![ModuleId::M1, ModuleId::M13, ModuleId::M1],
@@ -1873,7 +1977,7 @@ mod tests {
 
     #[test]
     fn set_preferences_overwrites_previous() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         set_app_preferences(
             AppPreferencesDto {
                 persona: Some(Persona::Student),
@@ -1930,7 +2034,7 @@ mod tests {
 
     #[test]
     fn simulate_baseline_only_journalises_baseline() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = SimulationRequestDto {
             baseline: baseline_dto(),
             scenarios: vec![],
@@ -1944,7 +2048,7 @@ mod tests {
 
     #[test]
     fn simulate_with_scenarios_returns_outcomes_with_deltas() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = SimulationRequestDto {
             baseline: baseline_dto(),
             scenarios: vec![
@@ -1984,7 +2088,7 @@ mod tests {
 
     #[test]
     fn simulate_unknown_baseline_model_returns_unknown_model() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = SimulationRequestDto {
             baseline: EstimationRequestDto {
                 model_id: "ce-modele-existe-pas".into(),
@@ -2002,7 +2106,7 @@ mod tests {
 
     #[test]
     fn simulate_with_forecast_returns_monthly_series() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = SimulationRequestDto {
             baseline: baseline_dto(),
             scenarios: vec![],
@@ -2052,7 +2156,7 @@ mod tests {
 
     #[test]
     fn get_datacenter_detail_known_id_returns_baseline() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let detail = get_datacenter_detail("ovh-gra-gravelines", &state).unwrap();
         assert_eq!(detail.id, "ovh-gra-gravelines");
         assert_eq!(detail.country_iso, "FR");
@@ -2067,7 +2171,7 @@ mod tests {
 
     #[test]
     fn get_datacenter_detail_unknown_id_returns_not_found() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = get_datacenter_detail("does-not-exist", &state).unwrap_err();
         assert_eq!(err.code, "not_found");
     }
@@ -2076,7 +2180,7 @@ mod tests {
     fn datacenter_baselines_differ_by_country_mix() {
         // Mix FR (56 g/kWh) doit donner un CO2eq inférieur à mix DE (386 g/kWh)
         // sur le même prompt de référence.
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let fr = get_datacenter_detail("ovh-gra-gravelines", &state).unwrap();
         let de = get_datacenter_detail("aws-eu-central-1-frankfurt", &state).unwrap();
         // L'embodied étant constant entre DC, la différence vient du mix élec.
@@ -2105,7 +2209,7 @@ mod tests {
 
     #[test]
     fn simulate_baseline_with_datacenter_applies_override() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let baseline = simulate_scenarios(
             SimulationRequestDto {
                 baseline: EstimationRequestDto {
@@ -2155,7 +2259,7 @@ mod tests {
 
     #[test]
     fn simulate_duplicate_scenario_labels_returns_error() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = SimulationRequestDto {
             baseline: baseline_dto(),
             scenarios: vec![
@@ -2232,7 +2336,7 @@ mod tests {
 
     #[test]
     fn list_industrial_sites_fr_without_data_returns_data_not_ingested() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = list_industrial_sites_fr(50, 0, &state).unwrap_err();
         assert_eq!(err.code, "data_not_ingested");
         assert!(err.message.contains("sobria-ingest"));
@@ -2240,18 +2344,18 @@ mod tests {
 
     #[test]
     fn list_industrial_sites_fr_with_fixture_returns_summary() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         write_territoire_fixture(&state);
         let sites = list_industrial_sites_fr(50, 0, &state).unwrap();
         assert_eq!(sites.len(), 1);
         assert_eq!(sites[0].commune, "Dunkerque");
         assert_eq!(sites[0].region_iso, "FR-HDF");
-        assert!((sites[0].consumption_total_mwh - 800000.0).abs() < 1e-9);
+        assert!((sites[0].consumption_total_mwh - 800_000.0).abs() < 1e-9);
     }
 
     #[test]
     fn get_industrial_site_fr_unknown_iris_returns_not_found() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         write_territoire_fixture(&state);
         let err = get_industrial_site_fr("000000000", &state).unwrap_err();
         assert_eq!(err.code, "not_found");
@@ -2259,7 +2363,7 @@ mod tests {
 
     #[test]
     fn aggregate_industrial_sites_by_region_groups_correctly() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         write_territoire_fixture(&state);
         let agg = aggregate_industrial_sites_by_region(&state).unwrap();
         assert_eq!(agg.len(), 1);
@@ -2270,7 +2374,7 @@ mod tests {
 
     #[test]
     fn sankey_fr_data_without_data_returns_data_not_ingested() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = sankey_fr_data(&state).unwrap_err();
         assert_eq!(err.code, "data_not_ingested");
         assert!(err.message.contains("rte-mix"));
@@ -2278,7 +2382,7 @@ mod tests {
 
     #[test]
     fn sankey_fr_data_with_fixture_returns_conserved_flows() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         write_rte_mix_fixture(&state);
         let sankey = sankey_fr_data(&state).unwrap();
         // Σ liens == total production (pas d'import dans la fixture)
@@ -2308,7 +2412,7 @@ mod tests {
 
     #[test]
     fn batch_file_not_found_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = run_batch_from_csv(
             BatchRequestDto {
                 input_csv_path: "/nonexistent.csv".into(),
@@ -2537,13 +2641,13 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn list_projects_empty_by_default() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         assert!(list_projects(&state).unwrap().is_empty());
     }
 
     #[test]
     fn create_project_returns_dto_with_id() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let p = create_project(create_project_req("Étude A"), &state).unwrap();
         assert!(p.id >= 1);
         assert_eq!(p.name, "Étude A");
@@ -2552,7 +2656,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn create_project_rejects_invalid_dates() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let mut req = create_project_req("X");
         req.period_start = "not-a-date".into();
         let err = create_project(req, &state).unwrap_err();
@@ -2561,7 +2665,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn create_project_rejects_empty_name() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let mut req = create_project_req("X");
         req.name = "  ".into();
         let err = create_project(req, &state).unwrap_err();
@@ -2570,7 +2674,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn create_project_rejects_bad_tag_chars() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let mut req = create_project_req("X");
         req.tags = vec!["UPPERCASE".into()];
         let err = create_project(req, &state).unwrap_err();
@@ -2579,14 +2683,14 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn get_project_unknown_returns_not_found() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = get_project(999, &state).unwrap_err();
         assert_eq!(err.code, "not_found");
     }
 
     #[test]
     fn update_project_partial_fields() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let p = create_project(create_project_req("Original"), &state).unwrap();
         let updated = update_project(
             p.id,
@@ -2603,7 +2707,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn update_project_no_fields_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let p = create_project(create_project_req("X"), &state).unwrap();
         let err = update_project(p.id, UpdateProjectDto::default(), &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -2611,7 +2715,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn delete_project_idempotent() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         // Delete sur ID inexistant ne plante pas
         delete_project(999, &state).unwrap();
         let p = create_project(create_project_req("X"), &state).unwrap();
@@ -2621,14 +2725,14 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn generate_datasheet_unknown_project_returns_not_found() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = generate_project_datasheet(999, &state).unwrap_err();
         assert_eq!(err.code, "not_found");
     }
 
     #[test]
     fn generate_datasheet_happy_path_has_seven_gebru_sections() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         // 1. Crée des estimations qui tomberont dans la période du projet.
         for _ in 0..3 {
             estimate_prompt(
@@ -2671,11 +2775,11 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn generate_datasheet_empty_period_composition_zero() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         // Projet sur une période passée vide (pas d'estimations).
         let req = CreateProjectDto {
             name: "Vide".into(),
-            description: "".into(),
+            description: String::new(),
             period_start: "2020-01-01T00:00:00Z".into(),
             period_end: "2020-12-31T23:59:59Z".into(),
             tags: vec![],
@@ -2689,7 +2793,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn datasheet_context_has_4_vocabularies() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let p = create_project(create_project_req("X"), &state).unwrap();
         let ds = generate_project_datasheet(p.id, &state).unwrap();
         let ctx = &ds.jsonld["@context"];
@@ -2707,14 +2811,14 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn dashboard_unknown_period_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = get_dashboard_summary("yesterday", &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
     }
 
     #[test]
     fn dashboard_empty_ledger_returns_zero_totals() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let s = get_dashboard_summary("today", &state).unwrap();
         assert_eq!(s.total_requests, 0);
         assert!(s.top_models.is_empty());
@@ -2723,7 +2827,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn dashboard_after_estimations_aggregates() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let est_req = EstimationRequestDto {
             model_id: "gpt-4o-mini".into(),
             tokens_in: 100,
@@ -2742,14 +2846,14 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn list_personal_goals_empty_by_default() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let goals = list_personal_goals(&state).unwrap();
         assert!(goals.is_empty());
     }
 
     #[test]
     fn set_then_list_personal_goal() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let dto = PersonalGoalDto {
             indicator: "co2eq".into(),
             period: "monthly".into(),
@@ -2765,7 +2869,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn set_personal_goal_rejects_unknown_indicator() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let dto = PersonalGoalDto {
             indicator: "bogus".into(),
             period: "monthly".into(),
@@ -2778,7 +2882,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn set_personal_goal_rejects_negative_value() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let dto = PersonalGoalDto {
             indicator: "energy".into(),
             period: "daily".into(),
@@ -2791,7 +2895,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn set_personal_goal_rejects_mismatched_unit() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let dto = PersonalGoalDto {
             indicator: "water".into(),
             period: "weekly".into(),
@@ -2804,7 +2908,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn delete_personal_goal_is_idempotent() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         // Suppression d'un goal absent ne plante pas.
         delete_personal_goal("co2eq", "daily", &state).unwrap();
         assert!(list_personal_goals(&state).unwrap().is_empty());
@@ -2812,14 +2916,14 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn budget_status_no_goals_returns_empty() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let st = get_budget_status(&state).unwrap();
         assert!(st.is_empty());
     }
 
     #[test]
     fn budget_status_with_goal_and_no_usage_is_ok() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         set_personal_goal(
             PersonalGoalDto {
                 indicator: "co2eq".into(),
@@ -2840,7 +2944,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn budget_status_with_high_usage_warns_or_exceeds() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         // Goal très bas (0.0001 gCO2eq) → vite dépassé.
         set_personal_goal(
             PersonalGoalDto {
@@ -2880,14 +2984,14 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn get_model_detail_unknown_returns_not_found() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = get_model_detail("ce-modele-existe-pas", &state).unwrap_err();
         assert_eq!(err.code, "not_found");
     }
 
     #[test]
     fn get_model_detail_known_returns_full_dto() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let d = get_model_detail("gpt-4o-mini", &state).unwrap();
         assert_eq!(d.id, "gpt-4o-mini");
         assert!(!d.display_name.is_empty());
@@ -2914,7 +3018,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn get_model_detail_all_8_models_queryable() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let models = list_models().unwrap();
         assert!(models.len() >= 8);
         for m in &models {
@@ -2925,7 +3029,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn get_model_detail_does_not_journal() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let before = {
             let l = state.ledger.lock().unwrap();
             l.len().unwrap()
@@ -2956,18 +3060,15 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn benchmark_empty_list_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = benchmark_models(bench_req(&[]), &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
     }
 
     #[test]
     fn benchmark_too_many_models_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
-        let mut models = Vec::new();
-        for _ in 0..21 {
-            models.push("gpt-4o-mini");
-        }
+        let (tmp, state) = fresh_state();
+        let models: Vec<&str> = vec!["gpt-4o-mini"; 21];
         let req = bench_req(&models);
         let err = benchmark_models(req, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -2975,7 +3076,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn benchmark_duplicate_models_rejected() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = bench_req(&["gpt-4o-mini", "gpt-4o-mini"]);
         let err = benchmark_models(req, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -2984,7 +3085,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn benchmark_unknown_model_returns_unknown_model() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = bench_req(&["gpt-4o-mini", "modele-inexistant"]);
         let err = benchmark_models(req, &state).unwrap_err();
         assert_eq!(err.code, "unknown_model");
@@ -2993,7 +3094,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn benchmark_happy_path_ranks_co2() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = bench_req(&["gpt-4o-mini", "claude-3-5-sonnet"]);
         let res = benchmark_models(req, &state).unwrap();
         assert_eq!(res.outcomes.len(), 2);
@@ -3013,7 +3114,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn benchmark_creates_one_audit_entry_per_model() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         // Avant : ledger vide.
         let before = {
             let l = state.ledger.lock().unwrap();
@@ -3032,7 +3133,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn benchmark_outcomes_include_calibration_metadata() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = bench_req(&["gpt-4o-mini", "claude-3-5-sonnet"]);
         let res = benchmark_models(req, &state).unwrap();
         for o in &res.outcomes {
@@ -3079,7 +3180,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn forecast_unknown_model_returns_unknown_model() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let mut req = yearly_request(&[0.0]);
         req.baseline.model_id = "ce-modele-existe-pas".into();
         let err = forecast_yearly_budget(req, &state).unwrap_err();
@@ -3088,7 +3189,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn forecast_happy_path_journalises_baseline() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = yearly_request(&[0.0, 5.0, -3.0]);
         let res = forecast_yearly_budget(req, &state).unwrap();
         assert!(res.baseline_audit_id >= 1);
@@ -3100,7 +3201,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn forecast_returns_12_monthly_values_per_scenario() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let res = forecast_yearly_budget(yearly_request(&[5.0]), &state).unwrap();
         let o = &res.scenarios[0];
         assert_eq!(o.monthly_p5_g.len(), 12);
@@ -3111,8 +3212,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn forecast_too_many_scenarios_returns_estimator_error() {
-        let (_tmp, state) = fresh_state();
-        let growths: Vec<f64> = (0..11).map(|i| i as f64).collect();
+        let (tmp, state) = fresh_state();
+        let growths: Vec<f64> = (0..11).map(f64::from).collect();
         let req = yearly_request(&growths);
         let err = forecast_yearly_budget(req, &state).unwrap_err();
         assert_eq!(err.code, "estimator_error");
@@ -3120,7 +3221,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn forecast_invalid_growth_returns_estimator_error() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = yearly_request(&[200.0]);
         let err = forecast_yearly_budget(req, &state).unwrap_err();
         assert_eq!(err.code, "estimator_error");
@@ -3134,77 +3235,77 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn csrd_report_empty_period_returns_error() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = CsrdReportRequestDto {
             period_start: "2026-01-01T00:00:00Z".into(),
             period_end: "2026-04-01T00:00:00Z".into(),
             organization_name: "Acme".into(),
             locale: "fr".into(),
         };
-        let out_dir = _tmp.path().join("report-out");
+        let out_dir = tmp.path().join("report-out");
         let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
         assert_eq!(err.code, "empty_period");
     }
 
     #[test]
     fn csrd_report_invalid_dates_return_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = CsrdReportRequestDto {
             period_start: "not-a-date".into(),
             period_end: "2026-04-01T00:00:00Z".into(),
             organization_name: "Acme".into(),
             locale: "fr".into(),
         };
-        let out_dir = _tmp.path().join("report-out");
+        let out_dir = tmp.path().join("report-out");
         let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
     }
 
     #[test]
     fn csrd_report_period_inverted_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = CsrdReportRequestDto {
             period_start: "2026-04-01T00:00:00Z".into(),
             period_end: "2026-01-01T00:00:00Z".into(),
             organization_name: "Acme".into(),
             locale: "fr".into(),
         };
-        let out_dir = _tmp.path().join("report-out");
+        let out_dir = tmp.path().join("report-out");
         let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
     }
 
     #[test]
     fn csrd_report_empty_org_name_rejected() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = CsrdReportRequestDto {
             period_start: "2026-01-01T00:00:00Z".into(),
             period_end: "2026-04-01T00:00:00Z".into(),
             organization_name: "   ".into(),
             locale: "fr".into(),
         };
-        let out_dir = _tmp.path().join("report-out");
+        let out_dir = tmp.path().join("report-out");
         let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
     }
 
     #[test]
     fn csrd_report_unknown_locale_rejected() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let req = CsrdReportRequestDto {
             period_start: "2026-01-01T00:00:00Z".into(),
             period_end: "2026-04-01T00:00:00Z".into(),
             organization_name: "Acme".into(),
             locale: "es".into(),
         };
-        let out_dir = _tmp.path().join("report-out");
+        let out_dir = tmp.path().join("report-out");
         let err = export_csrd_report(req, &out_dir, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
     }
 
     #[test]
     fn csrd_report_happy_path_writes_pdf_and_provo() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         // 1. Crée des entrées d'audit en passant par estimate_prompt
         let est_req = EstimationRequestDto {
             model_id: "gpt-4o-mini".into(),
@@ -3226,7 +3327,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             organization_name: "Acme Corp".into(),
             locale: "fr".into(),
         };
-        let out_dir = _tmp.path().join("report-out");
+        let out_dir = tmp.path().join("report-out");
         let result = export_csrd_report(req, &out_dir, &state).unwrap();
 
         // 3. Validation
@@ -3257,7 +3358,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn sankey_fr_data_exposes_real_source_url() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         write_rte_mix_fixture(&state);
         let sankey = sankey_fr_data(&state).unwrap();
         assert!(sankey.source_url.contains("eco2mix"));
@@ -3325,7 +3426,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn estimate_prompt_with_datacenter_overrides_indicators() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let baseline = estimate_prompt(
             EstimationRequestDto {
                 model_id: "gpt-4o-mini".into(),
@@ -3368,7 +3469,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn estimate_prompt_with_unknown_datacenter_returns_invalid_request() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let err = estimate_prompt(
             EstimationRequestDto {
                 model_id: "gpt-4o-mini".into(),
@@ -3441,7 +3542,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         // pour chaque modèle. Comme A5 a câblé `apply_datacenter_override`
         // dans `estimate_prompt`, l'override `datacenter_id` doit se
         // propager à TOUS les outcomes du benchmark.
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let baseline = benchmark_models(
             BenchmarkRequestDto {
                 model_ids: vec!["gpt-4o-mini".into(), "claude-3-5-sonnet".into()],
@@ -3478,7 +3579,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn estimate_prompt_persists_default_datacenter_id() {
-        let (_tmp, state) = fresh_state();
+        let (tmp, state) = fresh_state();
         let _ = estimate_prompt(
             EstimationRequestDto {
                 model_id: "gpt-4o-mini".into(),

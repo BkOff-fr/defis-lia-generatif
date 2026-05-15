@@ -335,9 +335,10 @@ model_id,tokens_in,tokens_out,datacenter_id
 
     #[test]
     fn parse_caps_at_max_rows() {
+        use std::fmt::Write as _;
         let mut csv = String::from("model_id,tokens_in,tokens_out,datacenter_id\n");
         for i in 0..MAX_BATCH_ROWS + 5 {
-            csv.push_str(&format!("gpt-4o-mini,{},{},\n", i, i + 1));
+            writeln!(csv, "gpt-4o-mini,{},{},", i, i + 1).expect("write csv row");
         }
         let (_tmp, path) = write_csv(&csv);
         let err = parse_csv(&path).unwrap_err();

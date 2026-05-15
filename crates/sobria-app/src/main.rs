@@ -19,8 +19,9 @@ use sobria_app::{
         DatacenterDetailDto, DatacenterSummaryDto, DatasheetDto, EstimationRequestDto,
         EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
         MethodologyInfoDto, ModelDetailDto, ModelPresetDto, PersonalGoalDto, ProjectDto,
-        RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
-        UpdateProjectDto, YearlyForecastRequestDto, YearlyForecastResultDto,
+        ReferentielReloadResultDto, ReferentielStatusDto, RegionFrAggregateDto, SankeyDataDto,
+        SimulationRequestDto, SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto,
+        YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -259,6 +260,16 @@ fn run_batch_from_csv(
     logic::run_batch_from_csv(req, state.inner())
 }
 
+#[tauri::command]
+fn get_referentiel_status() -> IpcResult<ReferentielStatusDto> {
+    logic::get_referentiel_status()
+}
+
+#[tauri::command]
+fn reload_referentiel() -> IpcResult<ReferentielReloadResultDto> {
+    logic::reload_referentiel()
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -317,6 +328,8 @@ fn main() {
             delete_project,
             generate_project_datasheet,
             run_batch_from_csv,
+            get_referentiel_status,
+            reload_referentiel,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");
