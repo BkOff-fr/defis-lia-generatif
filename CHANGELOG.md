@@ -5,7 +5,7 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
-## [Unreleased] — v0.5.0 en cours — Activation du pipeline médaillon (C26)
+## [0.5.0] — 2026-05-15 — Activation du pipeline médaillon (C26)
 
 ### Added — C26.1 Câblage CLI sobria-ingest
 

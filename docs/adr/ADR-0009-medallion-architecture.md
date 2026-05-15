@@ -1,7 +1,8 @@
 # ADR-0009 — Architecture médaillon (Copper / Silver / Gold) pour le traitement de la donnée
 
-- **Statut** : Accepted
+- **Statut** : Implemented (v0.5.0, 2026-05-15)
 - **Date** : 2026-05-12
+- **Date d'implémentation** : 2026-05-15 (chantier C26)
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : Sprint S2 (avant tout travail d'ingestion)
 
@@ -257,6 +258,76 @@ stages:
 - Couche **Platinum** pour données dérivées scientifiquement (résultats Monte-Carlo agrégés, projections).
 - Materialized views incrémentales (DuckDB 1.x supportera mieux).
 - Plugin Quarto pour citer automatiquement les sources Copper dans le notebook.
+
+## Conséquences observées (v0.5.0, post-implémentation C26)
+
+Mise à jour à l'issue du chantier C26 (sous-chantiers C26.1 → C26.5).
+
+### Ce qui a tenu ses promesses
+
+- **Trait `DataLayer` unique** : ComparIA et RTE IRIS implémentent le
+  même trait (`ingest_copper`, `promote_silver`, `contribute_gold`).
+  Onboarder une nouvelle source Tier 2/3 = écrire 1 fichier `sources/<id>.rs`,
+  l'enregistrer dans `LayerRegistry::standard()` — pas de modification
+  des étages aval.
+- **Lineage de bout en bout** : chaque entité Silver écrit deux colonnes
+  systématiques (`_copper_sha256`, `_ingested_at`) ; le module
+  `sobria_ingest::lineage::GoldLineage::copper_hashes()` permet de
+  remonter du Gold vers les hashes Copper d'origine en O(N). La datasheet
+  JSON-LD au format Gebru et al. 2018 expose cette traçabilité.
+- **Validation à l'écriture** : `silver_validate::validate_silver` rejette
+  toute écriture Silver qui ne respecterait pas son schéma JSON Schema
+  2020-12 versionné — interception immédiate des régressions de schéma
+  amont.
+- **Reproductibilité bit-à-bit** : `dvc repro` produit des hashes
+  `referentiel.sqlite` stables sous `SOBRIA_SEED=42`. Vérifié sur
+  fixtures wiremock (cf. `tests/gold_pipeline.rs`).
+- **Découplage app** : `sobria-app` ne connaît plus que `sobria-referentiel`
+  qui ne lit que `data/gold/referentiel.sqlite` ; aucun couplage direct
+  entre l'app Tauri et les sources amont.
+
+### Ce qui a coûté plus cher que prévu
+
+- **`assemble_gold` est devenu copieux** (~280 lignes pour la fonction
+  + ses helpers). 5 nouvelles tables matérialisées (model_overview avec
+  FTS5, scenario_inputs, time_series_mix, comparison_matrix,
+  datacenter_iris_link) + datasheet validée + signature GPG optionnelle.
+  Annoté `#[allow(clippy::too_many_lines)]` — un découpage en sub-fns
+  fragmenterait la lecture séquentielle SQL sans bénéfice.
+- **Polars en spawn_blocking** partout : `validate_silver`, `populate_model_overview`,
+  `build_analytics_parquet` doivent toutes encapsuler le code synchrone
+  Polars. Ajoute un peu de cérémonie mais reste lisible.
+- **Couplage `sobria-ingest` → `sobria-geoloc`** : nécessaire pour
+  `datacenter_iris_link`. Pas idéal architecturalement (Gold devrait
+  être agnostique des consommateurs) mais pragmatique pour v1. À
+  réévaluer en v2 si on veut un Gold publiable indépendamment.
+
+### Ce qui n'a pas été implémenté (différé)
+
+- **Stage `dvc gc` automatisé** dans le workflow nocturne (rétention
+  Copper 30j/2ans/∞ encore manuelle). Reporté en v0.6.
+- **Materialized views incrémentales** : aujourd'hui `assemble_gold`
+  recalcule toujours toutes les tables. Acceptable sur volumes Tier 1
+  (4 entités Silver, ~5 GB Copper). À réévaluer si Tier 2/3 explose
+  les volumes.
+- **Plugin Quarto pour citation automatique** des hashes Copper :
+  reporté v1.x.
+- **Couche Platinum** : pas commencée. Les résultats Monte-Carlo
+  restent calculés à la volée côté app.
+
+### Métriques de l'implémentation
+
+| Métrique | Valeur |
+|----------|--------|
+| Sources Tier 1 fonctionnelles | 2 (ComparIA, RTE IRIS) |
+| Entités Silver versionnées | 4 (3 ComparIA + 1 RTE IRIS) |
+| Schémas JSON Schema 2020-12 | 5 (4 Silver + 1 Gold datasheet + 1 Copper manifest) |
+| Tables Gold | 8 (3 catalogue + 5 vues matérialisées) |
+| Index FTS5 | 1 (model_overview_fts) |
+| Tests automatisés | 508 (workspace) |
+| LoC ajoutées (chantier C26) | ~6000 |
+| Stages DVC | 4 (copper, silver, gold, validate) |
+| Workflow CI nocturne | 1 (`.github/workflows/dvc-nightly.yml`) |
 
 ## Liens
 

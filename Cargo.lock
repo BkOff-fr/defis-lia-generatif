@@ -5548,7 +5548,7 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "sobria-app"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5576,7 +5576,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-audit"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -5591,7 +5591,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "insta",
@@ -5604,7 +5604,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-estimator"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "proptest",
@@ -5621,7 +5621,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-export"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5640,7 +5640,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-geoloc"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "proptest",
@@ -5656,7 +5656,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-import"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "proptest",
@@ -5670,7 +5670,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-ingest"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5702,7 +5702,7 @@ dependencies = [
 
 [[package]]
 name = "sobria-referentiel"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
