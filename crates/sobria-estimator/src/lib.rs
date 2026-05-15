@@ -48,7 +48,9 @@ pub mod yearly_forecast;
 pub mod engines;
 
 pub use distributions::Distribution;
-pub use engine::{bin_samples, MonteCarloEngine, DEFAULT_BIN_COUNT, DEFAULT_N, MIN_SAMPLES_FOR_BINS};
+pub use engine::{
+    bin_samples, MonteCarloEngine, DEFAULT_BIN_COUNT, DEFAULT_N, MIN_SAMPLES_FOR_BINS,
+};
 pub use engine_trait::{
     info_for, EmpreinteEngine, EmpreinteMethod, MethodologyCalibration, MethodologyInfo,
     AVAILABLE_METHODS,
@@ -63,11 +65,11 @@ pub use scenarios::{
     simulate, ForecastConfig, ForecastResult, ParamOverrides, Scenario, ScenarioOutcome,
     SimulationRequest, SimulationResult, MAX_FORECAST_MONTHS, MAX_SCENARIOS,
 };
-pub use yearly_forecast::{
-    forecast_yearly, YearlyForecastRequest, YearlyForecastResult, YearlyScenario,
-    YearlyScenarioOutcome, MAX_FORECAST_HORIZON_MONTHS, MAX_FORECAST_SCENARIOS,
-};
 pub use validation::{
     run_all_plausibility, run_all_reproduction, run_plausibility, run_reproduction, Expectation,
     PlausibilityCase, ReproductionCase, ValidationKind, ValidationReport,
+};
+pub use yearly_forecast::{
+    forecast_yearly, YearlyForecastRequest, YearlyForecastResult, YearlyScenario,
+    YearlyScenarioOutcome, MAX_FORECAST_HORIZON_MONTHS, MAX_FORECAST_SCENARIOS,
 };

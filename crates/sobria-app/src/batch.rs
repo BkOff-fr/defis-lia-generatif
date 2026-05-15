@@ -271,7 +271,10 @@ claude-3-5-sonnet,200,1000,aws-eu-west-3-paris
         assert_eq!(rows[0].model_id, "gpt-4o-mini");
         assert_eq!(rows[0].tokens_in, 100);
         assert!(rows[0].datacenter_id.is_none());
-        assert_eq!(rows[1].datacenter_id.as_deref(), Some("aws-eu-west-3-paris"));
+        assert_eq!(
+            rows[1].datacenter_id.as_deref(),
+            Some("aws-eu-west-3-paris")
+        );
     }
 
     #[test]

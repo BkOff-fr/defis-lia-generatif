@@ -16,10 +16,12 @@
 
 pub mod cli;
 pub mod context;
+pub mod datasheet;
 pub mod download;
 pub mod error;
 pub mod gold;
 pub mod hash;
+pub mod iris_link;
 pub mod layer;
 pub mod lineage;
 pub mod manifest;

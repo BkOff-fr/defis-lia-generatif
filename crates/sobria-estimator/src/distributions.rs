@@ -59,8 +59,8 @@ impl Distribution {
                 dist.sample(rng).max(0.0)
             },
             Self::LogNormal { mu, sigma } => {
-                let dist = RdLogNormal::new(mu, sigma)
-                    .expect("LogNormal sigma > 0 garanti par validate");
+                let dist =
+                    RdLogNormal::new(mu, sigma).expect("LogNormal sigma > 0 garanti par validate");
                 dist.sample(rng)
             },
         }
@@ -124,7 +124,9 @@ impl Distribution {
             },
             Self::LogNormal { mu, sigma } => {
                 if !mu.is_finite() {
-                    return Err(EstimatorError::Schema(format!("LogNormal : μ non fini ({mu})")));
+                    return Err(EstimatorError::Schema(format!(
+                        "LogNormal : μ non fini ({mu})"
+                    )));
                 }
                 if !sigma.is_finite() || sigma <= 0.0 {
                     return Err(EstimatorError::Schema(format!(
@@ -154,7 +156,10 @@ mod tests {
     #[test]
     fn uniform_in_bounds() {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(7);
-        let d = Distribution::Uniform { low: 1.0, high: 2.0 };
+        let d = Distribution::Uniform {
+            low: 1.0,
+            high: 2.0,
+        };
         for _ in 0..1000 {
             let v = d.sample(&mut rng);
             assert!((1.0..=2.0).contains(&v));
@@ -164,7 +169,10 @@ mod tests {
     #[test]
     fn normal_truncated_to_zero() {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(1);
-        let d = Distribution::Normal { mean: 0.0, std: 10.0 };
+        let d = Distribution::Normal {
+            mean: 0.0,
+            std: 10.0,
+        };
         let mut hits = 0;
         for _ in 0..1000 {
             if d.sample(&mut rng) == 0.0 {
@@ -177,7 +185,10 @@ mod tests {
     #[test]
     fn log_normal_strictly_positive() {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(99);
-        let d = Distribution::LogNormal { mu: 0.0, sigma: 1.0 };
+        let d = Distribution::LogNormal {
+            mu: 0.0,
+            sigma: 1.0,
+        };
         for _ in 0..1000 {
             assert!(d.sample(&mut rng) > 0.0);
         }
@@ -205,19 +216,48 @@ mod tests {
     #[test]
     fn validate_catches_bad_params() {
         assert!(Distribution::Point { value: f64::NAN }.validate().is_err());
-        assert!(Distribution::Uniform { low: 5.0, high: 1.0 }.validate().is_err());
-        assert!(Distribution::Normal { mean: 0.0, std: 0.0 }.validate().is_err());
-        assert!(Distribution::Normal { mean: 0.0, std: -1.0 }.validate().is_err());
-        assert!(Distribution::LogNormal { mu: 0.0, sigma: 0.0 }.validate().is_err());
+        assert!(Distribution::Uniform {
+            low: 5.0,
+            high: 1.0
+        }
+        .validate()
+        .is_err());
+        assert!(Distribution::Normal {
+            mean: 0.0,
+            std: 0.0
+        }
+        .validate()
+        .is_err());
+        assert!(Distribution::Normal {
+            mean: 0.0,
+            std: -1.0
+        }
+        .validate()
+        .is_err());
+        assert!(Distribution::LogNormal {
+            mu: 0.0,
+            sigma: 0.0
+        }
+        .validate()
+        .is_err());
     }
 
     #[test]
     fn serde_round_trip() {
         for d in [
             Distribution::Point { value: 1.2 },
-            Distribution::Uniform { low: 0.5, high: 1.5 },
-            Distribution::Normal { mean: 1.0, std: 0.1 },
-            Distribution::LogNormal { mu: 0.0, sigma: 0.5 },
+            Distribution::Uniform {
+                low: 0.5,
+                high: 1.5,
+            },
+            Distribution::Normal {
+                mean: 1.0,
+                std: 0.1,
+            },
+            Distribution::LogNormal {
+                mu: 0.0,
+                sigma: 0.5,
+            },
         ] {
             let json = serde_json::to_string(&d).unwrap();
             let back: Distribution = serde_json::from_str(&json).unwrap();

@@ -115,17 +115,16 @@ pub fn aggregate_by_country() -> &'static [CountryAggregate] {
                 .into_iter()
                 .map(|(country_iso, dcs)| {
                     let count = dcs.len();
-                    let (sum_pue, sum_lat, sum_lon, sum_cap) = dcs.iter().fold(
-                        (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
-                        |acc, dc| {
-                            (
-                                acc.0 + dc.pue,
-                                acc.1 + dc.lat,
-                                acc.2 + dc.lon,
-                                acc.3 + dc.capacity_mw.unwrap_or(0.0),
-                            )
-                        },
-                    );
+                    let (sum_pue, sum_lat, sum_lon, sum_cap) =
+                        dcs.iter()
+                            .fold((0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64), |acc, dc| {
+                                (
+                                    acc.0 + dc.pue,
+                                    acc.1 + dc.lat,
+                                    acc.2 + dc.lon,
+                                    acc.3 + dc.capacity_mw.unwrap_or(0.0),
+                                )
+                            });
                     let n = count as f64;
                     let total_capacity_mw = if sum_cap > 0.0 { Some(sum_cap) } else { None };
                     // IF élec : tous les DC d'un pays partagent la même valeur,

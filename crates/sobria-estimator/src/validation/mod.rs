@@ -12,12 +12,8 @@ use serde::Serialize;
 use sobria_core::{EstimationRequest, Indicator};
 
 use crate::{
-    distributions::Distribution,
-    engine::MonteCarloEngine,
-    engine_trait::EmpreinteMethod,
-    engines::ecologits::EcoLogitsEngine,
-    error::EstimatorResult,
-    params::EstimationParams,
+    distributions::Distribution, engine::MonteCarloEngine, engine_trait::EmpreinteMethod,
+    engines::ecologits::EcoLogitsEngine, error::EstimatorResult, params::EstimationParams,
 };
 
 pub mod cases;
@@ -135,8 +131,10 @@ fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationReq
 
 /// Exécute un cas de plausibilité.
 pub fn run_plausibility(case: &PlausibilityCase) -> EstimatorResult<ValidationReport> {
-    let params = EstimationParams::for_model(case.model_id)?
-        .with_if_electrical(Distribution::Point { value: case.if_electrical_g_per_kwh });
+    let params =
+        EstimationParams::for_model(case.model_id)?.with_if_electrical(Distribution::Point {
+            value: case.if_electrical_g_per_kwh,
+        });
     let engine = MonteCarloEngine::new(42).with_n(2_000);
     let result = engine.estimate(
         &request_for(case.model_id, case.tokens_in, case.tokens_out),
@@ -175,7 +173,9 @@ pub fn run_plausibility(case: &PlausibilityCase) -> EstimatorResult<ValidationRe
 /// - `EmpreinteMethod::EcoLogits`   → [`EcoLogitsEngine`] (déterministe)
 pub fn run_reproduction(case: &ReproductionCase) -> EstimatorResult<ValidationReport> {
     let mut params = EstimationParams::for_model(case.model_id)?
-        .with_if_electrical(Distribution::Point { value: case.if_electrical_g_per_kwh })
+        .with_if_electrical(Distribution::Point {
+            value: case.if_electrical_g_per_kwh,
+        })
         .with_pue(Distribution::Point { value: case.pue });
     if case.disable_embodied {
         // Comparaison usage-only : on neutralise notre amortissement
@@ -257,9 +257,8 @@ mod tests {
     #[test]
     fn all_plausibility_cases_pass() {
         for case in cases::PLAUSIBILITY_CASES {
-            let report = run_plausibility(case).unwrap_or_else(|e| {
-                panic!("erreur de validation pour {} : {e}", case.id)
-            });
+            let report = run_plausibility(case)
+                .unwrap_or_else(|e| panic!("erreur de validation pour {} : {e}", case.id));
             assert!(report.passed, "{}", report.message);
         }
     }
@@ -267,7 +266,11 @@ mod tests {
     #[test]
     fn run_all_plausibility_returns_at_least_five() {
         let reports = run_all_plausibility();
-        assert!(reports.len() >= 5, "attendu ≥ 5 rapports, reçu {}", reports.len());
+        assert!(
+            reports.len() >= 5,
+            "attendu ≥ 5 rapports, reçu {}",
+            reports.len()
+        );
         for r in &reports {
             assert!(r.passed, "{}", r.message);
         }

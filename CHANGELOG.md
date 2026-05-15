@@ -58,6 +58,51 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   (round-trip ingest → from_manifest → promote_silver, détection de
   corruption, message d'erreur explicite quand aucun snapshot n'existe).
 
+### Added — C26.3 Gold complet (jointures + datasheet Gebru)
+
+- **Tables matérialisées dans `referentiel.sqlite`** :
+  - `model_overview(id, name, family, vendor, n_conversations)` — un modèle
+    par ligne, peuplé depuis `comparia_conversations` Silver (extraction
+    distincte sur `model_id`/`model`/`model_name` + heuristique
+    famille/vendor).
+  - `scenario_inputs(model_id, country_iso, pue, if_g_per_kwh, wue_l_per_kwh)`
+    — table dénormalisée prête pour le simulateur M13.
+  - `time_series_mix(region_iso, hour_utc, production_mw)` — placeholder
+    v1, peuplé en v2 quand RTE eco2mix sera ingéré.
+  - `comparison_matrix(model_id, method, co2_g_per_request, computed_at)` —
+    vide à l'init, remplie au runtime par l'app.
+  - `datacenter_iris_link(datacenter_id, code_iris, distance_km, …)` —
+    join géographique datacenter européen ↔ maille IRIS la plus proche
+    (haversine sur centroïdes IRIS extraits du GeoJSON Copper RTE).
+- **Index FTS5** : table virtuelle `model_overview_fts(name, family,
+  vendor)` pour la recherche full-text M9.
+- **Module `sobria_ingest::iris_link`** : parser GeoJSON IRIS, calcul de
+  centroïdes, distance haversine WGS84, jointure nearest-neighbor
+  datacenter ↔ IRIS. Tolérant : si le snapshot Copper RTE est absent ou
+  vide, la table reste vide sans casser le pipeline.
+- **Module `sobria_ingest::datasheet`** : Datasheet for Datasets (Gebru
+  et al. 2018, doi:10.48550/arXiv.1803.09010) avec les 7 sections
+  obligatoires (Motivation, Composition, Collection, Preprocessing, Uses,
+  Distribution, Maintenance) + JSON-LD multi-vocabulaire (schema.org +
+  DCAT 3 + PROV-O + vocabulaire Sobr.ia). Validée à l'écriture contre
+  `schemas/gold/datasheet-v1.json` — toute datasheet incomplète fait
+  échouer l'assemblage Gold.
+- **Schéma Gold `schemas/gold/datasheet-v1.json`** : JSON Schema 2020-12
+  qui formalise le format de la datasheet (sections requises, types des
+  champs, regex SHA-256 sur les hashes Copper et artefacts).
+- **Signature GPG optionnelle** : si la variable d'environnement
+  `SOBRIA_GPG_KEY_ID` est définie, `MANIFEST.sha256` est signé en
+  détaché ASCII (`MANIFEST.sha256.asc`) via `gpg --detach-sign`.
+  Skippable silencieusement si la variable n'est pas définie ou si gpg
+  est absent du PATH (compatible CI sans clé).
+- **Dépendance `sobria-ingest` → `sobria-geoloc`** : ajout pour accéder à
+  `all_datacenters()` lors de l'assemblage Gold.
+- **Tests** : extension de `tests/gold_pipeline.rs` (vérifie les 5
+  nouvelles tables + FTS5 fonctionnel + inference vendor + datasheet
+  Gebru complète) + nouveau `tests/datasheet_jsonld.rs` (8 cas couvrant
+  validation contre schéma, présence des 7 sections, lineage Copper
+  intact, rejet d'une section manquante).
+
 ### Changed
 
 - `LayerRegistry::standard()` n'est plus une simple alias de `new()` : elle
@@ -72,6 +117,13 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   Elle réhydrate les snapshots Copper persistants via `rehydrate_copper`
   et échoue avec un message explicite si aucun snapshot n'est disponible
   pour une source du registre filtré.
+- **`assemble_gold`** : pré-calcule la jointure `datacenter_iris_link`
+  avant d'ouvrir la transaction SQLite, puis enchaîne SQLite (avec toutes
+  les vues matérialisées + FTS5), Parquet catalogue, datasheet validée,
+  manifest hashé, signature GPG optionnelle.
+- **`GoldArtifacts`** expose un nouveau champ `manifest_signature:
+  Option<PathBuf>` qui pointe vers `MANIFEST.sha256.asc` quand la
+  signature GPG a réussi.
 
 ---
 

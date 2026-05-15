@@ -47,10 +47,7 @@ fn list_methodologies() -> IpcResult<Vec<MethodologyInfoDto>> {
 }
 
 #[tauri::command]
-fn get_model_detail(
-    id: String,
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<ModelDetailDto> {
+fn get_model_detail(id: String, state: tauri::State<'_, AppState>) -> IpcResult<ModelDetailDto> {
     logic::get_model_detail(&id, state.inner())
 }
 
@@ -85,10 +82,7 @@ fn list_audit_entries(
 }
 
 #[tauri::command]
-fn export_audit_ndjson(
-    path: String,
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<usize> {
+fn export_audit_ndjson(path: String, state: tauri::State<'_, AppState>) -> IpcResult<usize> {
     logic::export_audit_ndjson(std::path::Path::new(&path), state.inner())
 }
 
@@ -194,17 +188,12 @@ fn get_dashboard_summary(
 }
 
 #[tauri::command]
-fn list_personal_goals(
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<Vec<PersonalGoalDto>> {
+fn list_personal_goals(state: tauri::State<'_, AppState>) -> IpcResult<Vec<PersonalGoalDto>> {
     logic::list_personal_goals(state.inner())
 }
 
 #[tauri::command]
-fn set_personal_goal(
-    goal: PersonalGoalDto,
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<()> {
+fn set_personal_goal(goal: PersonalGoalDto, state: tauri::State<'_, AppState>) -> IpcResult<()> {
     logic::set_personal_goal(goal, state.inner())
 }
 
@@ -218,9 +207,7 @@ fn delete_personal_goal(
 }
 
 #[tauri::command]
-fn get_budget_status(
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<Vec<BudgetStatusDto>> {
+fn get_budget_status(state: tauri::State<'_, AppState>) -> IpcResult<Vec<BudgetStatusDto>> {
     logic::get_budget_status(state.inner())
 }
 

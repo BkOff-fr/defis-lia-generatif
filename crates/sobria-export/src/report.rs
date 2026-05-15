@@ -159,23 +159,14 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         layer.use_text(period_line, 12.0, Mm(20.0), Mm(y), &font_body);
         y -= 7.0;
         layer.use_text(
-            format!(
-                "Émis le {}",
-                req.period_end.format("%Y-%m-%d %H:%M UTC")
-            ),
+            format!("Émis le {}", req.period_end.format("%Y-%m-%d %H:%M UTC")),
             10.0,
             Mm(20.0),
             Mm(y),
             &font_body,
         );
         y -= 15.0;
-        layer.use_text(
-            AFNOR_HEADER_MARKER,
-            10.0,
-            Mm(20.0),
-            Mm(y),
-            &font_regular,
-        );
+        layer.use_text(AFNOR_HEADER_MARKER, 10.0, Mm(20.0), Mm(y), &font_regular);
         y -= 6.0;
         layer.use_text(
             format!(
@@ -203,9 +194,7 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         layer.use_text(
             format!(
                 "CO2eq total — P50 : {:.3} g (P5 {:.3} – P95 {:.3})",
-                summary.total_co2eq_g_p50,
-                summary.total_co2eq_g_p5,
-                summary.total_co2eq_g_p95
+                summary.total_co2eq_g_p50, summary.total_co2eq_g_p5, summary.total_co2eq_g_p95
             ),
             11.0,
             Mm(20.0),
@@ -214,7 +203,10 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         );
         y -= 6.0;
         layer.use_text(
-            format!("Énergie totale (P50) : {:.3} Wh", summary.total_energy_wh_p50),
+            format!(
+                "Énergie totale (P50) : {:.3} Wh",
+                summary.total_energy_wh_p50
+            ),
             11.0,
             Mm(20.0),
             Mm(y),
@@ -246,9 +238,7 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
                 "Methodologie utilisee : {}",
                 methodology_pdf_label(summary.methods_used[0])
             ),
-            n => format!(
-                "Methodologies utilisees dans la periode ({n}) :",
-            ),
+            n => format!("Methodologies utilisees dans la periode ({n}) :",),
         };
         layer.use_text(&methods_intro, 10.0, Mm(20.0), Mm(y), &font_body);
         y -= 6.0;
@@ -329,7 +319,13 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         );
 
         y -= 12.0;
-        layer.use_text("Provenance & licences", 16.0, Mm(20.0), Mm(y), &font_regular);
+        layer.use_text(
+            "Provenance & licences",
+            16.0,
+            Mm(20.0),
+            Mm(y),
+            &font_regular,
+        );
         y -= 8.0;
         for line in [
             "Provenance W3C PROV-O JSON-LD : fichier provo.jsonld joint.",
@@ -345,9 +341,9 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
     let mut buf = BufWriter::new(Vec::new());
     doc.save(&mut buf)
         .map_err(|e| ExportError::Pdf(format!("save: {e}")))?;
-    let bytes = buf.into_inner().map_err(|e| {
-        ExportError::Pdf(format!("buffer: {}", e.error()))
-    })?;
+    let bytes = buf
+        .into_inner()
+        .map_err(|e| ExportError::Pdf(format!("buffer: {}", e.error())))?;
     Ok(bytes)
 }
 
@@ -366,8 +362,8 @@ mod tests {
     use super::*;
     use chrono::TimeZone;
     use sobria_core::{
-        EmpreinteMethod, EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
-        EstimationResult, Indicator,
+        EmpreinteMethod, EstimationRequest, EstimationResult, Hypothesis, Indicator,
+        IndicatorValue, UncertaintyInterval,
     };
 
     fn make_entry(id: i64, ts: DateTime<Utc>, co2eq: f64) -> AuditEntry {

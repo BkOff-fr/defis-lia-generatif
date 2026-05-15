@@ -104,8 +104,7 @@ pub fn build_datasheet(
 ) -> DatasheetArtifact {
     let composition = compose(entries_in_period);
     let jsonld = build_jsonld(project, &composition, opts);
-    let canonical = serde_json::to_string_pretty(&jsonld)
-        .unwrap_or_else(|_| jsonld.to_string());
+    let canonical = serde_json::to_string_pretty(&jsonld).unwrap_or_else(|_| jsonld.to_string());
     let sha256 = sha256_hex(canonical.as_bytes());
     DatasheetArtifact {
         composition,
@@ -444,10 +443,7 @@ mod tests {
             "sobria:distribution",
             "sobria:maintenance",
         ] {
-            assert!(
-                !datasheet[key].is_null(),
-                "section Gebru manquante : {key}"
-            );
+            assert!(!datasheet[key].is_null(), "section Gebru manquante : {key}");
         }
     }
 

@@ -8,9 +8,7 @@
 
 use chrono::Utc;
 use sobria_core::{EstimationRequest, Indicator, ModuleId};
-use sobria_estimator::{
-    available_models, find_preset, Distribution, EstimationParams,
-};
+use sobria_estimator::{available_models, find_preset, Distribution, EstimationParams};
 use sobria_geoloc::{
     aggregate_by_country, aggregate_by_region, all_datacenters, find_datacenter,
     find_site_by_code_iris, generate_sankey_fr, load_rte_mix, load_territoire_fr, DatacenterRecord,
@@ -19,18 +17,17 @@ use sobria_geoloc::{
 use tracing::{debug, info, warn};
 
 use crate::{
-    batch,
-    dashboard,
+    batch, dashboard,
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, BatchAggregateDto, BatchModelAggregateDto,
         BatchRequestDto, BatchResultDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
-        BenchmarkResultDto, BudgetStatusDto, CompositionDto, CountryAggregateDto,
-        CreateProjectDto, CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto,
-        DatacenterDetailDto, DatacenterSummaryDto, DatasheetDto, EstimationRequestDto,
-        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
-        ModelDetailDto, ModelPresetDto, PersonalGoalDto, ProjectDto, RegionFrAggregateDto,
-        SankeyDataDto, SimulationRequestDto, SimulationResultDto, TripletDto, UpdateProjectDto,
-        YearlyForecastRequestDto, YearlyForecastResultDto,
+        BenchmarkResultDto, BudgetStatusDto, CompositionDto, CountryAggregateDto, CreateProjectDto,
+        CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto, DatacenterDetailDto,
+        DatacenterSummaryDto, DatasheetDto, EstimationRequestDto, EstimationResultDto,
+        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto,
+        PersonalGoalDto, ProjectDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
+        SimulationResultDto, TripletDto, UpdateProjectDto, YearlyForecastRequestDto,
+        YearlyForecastResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     goals_store::{GoalIndicator, GoalPeriod, PersonalGoal},
@@ -124,9 +121,8 @@ pub fn list_methodologies() -> IpcResult<Vec<crate::dto::MethodologyInfoDto>> {
 /// **Pas journalisé** dans l'audit ledger — c'est une fiche statique
 /// pédagogique, pas un acte d'estimation utilisateur.
 pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDetailDto> {
-    let preset = find_preset(model_id).ok_or_else(|| {
-        IpcError::new("not_found", format!("modèle '{model_id}' inconnu"))
-    })?;
+    let preset = find_preset(model_id)
+        .ok_or_else(|| IpcError::new("not_found", format!("modèle '{model_id}' inconnu")))?;
     let openness = match preset.openness {
         sobria_estimator::Openness::Open => "open",
         sobria_estimator::Openness::OpenWeights => "open_weights",
@@ -339,7 +335,11 @@ pub fn verify_audit(state: &AppState) -> IpcResult<IntegrityReportDto> {
         .lock()
         .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
     let report = ledger.verify_chain().map_err(AppError::from)?;
-    debug!(valid = report.valid, total = report.total_entries, "audit: verify");
+    debug!(
+        valid = report.valid,
+        total = report.total_entries,
+        "audit: verify"
+    );
     Ok((&report).into())
 }
 
@@ -372,8 +372,7 @@ pub fn list_audit_entries(
         if out.len() >= limit {
             break;
         }
-        let entry: sobria_audit::AuditEntry =
-            serde_json::from_str(line).map_err(AppError::from)?;
+        let entry: sobria_audit::AuditEntry = serde_json::from_str(line).map_err(AppError::from)?;
         out.push(AuditEntrySummaryDto::from_entry(&entry));
     }
     Ok(out)
@@ -468,9 +467,10 @@ fn sankey_or_data_not_ingested(e: sobria_geoloc::SankeyFrError) -> IpcError {
         sobria_geoloc::SankeyFrError::Json(e) => {
             IpcError::new("io_error", format!("rte_mix_fr.json corrompu : {e}"))
         },
-        sobria_geoloc::SankeyFrError::Schema(m) => {
-            IpcError::new("data_not_ingested", format!("rte_mix_fr.json non conforme : {m}"))
-        },
+        sobria_geoloc::SankeyFrError::Schema(m) => IpcError::new(
+            "data_not_ingested",
+            format!("rte_mix_fr.json non conforme : {m}"),
+        ),
         sobria_geoloc::SankeyFrError::Io(e) => IpcError::new("io_error", e.to_string()),
     }
 }
@@ -504,9 +504,8 @@ pub fn get_industrial_site_fr(
     state: &AppState,
 ) -> IpcResult<IndustrialSiteSummaryDto> {
     let artifact = load_or_err(state)?;
-    let site = find_site_by_code_iris(&artifact, code_iris).ok_or_else(|| {
-        IpcError::new("not_found", format!("site IRIS '{code_iris}' inconnu"))
-    })?;
+    let site = find_site_by_code_iris(&artifact, code_iris)
+        .ok_or_else(|| IpcError::new("not_found", format!("site IRIS '{code_iris}' inconnu")))?;
     Ok(site.into())
 }
 
@@ -515,7 +514,10 @@ pub fn aggregate_industrial_sites_by_region(
     state: &AppState,
 ) -> IpcResult<Vec<RegionFrAggregateDto>> {
     let artifact = load_or_err(state)?;
-    Ok(aggregate_by_region(&artifact).iter().map(Into::into).collect())
+    Ok(aggregate_by_region(&artifact)
+        .iter()
+        .map(Into::into)
+        .collect())
 }
 
 /// Génère les données du Sankey énergétique national à partir du mix RTE chargé.
@@ -583,22 +585,21 @@ pub fn export_csrd_report(
         estimator_seed: state.estimator.seed(),
         estimator_n: state.estimator.n(),
     };
-    let artifacts = sobria_export::generate_report(&export_req, &entries)
-        .map_err(|e| match e {
-            sobria_export::ExportError::EmptyPeriod => IpcError::new(
-                "empty_period",
-                "aucune entrée d'audit dans la période demandée",
-            ),
-            other => IpcError::new("export_error", other.to_string()),
-        })?;
+    let artifacts = sobria_export::generate_report(&export_req, &entries).map_err(|e| match e {
+        sobria_export::ExportError::EmptyPeriod => IpcError::new(
+            "empty_period",
+            "aucune entrée d'audit dans la période demandée",
+        ),
+        other => IpcError::new("export_error", other.to_string()),
+    })?;
 
     // 4. Écrit les artefacts sur disque.
     std::fs::create_dir_all(output_dir).map_err(AppError::from)?;
     let pdf_path = output_dir.join("report.pdf");
     let provo_path = output_dir.join("provo.jsonld");
     std::fs::write(&pdf_path, &artifacts.pdf_bytes).map_err(AppError::from)?;
-    let provo_text = serde_json::to_string_pretty(&artifacts.provo_jsonld)
-        .map_err(AppError::from)?;
+    let provo_text =
+        serde_json::to_string_pretty(&artifacts.provo_jsonld).map_err(AppError::from)?;
     std::fs::write(&provo_path, provo_text).map_err(AppError::from)?;
 
     info!(
@@ -625,10 +626,7 @@ pub fn export_csrd_report(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Construit le résumé dashboard pour la période donnée.
-pub fn get_dashboard_summary(
-    period_str: &str,
-    state: &AppState,
-) -> IpcResult<DashboardSummaryDto> {
+pub fn get_dashboard_summary(period_str: &str, state: &AppState) -> IpcResult<DashboardSummaryDto> {
     let period = dashboard::DashboardPeriod::parse(period_str).ok_or_else(|| {
         IpcError::from(AppError::InvalidRequest(format!(
             "period '{period_str}' inconnue (attendu: today | last_7_days | this_month | last_month | this_year)"
@@ -668,11 +666,7 @@ pub fn set_personal_goal(dto: PersonalGoalDto, state: &AppState) -> IpcResult<()
 }
 
 /// Supprime un objectif (idempotent).
-pub fn delete_personal_goal(
-    indicator: &str,
-    period: &str,
-    state: &AppState,
-) -> IpcResult<()> {
+pub fn delete_personal_goal(indicator: &str, period: &str, state: &AppState) -> IpcResult<()> {
     let i = GoalIndicator::parse(indicator).ok_or_else(|| {
         IpcError::from(AppError::InvalidRequest(format!(
             "indicator '{indicator}' inconnu"
@@ -702,15 +696,9 @@ pub fn get_budget_status(state: &AppState) -> IpcResult<Vec<BudgetStatusDto>> {
     let mut out = Vec::with_capacity(goals.len());
     for g in goals {
         let (start, end) = match GoalPeriod::parse(&g.period).unwrap_or(GoalPeriod::Monthly) {
-            GoalPeriod::Daily => (
-                dashboard::DashboardPeriod::Today.window(now).0,
-                now,
-            ),
+            GoalPeriod::Daily => (dashboard::DashboardPeriod::Today.window(now).0, now),
             GoalPeriod::Weekly => (now - chrono::Duration::days(7), now),
-            GoalPeriod::Monthly => (
-                dashboard::DashboardPeriod::ThisMonth.window(now).0,
-                now,
-            ),
+            GoalPeriod::Monthly => (dashboard::DashboardPeriod::ThisMonth.window(now).0, now),
         };
         let agg = sum_indicator_in_window(&entries, &g.indicator, start, end);
         let consumed_pct = if g.value_max > 0.0 {
@@ -786,9 +774,9 @@ fn sum_indicator_in_window(
         if entry.is_purged() {
             continue;
         }
-        let Ok(result) = serde_json::from_str::<sobria_core::EstimationResult>(
-            &entry.estimation_result_json,
-        ) else {
+        let Ok(result) =
+            serde_json::from_str::<sobria_core::EstimationResult>(&entry.estimation_result_json)
+        else {
             continue;
         };
         let target = match indicator {
@@ -812,9 +800,10 @@ fn sum_indicator_in_window(
 
 fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
     match e {
-        batch::BatchError::FileNotFound(p) => {
-            IpcError::new("invalid_request", format!("fichier introuvable : {}", p.display()))
-        },
+        batch::BatchError::FileNotFound(p) => IpcError::new(
+            "invalid_request",
+            format!("fichier introuvable : {}", p.display()),
+        ),
         batch::BatchError::Format(m) => IpcError::new("invalid_request", m),
         batch::BatchError::TooManyRows { got, max } => IpcError::new(
             "invalid_request",
@@ -826,13 +815,12 @@ fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
             limit_pct,
         } => IpcError::new(
             "invalid_request",
-            format!(
-                "{rejected}/{total} lignes rejetées (> {limit_pct}%) — vérifiez le format"
-            ),
+            format!("{rejected}/{total} lignes rejetées (> {limit_pct}%) — vérifiez le format"),
         ),
-        batch::BatchError::EmptyBatch => {
-            IpcError::new("invalid_request", "le CSV ne contient aucune ligne de données")
-        },
+        batch::BatchError::EmptyBatch => IpcError::new(
+            "invalid_request",
+            "le CSV ne contient aucune ligne de données",
+        ),
         batch::BatchError::Csv(e) => IpcError::new("invalid_request", format!("csv : {e}")),
         batch::BatchError::Io(e) => IpcError::new("io_error", e.to_string()),
     }
@@ -840,10 +828,7 @@ fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
 
 /// Lance un batch CSV : parse → estimate par ligne → agrégat + export optionnel.
 #[allow(clippy::cast_precision_loss)] // batch ≤ 1000 lignes, OK pour f64
-pub fn run_batch_from_csv(
-    req: BatchRequestDto,
-    state: &AppState,
-) -> IpcResult<BatchResultDto> {
+pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<BatchResultDto> {
     let input_path = std::path::PathBuf::from(&req.input_csv_path);
     let rows = batch::parse_csv(&input_path).map_err(batch_error_to_ipc)?;
     let total_input = rows.len();
@@ -890,8 +875,7 @@ pub fn run_batch_from_csv(
         }
     }
 
-    batch::check_rejection_ratio(rejected as usize, total_input)
-        .map_err(batch_error_to_ipc)?;
+    batch::check_rejection_ratio(rejected as usize, total_input).map_err(batch_error_to_ipc)?;
 
     // Agrégation
     let aggregate = if output_rows.is_empty() {
@@ -938,12 +922,7 @@ pub fn run_batch_from_csv(
     };
 
     let rows_processed = u32::try_from(output_rows.len()).unwrap_or(u32::MAX);
-    info!(
-        rows_processed,
-        rejected,
-        total_input,
-        "batch CSV terminé"
-    );
+    info!(rows_processed, rejected, total_input, "batch CSV terminé");
 
     Ok(BatchResultDto {
         rows_processed,
@@ -951,7 +930,11 @@ pub fn run_batch_from_csv(
         aggregate,
         by_model,
         output_csv_path: output_path,
-        first_audit_id: if first_audit_id == i64::MAX { 0 } else { first_audit_id },
+        first_audit_id: if first_audit_id == i64::MAX {
+            0
+        } else {
+            first_audit_id
+        },
         last_audit_id,
     })
 }
@@ -1038,11 +1021,7 @@ pub fn create_project(req: CreateProjectDto, state: &AppState) -> IpcResult<Proj
 }
 
 /// Met à jour un projet existant (champs optionnels, dates non modifiables).
-pub fn update_project(
-    id: i64,
-    req: UpdateProjectDto,
-    state: &AppState,
-) -> IpcResult<ProjectDto> {
+pub fn update_project(id: i64, req: UpdateProjectDto, state: &AppState) -> IpcResult<ProjectDto> {
     let mut store = state
         .projects
         .lock()
@@ -1158,8 +1137,7 @@ fn read_all_audit_entries(state: &AppState) -> IpcResult<Vec<sobria_audit::Audit
         if line.trim().is_empty() {
             continue;
         }
-        let entry: sobria_audit::AuditEntry =
-            serde_json::from_str(line).map_err(AppError::from)?;
+        let entry: sobria_audit::AuditEntry = serde_json::from_str(line).map_err(AppError::from)?;
         out.push(entry);
     }
     Ok(out)
@@ -1281,7 +1259,8 @@ pub fn benchmark_models(
         .and_then(|p| p.default_method)
         .unwrap_or_else(sobria_core::EmpreinteMethod::default_method);
 
-    let mut tmp: Vec<(BenchmarkOutcomeDto, f64, f64, f64)> = Vec::with_capacity(req.model_ids.len());
+    let mut tmp: Vec<(BenchmarkOutcomeDto, f64, f64, f64)> =
+        Vec::with_capacity(req.model_ids.len());
     for model_id in &req.model_ids {
         let est_req = EstimationRequestDto {
             model_id: model_id.clone(),
@@ -1334,8 +1313,14 @@ pub fn benchmark_models(
         .into_iter()
         .map(|(mut o, _, _, _)| {
             o.rank_co2eq = rank_map_co2.get(o.model_id.as_str()).copied().unwrap_or(0);
-            o.rank_energy = rank_map_energy.get(o.model_id.as_str()).copied().unwrap_or(0);
-            o.rank_water = rank_map_water.get(o.model_id.as_str()).copied().unwrap_or(0);
+            o.rank_energy = rank_map_energy
+                .get(o.model_id.as_str())
+                .copied()
+                .unwrap_or(0);
+            o.rank_water = rank_map_water
+                .get(o.model_id.as_str())
+                .copied()
+                .unwrap_or(0);
             o
         })
         .collect();
@@ -1371,10 +1356,7 @@ fn pick_p50_from_dto(dto: &EstimationResultDto, indicator_id: &str) -> f64 {
         .map_or(f64::NAN, |i| i.p50)
 }
 
-fn rank_ascending<F>(
-    items: &[(BenchmarkOutcomeDto, f64, f64, f64)],
-    key: F,
-) -> Vec<String>
+fn rank_ascending<F>(items: &[(BenchmarkOutcomeDto, f64, f64, f64)], key: F) -> Vec<String>
 where
     F: Fn(&(BenchmarkOutcomeDto, f64, f64, f64)) -> f64,
 {
@@ -1422,8 +1404,8 @@ pub fn forecast_yearly_budget(
     let core_req = req.into_core(Utc::now());
     // Polish G — Forecaster honore la méthodologie par défaut user.
     let engine = sobria_estimator::engine_for(user_default_method(state));
-    let result = sobria_estimator::forecast_yearly(engine.as_ref(), &core_req)
-        .map_err(AppError::from)?;
+    let result =
+        sobria_estimator::forecast_yearly(engine.as_ref(), &core_req).map_err(AppError::from)?;
 
     // Journalisation baseline : on relance l'estimateur baseline pour
     // récupérer un EstimationResult complet (avec bins) à journaliser.
@@ -1473,14 +1455,13 @@ pub fn simulate_scenarios(
     // PUE/IF/WUE des params avant délégation à l'estimator. La signature
     // de `sobria_estimator::simulate` accepte désormais `baseline_params`
     // explicitement pour ce câblage.
-    let mut params =
-        EstimationParams::for_model(&req.baseline.model_id).map_err(AppError::from)?;
+    let mut params = EstimationParams::for_model(&req.baseline.model_id).map_err(AppError::from)?;
     apply_datacenter_override(&mut params, req.baseline.datacenter_id.as_deref())?;
     let sim_core = req.into_core(Utc::now());
     // Polish G — Simulateur honore la méthodologie par défaut user.
     let engine = sobria_estimator::engine_for(user_default_method(state));
-    let result = sobria_estimator::simulate(engine.as_ref(), &sim_core, &params)
-        .map_err(AppError::from)?;
+    let result =
+        sobria_estimator::simulate(engine.as_ref(), &sim_core, &params).map_err(AppError::from)?;
 
     // Journalise UNIQUEMENT le baseline (les scénarios sont exploratoires).
     let mut ledger = state
@@ -1533,7 +1514,9 @@ pub fn get_app_preferences(state: &AppState) -> IpcResult<AppPreferencesDto> {
         onboarded: stored.onboarded.unwrap_or(defaults.onboarded),
         lang: stored.lang.unwrap_or(defaults.lang),
         default_method: stored.default_method.unwrap_or(defaults.default_method),
-        also_show_methods: stored.also_show_methods.unwrap_or(defaults.also_show_methods),
+        also_show_methods: stored
+            .also_show_methods
+            .unwrap_or(defaults.also_show_methods),
         default_datacenter_id: stored
             .default_datacenter_id
             .or(defaults.default_datacenter_id),
@@ -1933,9 +1916,7 @@ mod tests {
     // simulation — C11 / M13
     // ─────────────────────────────────────────────────────────────────────
 
-    use crate::dto::{
-        ForecastConfigDto, ParamOverridesDto, ScenarioDto, SimulationRequestDto,
-    };
+    use crate::dto::{ForecastConfigDto, ParamOverridesDto, ScenarioDto, SimulationRequestDto};
 
     fn baseline_dto() -> EstimationRequestDto {
         EstimationRequestDto {
@@ -1987,7 +1968,10 @@ mod tests {
         let res = simulate_scenarios(req, &state).unwrap();
         assert_eq!(res.scenarios.len(), 2);
         assert_eq!(res.scenarios[0].label, "PUE bas");
-        assert_eq!(res.scenarios[0].result.audit_id, 0, "scenarios non journalisés");
+        assert_eq!(
+            res.scenarios[0].result.audit_id, 0,
+            "scenarios non journalisés"
+        );
         assert!(res.scenarios[0].delta_co2eq_g.is_finite());
         // PUE 1.05 doit donner un delta négatif (moins que baseline avec PUE
         // uniforme [1.1, 1.4]).
@@ -3306,26 +3290,32 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn apply_datacenter_override_replaces_pue_if_and_wue() {
         use sobria_estimator::distributions::Distribution;
-        let mut params = sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
+        let mut params =
+            sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
         // `ovh-gra-gravelines` est la fiche canonique utilisée dans les tests
         // C25 — elle possède `wue_l_per_kwh: 0.18` dans `datacenters.json`,
         // ce qui exerce les trois overrides.
         apply_datacenter_override(&mut params, Some("ovh-gra-gravelines")).unwrap();
         assert!(matches!(params.pue, Distribution::Point { .. }));
-        assert!(matches!(params.if_electrical_g_per_kwh, Distribution::Point { .. }));
+        assert!(matches!(
+            params.if_electrical_g_per_kwh,
+            Distribution::Point { .. }
+        ));
         assert!(matches!(params.wue_l_per_kwh, Distribution::Point { .. }));
     }
 
     #[test]
     fn apply_datacenter_override_unknown_id_returns_invalid_request() {
-        let mut params = sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
+        let mut params =
+            sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
         let err = apply_datacenter_override(&mut params, Some("does-not-exist")).unwrap_err();
         assert_eq!(err.code, "invalid_request");
     }
 
     #[test]
     fn apply_datacenter_override_none_is_noop() {
-        let mut params = sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
+        let mut params =
+            sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
         let original_pue_dbg = format!("{:?}", params.pue);
         apply_datacenter_override(&mut params, None).unwrap();
         // PartialEq n'est pas dérivé sur Distribution ; on compare la repr
@@ -3501,7 +3491,10 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         )
         .unwrap();
         let stored = state.preferences.lock().unwrap().read_all().unwrap();
-        assert_eq!(stored.default_datacenter_id.as_deref(), Some("ovh-gra-gravelines"));
+        assert_eq!(
+            stored.default_datacenter_id.as_deref(),
+            Some("ovh-gra-gravelines")
+        );
 
         // Reverting to None must also persist.
         let _ = estimate_prompt(

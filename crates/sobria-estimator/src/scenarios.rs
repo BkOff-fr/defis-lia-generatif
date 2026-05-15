@@ -194,11 +194,8 @@ pub fn simulate(
     // 2. Scénarios
     let mut outcomes: Vec<ScenarioOutcome> = Vec::with_capacity(request.scenarios.len());
     for scenario in &request.scenarios {
-        let (req_derived, params_derived) = apply_overrides(
-            &request.baseline,
-            baseline_params,
-            &scenario.overrides,
-        )?;
+        let (req_derived, params_derived) =
+            apply_overrides(&request.baseline, baseline_params, &scenario.overrides)?;
         let result = engine.estimate(&req_derived, &params_derived)?;
         let p50 = co2_p50(&result)?;
         let delta = p50 - baseline_co2_p50;
@@ -260,7 +257,8 @@ fn validate_forecast(f: &ForecastConfig) -> EstimatorResult<()> {
             f.monthly_growth_pct
         )));
     }
-    if !f.base_volume_per_day.is_finite() || f.base_volume_per_day < 0.0
+    if !f.base_volume_per_day.is_finite()
+        || f.base_volume_per_day < 0.0
         || f.base_volume_per_day > 1_000_000.0
     {
         return Err(EstimatorError::Schema(format!(
@@ -440,7 +438,10 @@ mod tests {
         let res = sim(&engine, &sim_request_with(scenarios)).unwrap();
         let fr = res.scenarios[0].result.indicators[0].interval.p50;
         let coal = res.scenarios[1].result.indicators[0].interval.p50;
-        assert!(coal > fr * 2.0, "charbon ({coal}) doit être >2× France ({fr})");
+        assert!(
+            coal > fr * 2.0,
+            "charbon ({coal}) doit être >2× France ({fr})"
+        );
     }
 
     #[test]
@@ -473,8 +474,10 @@ mod tests {
             },
         }];
         let err = sim(&engine, &sim_request_with(scenarios)).unwrap_err();
-        assert!(format!("{err:?}").to_lowercase().contains("inconnu")
-            || format!("{err:?}").to_lowercase().contains("unknown"));
+        assert!(
+            format!("{err:?}").to_lowercase().contains("inconnu")
+                || format!("{err:?}").to_lowercase().contains("unknown")
+        );
     }
 
     #[test]
@@ -521,7 +524,10 @@ mod tests {
         assert_eq!(f.baseline_monthly_co2eq_g.len(), 12);
         let first = f.baseline_monthly_co2eq_g[0];
         for v in &f.baseline_monthly_co2eq_g {
-            assert!((v - first).abs() < 1e-9, "série pas constante : {v} ≠ {first}");
+            assert!(
+                (v - first).abs() < 1e-9,
+                "série pas constante : {v} ≠ {first}"
+            );
         }
         // Cumul annuel = 12 × mois 0.
         assert!((f.baseline_annual_co2eq_g - first * 12.0).abs() < 1e-6);

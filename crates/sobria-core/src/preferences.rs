@@ -62,9 +62,7 @@ impl Persona {
     /// - tous les modules d'un bundle sont dans le set v1.0 (13 IDs).
     #[must_use]
     pub fn default_modules(self) -> Vec<ModuleId> {
-        use ModuleId::{
-            M1, M12, M13, M14, M15, M17, M20, M22, M25, M3, M7, M8, M9,
-        };
+        use ModuleId::{M1, M12, M13, M14, M15, M17, M20, M22, M25, M3, M7, M8, M9};
         match self {
             // Étudiant / Curieux : apprendre, comprendre, suivre, fixer.
             Persona::Student => vec![M1, M8, M13, M14, M15, M25],
@@ -156,12 +154,12 @@ impl ModuleId {
     #[must_use]
     pub fn all() -> &'static [ModuleId] {
         use ModuleId::{
-            M1, M10, M11, M12, M13, M14, M15, M16, M17, M18, M19, M2, M20, M21, M22, M23, M24,
-            M25, M3, M5, M6, M7, M8, M9,
+            M1, M10, M11, M12, M13, M14, M15, M16, M17, M18, M19, M2, M20, M21, M22, M23, M24, M25,
+            M3, M5, M6, M7, M8, M9,
         };
         &[
-            M1, M2, M3, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, M16, M17, M18, M19,
-            M20, M21, M22, M23, M24, M25,
+            M1, M2, M3, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, M16, M17, M18, M19, M20,
+            M21, M22, M23, M24, M25,
         ]
     }
 }

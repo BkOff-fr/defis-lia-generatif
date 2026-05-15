@@ -137,12 +137,8 @@ mod tests {
             indicators: vec![
                 IndicatorValue {
                     indicator: Indicator::Co2Eq,
-                    interval: UncertaintyInterval::new(
-                        co2eq_p50 * 0.7,
-                        co2eq_p50,
-                        co2eq_p50 * 1.4,
-                    )
-                    .unwrap(),
+                    interval: UncertaintyInterval::new(co2eq_p50 * 0.7, co2eq_p50, co2eq_p50 * 1.4)
+                        .unwrap(),
                     unit: "gCO2eq".into(),
                     bins: None,
                 },
@@ -229,7 +225,10 @@ mod tests {
         let entries = vec![make_entry(1, start, 1.0), purged];
         let s = aggregate(&entries, start, end).unwrap();
         assert_eq!(s.total_requests, 2, "purgée comptée");
-        assert!((s.total_co2eq_g_p50 - 1.0).abs() < 1e-9, "valeur purgée exclue");
+        assert!(
+            (s.total_co2eq_g_p50 - 1.0).abs() < 1e-9,
+            "valeur purgée exclue"
+        );
     }
 
     // ─── Polish F (C24) — méthodologies tracées ────────────────────────

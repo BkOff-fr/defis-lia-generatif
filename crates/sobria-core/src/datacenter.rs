@@ -8,9 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::SobriaResult,
-    indicators::UncertaintyInterval,
-    validation::validate_country_iso,
+    error::SobriaResult, indicators::UncertaintyInterval, validation::validate_country_iso,
 };
 
 /// Fiche d'un datacenter dans le référentiel.

@@ -77,8 +77,7 @@ impl DashboardPeriod {
             Self::ThisYear => {
                 // Année précédente, même portion ([1er jan -> même date])
                 let last_year_start = start_of_year_for(now.year() - 1);
-                let last_year_now = last_year_start
-                    + (now - start_of_year(now));
+                let last_year_now = last_year_start + (now - start_of_year(now));
                 (last_year_start, last_year_now)
             },
         }
@@ -193,11 +192,7 @@ pub fn aggregate(
     let mut cursor = start_of_day(start);
     while cursor < end {
         let key = cursor.format("%Y-%m-%d").to_string();
-        let point = current
-            .by_day
-            .get(&key)
-            .cloned()
-            .unwrap_or_default();
+        let point = current.by_day.get(&key).cloned().unwrap_or_default();
         daily.push(DailySeriesPoint {
             date: key,
             request_count: point.requests,
@@ -399,8 +394,7 @@ fn start_of_previous_month(dt: DateTime<Utc>) -> DateTime<Utc> {
     } else {
         (year, month - 1)
     };
-    let date =
-        NaiveDate::from_ymd_opt(prev_year, prev_month, 1).expect("date valide");
+    let date = NaiveDate::from_ymd_opt(prev_year, prev_month, 1).expect("date valide");
     Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap())
 }
 
@@ -409,8 +403,8 @@ mod tests {
     use super::*;
     use chrono::Timelike;
     use sobria_core::{
-        EmpreinteMethod, EstimationRequest, Hypothesis, IndicatorValue, UncertaintyInterval,
-        EstimationResult,
+        EmpreinteMethod, EstimationRequest, EstimationResult, Hypothesis, IndicatorValue,
+        UncertaintyInterval,
     };
 
     fn entry_at(id: i64, ts: DateTime<Utc>, model: &str, co2: f64) -> AuditEntry {
@@ -566,7 +560,11 @@ mod tests {
         ];
         let s = aggregate(&entries, DashboardPeriod::Last7Days, now_fixed());
         // 7 jours, donc 7 points (8 si la borne inclusive — vérifions)
-        assert!(s.daily_series.len() >= 7, "got {} points", s.daily_series.len());
+        assert!(
+            s.daily_series.len() >= 7,
+            "got {} points",
+            s.daily_series.len()
+        );
         // Le jour day1 et day3 doivent avoir count = 1
         let day1_point = s
             .daily_series

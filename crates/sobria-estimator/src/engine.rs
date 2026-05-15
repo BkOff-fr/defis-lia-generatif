@@ -13,7 +13,9 @@ use tracing::debug;
 
 use crate::{
     engine_trait::{EmpreinteEngine, EmpreinteMethod},
-    equivalents, error::{EstimatorError, EstimatorResult}, params::EstimationParams,
+    equivalents,
+    error::{EstimatorError, EstimatorResult},
+    params::EstimationParams,
 };
 
 /// Nombre de tirages par défaut. Voir ADR-0004.
@@ -82,7 +84,9 @@ impl MonteCarloEngine {
             .map_err(|e| EstimatorError::Validation(format!("request: {e}")))?;
         params.validate()?;
         if self.n == 0 {
-            return Err(EstimatorError::Schema("N=0 — aucun tirage à effectuer".into()));
+            return Err(EstimatorError::Schema(
+                "N=0 — aucun tirage à effectuer".into(),
+            ));
         }
 
         let n_usize = self.n as usize;
@@ -285,8 +289,14 @@ fn hypotheses_from_params(params: &EstimationParams) -> Vec<Hypothesis> {
         }
     }
     vec![
-        h("epsilon_prefill_mj_per_token", &params.epsilon_prefill_mj_per_token),
-        h("epsilon_decode_mj_per_token", &params.epsilon_decode_mj_per_token),
+        h(
+            "epsilon_prefill_mj_per_token",
+            &params.epsilon_prefill_mj_per_token,
+        ),
+        h(
+            "epsilon_decode_mj_per_token",
+            &params.epsilon_decode_mj_per_token,
+        ),
         h("pue", &params.pue),
         h("if_electrical_g_per_kwh", &params.if_electrical_g_per_kwh),
         h("embodied_g_per_request", &params.embodied_g_per_request),
@@ -321,7 +331,11 @@ mod tests {
         assert_eq!(res.seed, DEFAULT_SEED);
         // Les 3 indicateurs ont des valeurs strictement positives
         for ind in &res.indicators {
-            assert!(ind.interval.p50 > 0.0, "indicateur {:?} p50 ≤ 0", ind.indicator);
+            assert!(
+                ind.interval.p50 > 0.0,
+                "indicateur {:?} p50 ≤ 0",
+                ind.indicator
+            );
         }
     }
 
@@ -333,7 +347,11 @@ mod tests {
         let r1 = engine.estimate(&req, &params).unwrap();
         let r2 = engine.estimate(&req, &params).unwrap();
         for (a, b) in r1.indicators.iter().zip(r2.indicators.iter()) {
-            assert_eq!(a.interval, b.interval, "reproductibilité violée pour {:?}", a.indicator);
+            assert_eq!(
+                a.interval, b.interval,
+                "reproductibilité violée pour {:?}",
+                a.indicator
+            );
         }
     }
 
@@ -358,7 +376,9 @@ mod tests {
             .with_embodied(Distribution::Point { value: 0.0 });
         let engine = MonteCarloEngine::new(42);
         let r1 = engine.estimate(&sample_request(100, 500), &params).unwrap();
-        let r2 = engine.estimate(&sample_request(200, 1000), &params).unwrap();
+        let r2 = engine
+            .estimate(&sample_request(200, 1000), &params)
+            .unwrap();
         let p50_1 = r1.indicators[0].interval.p50;
         let p50_2 = r2.indicators[0].interval.p50;
         let ratio = p50_2 / p50_1;
@@ -393,8 +413,8 @@ mod tests {
     fn rejects_empty_model_id() {
         let mut req = sample_request(10, 50);
         req.model_id.clear();
-        let res = MonteCarloEngine::default()
-            .estimate(&req, &EstimationParams::conservative_default());
+        let res =
+            MonteCarloEngine::default().estimate(&req, &EstimationParams::conservative_default());
         assert!(res.is_err());
     }
 
@@ -498,9 +518,7 @@ mod tests {
     fn estimate_attaches_bins_to_all_indicators() {
         let engine = MonteCarloEngine::default();
         let params = EstimationParams::conservative_default();
-        let res = engine
-            .estimate(&sample_request(100, 500), &params)
-            .unwrap();
+        let res = engine.estimate(&sample_request(100, 500), &params).unwrap();
         for ind in &res.indicators {
             let bins = ind
                 .bins
@@ -538,9 +556,7 @@ mod tests {
         // N=5 < MIN_SAMPLES_FOR_BINS → bins == None pour tous les indicateurs
         let engine = MonteCarloEngine::default().with_n(5);
         let params = EstimationParams::conservative_default();
-        let res = engine
-            .estimate(&sample_request(10, 20), &params)
-            .unwrap();
+        let res = engine.estimate(&sample_request(10, 20), &params).unwrap();
         for ind in &res.indicators {
             assert!(
                 ind.bins.is_none(),
@@ -562,9 +578,7 @@ mod tests {
             wue_l_per_kwh: Distribution::Point { value: 1.5 },
         };
         let engine = MonteCarloEngine::new(42);
-        let res = engine
-            .estimate(&sample_request(100, 500), &params)
-            .unwrap();
+        let res = engine.estimate(&sample_request(100, 500), &params).unwrap();
         for ind in &res.indicators {
             assert!(
                 ind.bins.is_none(),

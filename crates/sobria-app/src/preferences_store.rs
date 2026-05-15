@@ -147,7 +147,7 @@ impl PreferencesStore {
             Some(p) => {
                 let v = serde_json::to_string(p)?;
                 upsert(&tx, KEY_PERSONA, &v, &now)?;
-            }
+            },
             None => delete(&tx, KEY_PERSONA)?,
         }
 
@@ -225,7 +225,12 @@ impl PreferencesStore {
     }
 }
 
-fn upsert(tx: &rusqlite::Transaction<'_>, key: &str, value: &str, now: &str) -> Result<(), AppError> {
+fn upsert(
+    tx: &rusqlite::Transaction<'_>,
+    key: &str,
+    value: &str,
+    now: &str,
+) -> Result<(), AppError> {
     tx.execute(
         "INSERT INTO app_preferences (key, value, updated_at) \
          VALUES (?1, ?2, ?3) \
@@ -277,12 +282,21 @@ mod tests {
         store.write_all(&written).unwrap();
         let read = store.read_all().unwrap();
         assert_eq!(read.persona, Some(Persona::Enterprise));
-        assert_eq!(read.enabled_modules, Some(vec![ModuleId::M1, ModuleId::M22]));
+        assert_eq!(
+            read.enabled_modules,
+            Some(vec![ModuleId::M1, ModuleId::M22])
+        );
         assert_eq!(read.onboarded, Some(true));
         assert_eq!(read.lang.as_deref(), Some("fr"));
         assert_eq!(read.default_method, Some(EmpreinteMethod::EcoLogits));
-        assert_eq!(read.also_show_methods, Some(vec![EmpreinteMethod::AfnorSobria]));
-        assert_eq!(read.default_datacenter_id.as_deref(), Some("ovh-gra-gravelines"));
+        assert_eq!(
+            read.also_show_methods,
+            Some(vec![EmpreinteMethod::AfnorSobria])
+        );
+        assert_eq!(
+            read.default_datacenter_id.as_deref(),
+            Some("ovh-gra-gravelines")
+        );
     }
 
     #[test]
@@ -308,7 +322,10 @@ mod tests {
             .unwrap();
         let read = store.read_all().unwrap();
         assert_eq!(read.persona, Some(Persona::Researcher));
-        assert_eq!(read.enabled_modules, Some(vec![ModuleId::M1, ModuleId::M17]));
+        assert_eq!(
+            read.enabled_modules,
+            Some(vec![ModuleId::M1, ModuleId::M17])
+        );
         assert_eq!(read.onboarded, Some(true));
         assert_eq!(read.lang.as_deref(), Some("en"));
     }
@@ -323,9 +340,7 @@ mod tests {
             })
             .unwrap();
         assert!(store.read_all().unwrap().persona.is_some());
-        store
-            .write_all(&StoredPreferences::default())
-            .unwrap();
+        store.write_all(&StoredPreferences::default()).unwrap();
         assert!(store.read_all().unwrap().persona.is_none());
     }
 

@@ -174,10 +174,7 @@ pub fn aggregate_by_region(artifact: &TerritoireFrArtifact) -> Vec<RegionFrAggre
 
     let mut by_region: HashMap<String, Vec<&IndustrialSite>> = HashMap::new();
     for s in &artifact.industrial_sites {
-        by_region
-            .entry(s.region_iso.clone())
-            .or_default()
-            .push(s);
+        by_region.entry(s.region_iso.clone()).or_default().push(s);
     }
 
     let mut out: Vec<RegionFrAggregate> = by_region
@@ -297,30 +294,21 @@ mod tests {
     fn validate_rejects_empty_regions() {
         let mut a = fixture();
         a.regions.clear();
-        assert!(matches!(
-            validate(&a),
-            Err(TerritoireFrError::Schema(_))
-        ));
+        assert!(matches!(validate(&a), Err(TerritoireFrError::Schema(_))));
     }
 
     #[test]
     fn validate_rejects_empty_sites() {
         let mut a = fixture();
         a.industrial_sites.clear();
-        assert!(matches!(
-            validate(&a),
-            Err(TerritoireFrError::Schema(_))
-        ));
+        assert!(matches!(validate(&a), Err(TerritoireFrError::Schema(_))));
     }
 
     #[test]
     fn validate_rejects_missing_sha() {
         let mut a = fixture();
         a.meta.source_sha256.clear();
-        assert!(matches!(
-            validate(&a),
-            Err(TerritoireFrError::Schema(_))
-        ));
+        assert!(matches!(validate(&a), Err(TerritoireFrError::Schema(_))));
     }
 
     #[test]

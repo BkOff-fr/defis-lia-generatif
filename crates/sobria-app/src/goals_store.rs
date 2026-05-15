@@ -155,12 +155,10 @@ impl PersonalGoalsStore {
         let mut out = Vec::new();
         for r in rows {
             let (i, p, v, u) = r?;
-            let indicator = GoalIndicator::parse(&i).ok_or_else(|| {
-                AppError::Internal(format!("indicator '{i}' inconnu en base"))
-            })?;
-            let period = GoalPeriod::parse(&p).ok_or_else(|| {
-                AppError::Internal(format!("period '{p}' inconnue en base"))
-            })?;
+            let indicator = GoalIndicator::parse(&i)
+                .ok_or_else(|| AppError::Internal(format!("indicator '{i}' inconnu en base")))?;
+            let period = GoalPeriod::parse(&p)
+                .ok_or_else(|| AppError::Internal(format!("period '{p}' inconnue en base")))?;
             out.push(PersonalGoal {
                 indicator,
                 period,
@@ -200,11 +198,7 @@ impl PersonalGoalsStore {
     }
 
     /// Supprime un objectif. Idempotent (pas d'erreur si absent).
-    pub fn delete(
-        &mut self,
-        indicator: GoalIndicator,
-        period: GoalPeriod,
-    ) -> Result<(), AppError> {
+    pub fn delete(&mut self, indicator: GoalIndicator, period: GoalPeriod) -> Result<(), AppError> {
         self.conn.execute(
             "DELETE FROM personal_goals WHERE indicator = ?1 AND period = ?2",
             params![indicator.as_str(), period.as_str()],
@@ -300,7 +294,9 @@ mod tests {
                 unit: "L".into(),
             })
             .unwrap();
-        store.delete(GoalIndicator::Water, GoalPeriod::Weekly).unwrap();
+        store
+            .delete(GoalIndicator::Water, GoalPeriod::Weekly)
+            .unwrap();
         assert!(store.list_all().unwrap().is_empty());
     }
 
@@ -308,7 +304,9 @@ mod tests {
     fn delete_missing_goal_is_idempotent() {
         let (_tmp, mut store) = open_temp();
         // Aucun goal présent → delete ne doit pas paniquer.
-        store.delete(GoalIndicator::Energy, GoalPeriod::Daily).unwrap();
+        store
+            .delete(GoalIndicator::Energy, GoalPeriod::Daily)
+            .unwrap();
     }
 
     #[test]

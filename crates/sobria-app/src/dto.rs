@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sobria_audit::{AuditEntry, IntegrityReport};
 use sobria_core::{
-    DistributionBins, EstimationRequest, EstimationResult, Equivalent, Hypothesis, Indicator,
+    DistributionBins, Equivalent, EstimationRequest, EstimationResult, Hypothesis, Indicator,
     IndicatorValue, ModuleId, Persona,
 };
 use sobria_estimator::{
@@ -1324,7 +1324,7 @@ fn parse_payload_full(payload: &str) -> ParsedPayload {
                 co2eq_p50,
                 method: r.method,
             }
-        }
+        },
         Err(_) => ParsedPayload {
             model_id: "(invalide)".into(),
             co2eq_p50: f64::NAN,
@@ -1392,7 +1392,10 @@ mod tests {
         let json = serde_json::to_string(&dto).unwrap();
         assert!(json.contains("default_datacenter_id"));
         let back: AppPreferencesDto = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.default_datacenter_id.as_deref(), Some("ovh-gra-gravelines"));
+        assert_eq!(
+            back.default_datacenter_id.as_deref(),
+            Some("ovh-gra-gravelines")
+        );
 
         // Backward-compat: a JSON without the field must deserialize with None.
         let legacy = serde_json::json!({

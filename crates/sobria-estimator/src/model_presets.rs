@@ -174,7 +174,10 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         epsilon_decode_mj: (121.0, 200.0, 330.0),
         embodied_g_per_req: (0.00121, 0.0020, 0.0033),
         calibration: CalibrationStatus::Extrapolated,
-        sources: &["EcoLogits 2026-01", "Estimation taille — analyse publique 2024"],
+        sources: &[
+            "EcoLogits 2026-01",
+            "Estimation taille — analyse publique 2024",
+        ],
     },
     ModelPreset {
         id: "claude-3-5-sonnet",
@@ -267,7 +270,10 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         epsilon_decode_mj: (485.0, 800.0, 1320.0),
         embodied_g_per_req: (0.00485, 0.0080, 0.0132),
         calibration: CalibrationStatus::Extrapolated,
-        sources: &["Google DeepMind 2025 (annonce publique)", "Analogie Mistral Medium"],
+        sources: &[
+            "Google DeepMind 2025 (annonce publique)",
+            "Analogie Mistral Medium",
+        ],
     },
 ];
 
@@ -317,12 +323,18 @@ impl EstimationParams {
         Ok(Self {
             epsilon_prefill_mj_per_token: epsilon_prefill,
             epsilon_decode_mj_per_token: epsilon_decode,
-            pue: Distribution::Uniform { low: 1.1, high: 1.4 },
+            pue: Distribution::Uniform {
+                low: 1.1,
+                high: 1.4,
+            },
             // Par défaut : mix électrique France 2024 ADEME (~56 gCO₂eq/kWh).
             // Override possible via with_if_electrical().
             if_electrical_g_per_kwh: Distribution::Point { value: 56.0 },
             embodied_g_per_request: embodied,
-            wue_l_per_kwh: Distribution::Uniform { low: 0.5, high: 2.5 },
+            wue_l_per_kwh: Distribution::Uniform {
+                low: 0.5,
+                high: 2.5,
+            },
         })
     }
 }

@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sobr.ia/schemas/gold/datasheet-v1.json",
+  "title": "Sobr.ia — Gold datasheet (Gebru et al. 2018) v1",
+  "description": "Datasheet for Datasets (Gebru et al. 2018, doi:10.48550/arXiv.1803.09010) appliquée à la couche Gold de Sobr.ia. Combine les sept sections Gebru avec les vocabulaires schema.org/Dataset, DCAT 3 et PROV-O pour la traçabilité scientifique. Validée à chaque assemblage Gold du pipeline médaillon (ADR-0009).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "@context",
+    "@type",
+    "@id",
+    "schema:name",
+    "schema:dateCreated",
+    "schema:license",
+    "schema:isBasedOn",
+    "datasheet:motivation",
+    "datasheet:composition",
+    "datasheet:collection_process",
+    "datasheet:preprocessing",
+    "datasheet:uses",
+    "datasheet:distribution",
+    "datasheet:maintenance"
+  ],
+  "properties": {
+    "@context": {
+      "type": "object",
+      "required": ["schema", "dcat", "prov", "datasheet", "sobria"],
+      "description": "Préfixes JSON-LD : schema.org, DCAT 3, PROV-O, vocabulaire Sobr.ia + alias `datasheet:` pour les sections Gebru."
+    },
+    "@type": {
+      "description": "Doit inclure schema:Dataset et dcat:Dataset.",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "@id": {
+      "type": "string",
+      "description": "IRI du Gold dataset (ex: 'sobria:gold')."
+    },
+    "schema:name": { "type": "string", "minLength": 1 },
+    "schema:description": { "type": "string" },
+    "schema:dateCreated": { "type": "string", "format": "date-time" },
+    "schema:version": { "type": "string" },
+    "schema:license": { "type": "string", "minLength": 1 },
+    "schema:creator": { "type": "object" },
+    "schema:keywords": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "schema:isBasedOn": {
+      "type": "array",
+      "minItems": 0,
+      "description": "Sources amont (Tier 1+) ayant contribué à ce Gold. Vide autorisé pour permettre des Gold de pipeline (tests).",
+      "items": {
+        "type": "object",
+        "required": ["@type", "@id", "schema:name", "schema:license"],
+        "properties": {
+          "@type": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          },
+          "@id": { "type": "string" },
+          "schema:name": { "type": "string" },
+          "schema:url": { "type": "string" },
+          "schema:license": { "type": "string" },
+          "schema:dateModified": { "type": "string" },
+          "sobria:tier": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "sobria:copperHash": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+        }
+      }
+    },
+    "schema:distribution": {
+      "type": "array",
+      "description": "Artefacts Gold distribués (referentiel.sqlite, analytics.parquet, …).",
+      "items": {
+        "type": "object",
+        "required": ["@type", "schema:name"],
+        "properties": {
+          "@type": { "type": "string" },
+          "schema:name": { "type": "string" },
+          "schema:encodingFormat": { "type": "string" },
+          "schema:contentSize": { "type": "string" },
+          "schema:sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+        }
+      }
+    },
+    "datasheet:motivation": {
+      "type": "object",
+      "required": ["why_created", "creators", "funding"],
+      "properties": {
+        "why_created": { "type": "string", "minLength": 1 },
+        "creators": { "type": "string", "minLength": 1 },
+        "funding": { "type": "string" }
+      }
+    },
+    "datasheet:composition": {
+      "type": "object",
+      "required": ["instances", "instance_count", "sampling"],
+      "properties": {
+        "instances": { "type": "string", "minLength": 1 },
+        "instance_count": { "type": "string" },
+        "sampling": { "type": "string" },
+        "data_split": { "type": "string" },
+        "noise_or_redundancy": { "type": "string" },
+        "self_contained": { "type": "boolean" },
+        "confidential_data": { "type": "boolean" },
+        "personal_data": { "type": "boolean" }
+      }
+    },
+    "datasheet:collection_process": {
+      "type": "object",
+      "required": ["how_collected", "instruments", "time_frame"],
+      "properties": {
+        "how_collected": { "type": "string", "minLength": 1 },
+        "instruments": { "type": "string" },
+        "time_frame": { "type": "string" },
+        "ethical_review": { "type": "string" },
+        "consent": { "type": "string" }
+      }
+    },
+    "datasheet:preprocessing": {
+      "type": "object",
+      "required": ["steps", "raw_data_saved"],
+      "properties": {
+        "steps": { "type": "string", "minLength": 1 },
+        "raw_data_saved": { "type": "boolean" },
+        "raw_data_location": { "type": "string" },
+        "software_used": { "type": "string" }
+      }
+    },
+    "datasheet:uses": {
+      "type": "object",
+      "required": ["recommended_uses", "out_of_scope_uses"],
+      "properties": {
+        "recommended_uses": { "type": "string", "minLength": 1 },
+        "out_of_scope_uses": { "type": "string", "minLength": 1 },
+        "tasks_used_for": { "type": "string" }
+      }
+    },
+    "datasheet:distribution": {
+      "type": "object",
+      "required": ["distributed_to", "license"],
+      "properties": {
+        "distributed_to": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "minLength": 1 },
+        "ip_restrictions": { "type": "string" },
+        "export_controls": { "type": "string" }
+      }
+    },
+    "datasheet:maintenance": {
+      "type": "object",
+      "required": ["maintainer", "update_policy"],
+      "properties": {
+        "maintainer": { "type": "string", "minLength": 1 },
+        "contact": { "type": "string" },
+        "update_policy": { "type": "string", "minLength": 1 },
+        "retention_policy": { "type": "string" },
+        "errata_url": { "type": "string" }
+      }
+    },
+    "prov:wasDerivedFrom": {
+      "type": "array",
+      "description": "Entités Silver d'origine (PROV-O), produites par les sources Tier 1+."
+    },
+    "sobria:copperReferences": {
+      "type": "array",
+      "description": "Tous les hashes Copper distincts ayant contribué — un par fichier brut (PROV-O entities)."
+    },
+    "sobria:lineageVersion": {
+      "type": "string",
+      "description": "Version du format lineage (toujours \"1\" pour l'instant)."
+    }
+  }
+}

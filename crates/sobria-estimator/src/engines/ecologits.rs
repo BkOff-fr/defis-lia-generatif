@@ -33,8 +33,8 @@
 
 use chrono::Utc;
 use sobria_core::{
-    DistributionBins, EstimationRequest, EstimationResult, Hypothesis, Indicator,
-    IndicatorValue, UncertaintyInterval,
+    DistributionBins, EstimationRequest, EstimationResult, Hypothesis, Indicator, IndicatorValue,
+    UncertaintyInterval,
 };
 
 use crate::{
@@ -135,7 +135,8 @@ pub fn request_energy_kwh(p_billions: f64, tokens_out: u32, pue: f64) -> f64 {
     let t_out = f64::from(tokens_out);
     let dt_sec = t_out * f_latency_per_token_sec(p_billions);
     let e_gpu_wh = n_gpu_f * t_out * f_energy_per_token_wh(p_billions);
-    let e_server_no_gpu_wh = dt_sec * P_SERVER_W * (n_gpu_f / N_GPU_INSTALLED) / BATCH_SIZE / 3600.0;
+    let e_server_no_gpu_wh =
+        dt_sec * P_SERVER_W * (n_gpu_f / N_GPU_INSTALLED) / BATCH_SIZE / 3600.0;
     let e_server_wh = e_gpu_wh + e_server_no_gpu_wh;
     let e_request_wh = pue * e_server_wh;
     e_request_wh / 1000.0
@@ -252,9 +253,8 @@ impl EcoLogitsEngine {
 
         // Sortie : ECoLogits est déterministe en v1 — P5 = P50 = P95.
         let degenerate = |v: f64| {
-            UncertaintyInterval::new(v, v, v).map_err(|e| {
-                EstimatorError::Validation(format!("interval EcoLogits ({v}): {e}"))
-            })
+            UncertaintyInterval::new(v, v, v)
+                .map_err(|e| EstimatorError::Validation(format!("interval EcoLogits ({v}): {e}")))
         };
         let co2_interval = degenerate(total_co2_g)?;
         let energy_interval = degenerate(energy_watt_hours)?;
@@ -310,8 +310,7 @@ impl EcoLogitsEngine {
             },
             Hypothesis {
                 key: "pue".into(),
-                value: serde_json::to_value(params.pue)
-                    .unwrap_or(serde_json::Value::Null),
+                value: serde_json::to_value(params.pue).unwrap_or(serde_json::Value::Null),
                 source: "User param (réduit à la médiane pour EcoLogits déterministe)".into(),
             },
             Hypothesis {
@@ -427,19 +426,34 @@ mod tests {
         // Cible recalculée Python (notebook/validation.qmd) :
         //   E_request = 0.329 Wh, usage_g (FR 56) = 0.01843 g.
         let eng = EcoLogitsEngine::default();
-        let res = eng.estimate(&req("llama-3-1-70b", 100, 500), &params_point(1.2, 56.0, 1.5))
+        let res = eng
+            .estimate(
+                &req("llama-3-1-70b", 100, 500),
+                &params_point(1.2, 56.0, 1.5),
+            )
             .unwrap();
-        let co2 = res.indicators.iter().find(|i| i.indicator == Indicator::Co2Eq).unwrap();
+        let co2 = res
+            .indicators
+            .iter()
+            .find(|i| i.indicator == Indicator::Co2Eq)
+            .unwrap();
         let total = co2.interval.p50;
         let embodied = request_embodied_co2eq_g(70.0, 500);
         let usage = total - embodied;
-        assert!((usage - 0.01843).abs() / 0.01843 < 0.005, "usage {usage} ≠ 0.01843 ±0.5%");
+        assert!(
+            (usage - 0.01843).abs() / 0.01843 < 0.005,
+            "usage {usage} ≠ 0.01843 ±0.5%"
+        );
     }
 
     #[test]
     fn deterministic_intervals_are_degenerate() {
         let eng = EcoLogitsEngine::default();
-        let res = eng.estimate(&req("llama-3-1-70b", 100, 500), &params_point(1.2, 56.0, 1.5))
+        let res = eng
+            .estimate(
+                &req("llama-3-1-70b", 100, 500),
+                &params_point(1.2, 56.0, 1.5),
+            )
             .unwrap();
         for ind in &res.indicators {
             assert!(
@@ -490,10 +504,16 @@ mod tests {
     fn higher_carbon_grid_increases_co2eq() {
         let eng = EcoLogitsEngine::default();
         let r_fr = eng
-            .estimate(&req("llama-3-1-70b", 100, 500), &params_point(1.2, 56.0, 1.5))
+            .estimate(
+                &req("llama-3-1-70b", 100, 500),
+                &params_point(1.2, 56.0, 1.5),
+            )
             .unwrap();
         let r_va = eng
-            .estimate(&req("llama-3-1-70b", 100, 500), &params_point(1.2, 412.0, 1.5))
+            .estimate(
+                &req("llama-3-1-70b", 100, 500),
+                &params_point(1.2, 412.0, 1.5),
+            )
             .unwrap();
         let g_fr = r_fr.indicators[0].interval.p50;
         let g_va = r_va.indicators[0].interval.p50;

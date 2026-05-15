@@ -52,13 +52,19 @@ impl EstimationParams {
                 mu: (2.0_f64).ln(),
                 sigma: 0.3,
             },
-            pue: Distribution::Uniform { low: 1.1, high: 1.4 },
+            pue: Distribution::Uniform {
+                low: 1.1,
+                high: 1.4,
+            },
             if_electrical_g_per_kwh: Distribution::Point { value: 56.0 },
             embodied_g_per_request: Distribution::LogNormal {
                 mu: (0.02_f64).ln(),
                 sigma: 0.4,
             },
-            wue_l_per_kwh: Distribution::Uniform { low: 0.5, high: 2.5 },
+            wue_l_per_kwh: Distribution::Uniform {
+                low: 0.5,
+                high: 2.5,
+            },
         }
     }
 
@@ -137,15 +143,20 @@ mod tests {
             .with_pue(Distribution::Point { value: 1.3 })
             .with_if_electrical(Distribution::Point { value: 412.0 });
         assert_eq!(p.pue, Distribution::Point { value: 1.3 });
-        assert_eq!(p.if_electrical_g_per_kwh, Distribution::Point { value: 412.0 });
+        assert_eq!(
+            p.if_electrical_g_per_kwh,
+            Distribution::Point { value: 412.0 }
+        );
         // Les autres champs ne sont pas modifiés
         assert!(p.validate().is_ok());
     }
 
     #[test]
     fn validate_catches_bad_subparam() {
-        let p = EstimationParams::conservative_default()
-            .with_pue(Distribution::Uniform { low: 5.0, high: 1.0 });
+        let p = EstimationParams::conservative_default().with_pue(Distribution::Uniform {
+            low: 5.0,
+            high: 1.0,
+        });
         let err = p.validate().unwrap_err();
         assert!(format!("{err}").contains("pue"));
     }

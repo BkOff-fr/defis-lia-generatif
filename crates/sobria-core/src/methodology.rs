@@ -20,9 +20,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Sérialisé en `snake_case` pour stockage SQLite (table `audit_entries`,
 /// `app_preferences`) et IPC.
-#[derive(
-    Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash,
-)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum EmpreinteMethod {
     /// Formule AFNOR SPEC 2314 (linéaire-par-token) + Monte-Carlo Sobr.ia.

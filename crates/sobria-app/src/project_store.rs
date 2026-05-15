@@ -166,7 +166,13 @@ impl ProjectStore {
         self.conn.execute(
             "UPDATE projects SET name = ?1, description = ?2, tags = ?3, updated_at = ?4 \
              WHERE id = ?5",
-            params![current.name, current.description, tags_json, now.to_rfc3339(), id],
+            params![
+                current.name,
+                current.description,
+                tags_json,
+                now.to_rfc3339(),
+                id
+            ],
         )?;
         current.updated_at = now;
         Ok(current)
@@ -187,7 +193,9 @@ impl ProjectStore {
 
 fn validate_name(name: &str) -> Result<(), AppError> {
     if name.trim().is_empty() {
-        return Err(AppError::InvalidRequest("name ne doit pas être vide".into()));
+        return Err(AppError::InvalidRequest(
+            "name ne doit pas être vide".into(),
+        ));
     }
     if name.chars().count() > PROJECT_NAME_MAX {
         return Err(AppError::InvalidRequest(format!(
@@ -228,7 +236,10 @@ fn validate_tags(tags: &[String]) -> Result<(), AppError> {
                 "tag '{tag}' trop long (> {PROJECT_TAG_MAX} caractères)"
             )));
         }
-        if !tag.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        if !tag
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        {
             return Err(AppError::InvalidRequest(format!(
                 "tag '{tag}' invalide (attendu : a-z, 0-9, -)"
             )));
@@ -261,11 +272,7 @@ fn row_to_project(row: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
             })
     };
     let tags: Vec<String> = serde_json::from_str(&tags_str).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(
-            5,
-            rusqlite::types::Type::Text,
-            Box::new(e),
-        )
+        rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e))
     })?;
     Ok(Project {
         id,

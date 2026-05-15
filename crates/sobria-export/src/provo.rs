@@ -36,11 +36,7 @@ impl Default for ProvOOptions {
 /// (lui-même issu de l'audit ledger) ou des options explicites — pas
 /// de génération synthétique.
 #[must_use]
-pub fn build_provo_jsonld(
-    summary: &ReportSummary,
-    pdf_sha256: &str,
-    opts: &ProvOOptions,
-) -> Value {
+pub fn build_provo_jsonld(summary: &ReportSummary, pdf_sha256: &str, opts: &ProvOOptions) -> Value {
     let activity_id = format!("{}-activity", opts.report_id);
     let audit_id = format!(
         "sobria:audit-entries-{}-{}",
@@ -207,10 +203,9 @@ mod tests {
         let activity = &v["@graph"][1];
         let used = activity["prov:used"].as_array().unwrap();
         assert_eq!(used.len(), 2);
-        assert!(used.iter().any(|u| u["@id"]
-            .as_str()
-            .unwrap()
-            .contains("audit-entries-1-247")));
+        assert!(used
+            .iter()
+            .any(|u| u["@id"].as_str().unwrap().contains("audit-entries-1-247")));
     }
 
     #[test]

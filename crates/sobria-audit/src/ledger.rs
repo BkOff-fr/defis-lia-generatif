@@ -182,8 +182,9 @@ impl AuditLedger {
 
     /// Nombre d'entrées dans le ledger.
     pub fn len(&self) -> AuditResult<usize> {
-        let n: i64 =
-            self.conn.query_row("SELECT COUNT(*) FROM audit_entries", [], |r| r.get(0))?;
+        let n: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM audit_entries", [], |r| r.get(0))?;
         Ok(usize::try_from(n).unwrap_or(0))
     }
 
@@ -246,7 +247,9 @@ fn row_to_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<AuditEntry> {
     let id: i64 = row.get(0)?;
     let ts_str: String = row.get(1)?;
     let ts = DateTime::parse_from_rfc3339(&ts_str)
-        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(e)))?
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(e))
+        })?
         .with_timezone(&Utc);
     let payload: String = row.get(2)?;
     let prev_sig: String = row.get(3)?;
@@ -256,7 +259,11 @@ fn row_to_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<AuditEntry> {
         Some(s) => Some(
             DateTime::parse_from_rfc3339(&s)
                 .map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e))
+                    rusqlite::Error::FromSqlConversionFailure(
+                        5,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
                 })?
                 .with_timezone(&Utc),
         ),

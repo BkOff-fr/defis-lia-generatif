@@ -162,6 +162,64 @@ async fn full_pipeline_assembles_gold_for_two_sources() {
             )
             .unwrap();
         assert_eq!(orphans, 0, "pas de silver orphelin");
+
+        // ─── C26.3 : vues matérialisées + FTS5 + datacenter_iris_link ───
+        for table in [
+            "model_overview",
+            "scenario_inputs",
+            "time_series_mix",
+            "comparison_matrix",
+            "datacenter_iris_link",
+        ] {
+            let n: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?1",
+                    [table],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(n, 1, "table {table} attendue dans le Gold");
+        }
+
+        // Le Parquet ComparIA synthétique a une colonne `model` avec
+        // 2 valeurs distinctes ("gpt-4o-mini", "claude-3-5") → 2 lignes
+        // dans model_overview après extraction.
+        let n_models: i64 = conn
+            .query_row("SELECT COUNT(*) FROM model_overview", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n_models, 2, "2 modèles distincts attendus");
+
+        // FTS5 doit retrouver "gpt" via une recherche full-text simple.
+        let n_fts: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM model_overview_fts WHERE model_overview_fts MATCH ?1",
+                ["gpt"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(n_fts >= 1, "FTS5 doit indexer au moins 1 modèle GPT");
+
+        // Inférence vendor : le modèle gpt-4o-mini doit avoir vendor=OpenAI.
+        let vendor: String = conn
+            .query_row(
+                "SELECT vendor FROM model_overview WHERE id = 'gpt-4o-mini'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(vendor, "OpenAI");
+
+        // datacenter_iris_link : le GeoJSON synthétique est une
+        // FeatureCollection vide → table vide attendue.
+        let n_links: i64 = conn
+            .query_row("SELECT COUNT(*) FROM datacenter_iris_link", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            n_links, 0,
+            "GeoJSON synthétique vide → datacenter_iris_link vide"
+        );
     })
     .await
     .unwrap();
@@ -188,11 +246,37 @@ async fn full_pipeline_assembles_gold_for_two_sources() {
     .await
     .unwrap();
 
-    // === Vérifier datasheet.jsonld ===
+    // === Vérifier datasheet.jsonld (Gebru + schema.org + DCAT + PROV) ==
     let ds: serde_json::Value =
         serde_json::from_slice(&tokio::fs::read(&arts.datasheet_jsonld).await.unwrap()).unwrap();
     assert!(ds.get("@context").is_some());
     assert!(ds["schema:distribution"].is_array());
+    let ctx_obj = ds["@context"].as_object().expect("@context object");
+    for ns in ["schema", "dcat", "prov", "datasheet", "sobria"] {
+        assert!(ctx_obj.contains_key(ns), "préfixe JSON-LD manquant : {ns}");
+    }
+    for section in [
+        "datasheet:motivation",
+        "datasheet:composition",
+        "datasheet:collection_process",
+        "datasheet:preprocessing",
+        "datasheet:uses",
+        "datasheet:distribution",
+        "datasheet:maintenance",
+    ] {
+        assert!(
+            ds.get(section).is_some(),
+            "section Gebru manquante : {section}"
+        );
+    }
+    let sources = ds["schema:isBasedOn"].as_array().unwrap();
+    assert_eq!(sources.len(), 2, "2 sources contributrices attendues");
+    let source_ids: Vec<&str> = sources
+        .iter()
+        .map(|s| s["@id"].as_str().unwrap_or(""))
+        .collect();
+    assert!(source_ids.contains(&"sobria:source:comparia"));
+    assert!(source_ids.contains(&"sobria:source:rte-iris"));
 
     // === Vérifier MANIFEST.sha256 ===
     let manifest_content = tokio::fs::read_to_string(&arts.manifest_sha256)

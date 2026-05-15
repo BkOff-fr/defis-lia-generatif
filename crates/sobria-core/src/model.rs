@@ -68,7 +68,10 @@ mod tests {
             modality: Modality::Text,
             parameters_billions: Some(8.0),
             context_tokens: Some(128_000),
-            sources: vec!["https://openai.com/index/gpt-4o-mini-advancing-cost-efficient-intelligence/".into()],
+            sources: vec![
+                "https://openai.com/index/gpt-4o-mini-advancing-cost-efficient-intelligence/"
+                    .into(),
+            ],
         };
         let _ = serde_json::to_string(&m).expect("serialize");
     }
