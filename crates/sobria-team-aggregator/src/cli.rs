@@ -1,8 +1,12 @@
 //! Définition `clap` du binaire `sobria-team-aggregator`.
 //!
-//! Pour C28.1 on expose deux sous-commandes : `init` (préparer un data dir)
-//! et `serve` (lancer le serveur HTTPS). Les commandes `code`, `user` et
-//! `admin` arrivent avec C28.2 / C28.3.
+//! Sous-commandes :
+//!
+//! - `init`    (C28.1) — prépare un data dir.
+//! - `serve`   (C28.1) — lance le serveur HTTPS.
+//! - `code`    (C28.2) — crée / liste / révoque des enrollment codes.
+//!
+//! `user`, `admin reset-password` etc. viendront avec C28.3.
 
 use std::path::PathBuf;
 
@@ -51,6 +55,34 @@ pub enum Command {
         #[arg(long, default_value_t = DEFAULT_PORT)]
         port: u16,
     },
+
+    /// Gère les enrollment codes distribués aux employés.
+    Code {
+        #[command(subcommand)]
+        action: CodeAction,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CodeAction {
+    /// Crée N nouveaux codes 12 chiffres (affichés en clair UNE seule fois).
+    Create {
+        /// Nombre de codes à créer.
+        count: u32,
+        /// TTL des codes en jours (défaut : 7).
+        #[arg(long, default_value_t = 7)]
+        ttl_days: i64,
+        /// Username admin créateur (défaut : `admin`).
+        #[arg(long, default_value = "admin")]
+        admin: String,
+    },
+    /// Liste tous les codes (id, créé par, état).
+    List,
+    /// Révoque un code par id (ULID).
+    Revoke {
+        /// Identifiant du code (ULID).
+        id: String,
+    },
 }
 
 /// Entrée du binaire : parse les args et dispatche.
@@ -67,6 +99,74 @@ pub fn run() -> Result<()> {
             force,
         } => run_init(&paths, &admin_username, admin_password, force),
         Command::Serve { bind, port } => run_serve(&paths, &bind, port),
+        Command::Code { action } => run_code(&paths, action),
+    }
+}
+
+fn run_code(paths: &DataPaths, action: CodeAction) -> Result<()> {
+    match action {
+        CodeAction::Create {
+            count,
+            ttl_days,
+            admin,
+        } => {
+            let codes = commands::code::create_batch(paths, count, ttl_days, &admin)?;
+            println!(
+                "\n{} code(s) enrôlement généré(s) (admin={admin}, TTL={ttl_days}j) :\n",
+                codes.len()
+            );
+            for (i, c) in codes.iter().enumerate() {
+                println!(
+                    "  {:>3}. {}  (id: {}, expire le {})",
+                    i + 1,
+                    c.code,
+                    c.id,
+                    c.expires_at.format("%Y-%m-%d %H:%M UTC"),
+                );
+            }
+            println!(
+                "\n⚠️  Conservez ces codes — ils ne seront PLUS affichés (hash Argon2id en base)."
+            );
+            println!("    Distribuez-les à vos employés par un canal sûr.");
+            Ok(())
+        },
+        CodeAction::List => {
+            let rows = commands::code::list_all(paths)?;
+            if rows.is_empty() {
+                println!("Aucun enrollment code en base.");
+                return Ok(());
+            }
+            println!("{:<28} {:<22} {:<20} créé par", "id", "expires_at", "état");
+            let now = chrono::Utc::now();
+            for r in &rows {
+                let etat = if r.revoked_at.is_some() {
+                    "révoqué"
+                } else if r.used_at.is_some() {
+                    "utilisé"
+                } else if r.expires_at <= now {
+                    "expiré"
+                } else {
+                    "actif"
+                };
+                println!(
+                    "{:<28} {:<22} {:<20} {}",
+                    r.id,
+                    r.expires_at.format("%Y-%m-%d %H:%M"),
+                    etat,
+                    r.created_by,
+                );
+            }
+            Ok(())
+        },
+        CodeAction::Revoke { id } => {
+            let ok = commands::code::revoke(paths, &id)?;
+            if ok {
+                println!("Code {id} révoqué.");
+            } else {
+                println!("Code {id} introuvable ou déjà révoqué.");
+            }
+            Ok(())
+        },
     }
 }
 

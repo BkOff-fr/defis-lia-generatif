@@ -15,7 +15,7 @@ use ulid::Ulid;
 use crate::config::DataPaths;
 use crate::crypto::{password, secret, tls};
 use crate::error::AggregatorError;
-use crate::storage::{schema, Storage};
+use crate::storage::{admins, schema, Storage};
 
 /// Clés du KV `config` utilisées par `init`.
 pub const CFG_JWT_SIGNING_KEY: &str = "jwt_signing_key";
@@ -78,9 +78,14 @@ pub fn run(
     // 4. Admin initial
     let admin_id = Ulid::new().to_string();
     let admin_hash = password::hash_password(admin_password).context("hash admin password")?;
-    storage
-        .insert_admin(&admin_id, admin_username, &admin_hash, Utc::now())
-        .context("insert admin")?;
+    admins::insert(
+        storage.connection(),
+        &admin_id,
+        admin_username,
+        &admin_hash,
+        Utc::now(),
+    )
+    .context("insert admin")?;
 
     Ok(InitOutcome {
         admin_id,
@@ -111,7 +116,9 @@ mod tests {
 
         // L'admin est bien dans la base et le password vérifie.
         let storage = Storage::open(&paths.db()).unwrap();
-        let row = storage.find_admin_by_username("admin").unwrap().unwrap();
+        let row = admins::find_by_username(storage.connection(), "admin")
+            .unwrap()
+            .unwrap();
         assert!(password::verify_password(
             &row.password_hash,
             "init-password"

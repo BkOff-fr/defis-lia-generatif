@@ -1,9 +1,12 @@
 //! Couche serveur HTTP du `sobria-team-aggregator`.
 //!
-//! C28.1 : routeur axum minimal avec uniquement `/health`. Les API REST
-//! d'auth, d'admin, d'estimations et de dashboard seront branchées dans
-//! les sous-chantiers C28.2 → C28.4.
+//! C28.2 : routeur axum avec `/health` + `/api/v1/{enroll,login,refresh,
+//! estimations,me/usage}`. Les routes admin (`/api/v1/admin/*`) arrivent
+//! en C28.3, le dashboard statique en C28.4.
 
+pub mod api;
+pub mod auth;
+pub mod error;
 pub mod routes;
 pub mod tls;
 
@@ -16,17 +19,20 @@ use crate::storage::Storage;
 
 /// État partagé entre handlers. La `Storage` est encapsulée dans un
 /// `Mutex` parce que `rusqlite::Connection` n'est pas `Sync`. Pour les
-/// charges C28.1 (`/health`) ce n'est pas un goulot — on raffinera en
-/// pool de connexions en C28.4 si les benchs le demandent.
+/// charges C28.2 (faible concurrence) ce n'est pas un goulot — on passera
+/// à un pool en C28.4 si les benchs le demandent.
 #[derive(Clone)]
 pub struct ServerState {
     pub storage: Arc<Mutex<Storage>>,
+    /// Clé HS256 (hex, lue de `config.jwt_signing_key` à `serve` startup).
+    pub jwt_signing_key: Arc<String>,
 }
 
 impl ServerState {
-    pub fn new(storage: Storage) -> Self {
+    pub fn new(storage: Storage, jwt_signing_key: String) -> Self {
         Self {
             storage: Arc::new(Mutex::new(storage)),
+            jwt_signing_key: Arc::new(jwt_signing_key),
         }
     }
 }
@@ -35,6 +41,7 @@ impl ServerState {
 pub fn build_router(state: ServerState) -> Router {
     Router::new()
         .merge(routes::router())
+        .nest("/api/v1", api::router())
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }

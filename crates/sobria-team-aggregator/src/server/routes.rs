@@ -4,7 +4,7 @@
 use axum::{routing::get, Json, Router};
 use serde::Serialize;
 
-use super::ServerState;
+use crate::server::ServerState;
 
 /// Réponse du `/health`.
 #[derive(Debug, Serialize)]

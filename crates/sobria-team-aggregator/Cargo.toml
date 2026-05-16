@@ -54,6 +54,10 @@ ulid = "1"
 argon2 = { workspace = true }
 rand = { workspace = true }
 
+# Auth (C28.2 — JWT HS256 + refresh tokens UUID v4)
+jsonwebtoken = "9"
+uuid = { version = "1", features = ["v4"] }
+
 # UX
 rpassword = "7"
 

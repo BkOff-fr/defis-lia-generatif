@@ -19,21 +19,21 @@ use crate::storage::Storage;
 /// Vérifie que l'init a été lancée + construit l'état partagé + le TLS.
 fn prepare(paths: &DataPaths) -> Result<(ServerState, RustlsConfig)> {
     let storage = Storage::open(&paths.db()).context("open team.sqlite")?;
-    let jwt = storage
+    let jwt_signing_key = storage
         .get_config(crate::commands::init::CFG_JWT_SIGNING_KEY)
-        .context("lire jwt_signing_key")?;
-    if jwt.is_none() {
-        anyhow::bail!(
-            "data dir {} non initialisé — exécuter `init` d'abord",
-            paths.as_path().display()
-        );
-    }
+        .context("lire jwt_signing_key")?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "data dir {} non initialisé — exécuter `init` d'abord",
+                paths.as_path().display()
+            )
+        })?;
 
     let server_config = server_tls::load_server_config_arc(&paths.cert(), &paths.key())
         .context("charger cert TLS")?;
     let tls = RustlsConfig::from_config(Arc::clone(&server_config));
 
-    let state = ServerState::new(storage);
+    let state = ServerState::new(storage, jwt_signing_key);
     Ok((state, tls))
 }
 
