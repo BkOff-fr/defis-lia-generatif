@@ -15,6 +15,15 @@ import {
   setBadgeVisible,
   purgeAll
 } from '../content/shared/storage.js';
+import {
+  browserFingerprint,
+  getTeamState,
+  setTeamMode,
+  setTeamUrl,
+  type TeamMode,
+  type TeamState
+} from '../content/shared/team-storage.js';
+import { enroll, logout as teamLogout, ping, TeamApiError } from '../lib/team-client.js';
 import type {
   GetPairingStatusMessage,
   GetPairingStatusResponse,
@@ -105,6 +114,53 @@ function setStatus(msg: string, isError = false): void {
   }, 4000);
 }
 
+// ─── Mode Équipe (C28.6) ─────────────────────────────────────────────────────
+
+function renderTeam(state: TeamState): void {
+  const statusEl = document.getElementById('team-status');
+  const labelEl = statusEl?.querySelector<HTMLElement>('.team-status__label');
+  const enrollPane = document.getElementById('team-enroll-form');
+  const infoPane = document.getElementById('team-info');
+  const urlInput = document.querySelector<HTMLInputElement>('#team-url-input');
+
+  enrollPane?.setAttribute('hidden', '');
+  infoPane?.setAttribute('hidden', '');
+
+  if (urlInput && state.url) urlInput.value = state.url;
+
+  if (state.enrolled) {
+    statusEl?.setAttribute('data-state', 'paired');
+    if (labelEl) labelEl.textContent = 'Enrôlé';
+    infoPane?.removeAttribute('hidden');
+    const urlOut = document.getElementById('team-info-url');
+    const userIdOut = document.getElementById('team-info-user-id');
+    const fpOut = document.getElementById('team-info-fingerprint');
+    const sinceOut = document.getElementById('team-info-since');
+    if (urlOut) urlOut.textContent = state.url ?? '—';
+    if (userIdOut) userIdOut.textContent = state.userId ?? '—';
+    if (fpOut) fpOut.textContent = state.fingerprint ?? '—';
+    if (sinceOut && state.enrolledAt)
+      sinceOut.textContent = new Date(state.enrolledAt).toLocaleString('fr-FR');
+    document.querySelectorAll<HTMLInputElement>('input[name="team-mode"]').forEach((r) => {
+      r.checked = r.value === state.mode;
+    });
+  } else if (state.url) {
+    statusEl?.setAttribute('data-state', 'unpaired');
+    if (labelEl) labelEl.textContent = 'Serveur configuré · non enrôlé';
+    enrollPane?.removeAttribute('hidden');
+  } else {
+    statusEl?.setAttribute('data-state', 'unpaired');
+    if (labelEl) labelEl.textContent = 'Non configuré';
+  }
+}
+
+function setTeamFieldError(id: string, msg: string, isOk = false): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = !msg ? '' : isOk ? 'var(--lime)' : 'var(--coral)';
+}
+
 async function init(): Promise<void> {
   // ─── Pairing ──────────────────────────────────────────────────────────────
   try {
@@ -114,6 +170,121 @@ async function init(): Promise<void> {
     console.error('[sobria options] fetchPairingStatus failed', err);
     renderPairing({ paired: false, bridgeAvailable: false });
   }
+
+  // ─── Mode Équipe ─────────────────────────────────────────────────────────
+  try {
+    renderTeam(await getTeamState());
+  } catch (err) {
+    console.error('[sobria options] getTeamState failed', err);
+  }
+
+  const teamUrlInput = document.querySelector<HTMLInputElement>('#team-url-input');
+  const teamPingBtn = document.querySelector<HTMLButtonElement>('#team-ping-btn');
+  const teamCodeInput = document.querySelector<HTMLInputElement>('#team-code-input');
+  const teamDisplayInput = document.querySelector<HTMLInputElement>(
+    '#team-displayname-input'
+  );
+  const teamPasswordInput = document.querySelector<HTMLInputElement>('#team-password-input');
+  const teamEnrollBtn = document.querySelector<HTMLButtonElement>('#team-enroll-btn');
+  const teamLogoutBtn = document.querySelector<HTMLButtonElement>('#team-logout-btn');
+
+  teamCodeInput?.addEventListener('input', () => {
+    teamCodeInput.value = teamCodeInput.value.replace(/[^0-9]/g, '').slice(0, 12);
+  });
+
+  teamPingBtn?.addEventListener('click', async () => {
+    if (!teamUrlInput) return;
+    setTeamFieldError('team-ping-error', '');
+    const raw = teamUrlInput.value.trim();
+    if (!/^https:\/\//.test(raw)) {
+      setTeamFieldError('team-ping-error', 'URL doit commencer par https://');
+      return;
+    }
+    teamPingBtn.disabled = true;
+    try {
+      await setTeamUrl(raw);
+      const health = await ping();
+      setTeamFieldError(
+        'team-ping-error',
+        `Serveur joignable · version ${health.version}`,
+        true
+      );
+      renderTeam(await getTeamState());
+    } catch (err) {
+      const msg =
+        err instanceof TeamApiError
+          ? err.message
+          : err instanceof TypeError
+            ? 'Connexion refusée — vérifier que vous avez accepté le certificat dans un autre onglet.'
+            : String(err);
+      setTeamFieldError('team-ping-error', msg);
+    } finally {
+      teamPingBtn.disabled = false;
+    }
+  });
+
+  teamEnrollBtn?.addEventListener('click', async () => {
+    if (!teamCodeInput || !teamPasswordInput) return;
+    setTeamFieldError('team-enroll-error', '');
+    const code = teamCodeInput.value.trim();
+    const password = teamPasswordInput.value;
+    const displayName = teamDisplayInput?.value.trim() || undefined;
+    if (!/^\d{12}$/.test(code)) {
+      setTeamFieldError('team-enroll-error', 'Code doit être 12 chiffres.');
+      return;
+    }
+    if (password.length < 8) {
+      setTeamFieldError('team-enroll-error', 'Mot de passe ≥ 8 caractères requis.');
+      return;
+    }
+    teamEnrollBtn.disabled = true;
+    try {
+      const fingerprint = browserFingerprint();
+      await enroll(
+        displayName === undefined
+          ? { code, password, fingerprint }
+          : { code, password, fingerprint, displayName }
+      );
+      // Active 'both' au premier enrollment — les estimations remontent
+      // automatiquement à l'équipe sans toggler manuellement.
+      await setTeamMode('both');
+      renderTeam(await getTeamState());
+      teamCodeInput.value = '';
+      teamPasswordInput.value = '';
+      if (teamDisplayInput) teamDisplayInput.value = '';
+    } catch (err) {
+      const msg =
+        err instanceof TeamApiError
+          ? err.message
+          : err instanceof TypeError
+            ? "Connexion refusée — vérifier l'URL et le certificat."
+            : String(err);
+      setTeamFieldError('team-enroll-error', msg);
+    } finally {
+      teamEnrollBtn.disabled = false;
+    }
+  });
+
+  document.querySelectorAll<HTMLInputElement>('input[name="team-mode"]').forEach((r) => {
+    r.addEventListener('change', async () => {
+      if (!r.checked) return;
+      await setTeamMode(r.value as TeamMode);
+      setStatus(`Mode équipe : ${r.value}.`);
+    });
+  });
+
+  teamLogoutBtn?.addEventListener('click', async () => {
+    if (!confirm('Te déconnecter du serveur équipe ? Les tokens seront effacés.'))
+      return;
+    teamLogoutBtn.disabled = true;
+    try {
+      await teamLogout();
+      await setTeamMode('local');
+      renderTeam(await getTeamState());
+    } finally {
+      teamLogoutBtn.disabled = false;
+    }
+  });
 
   const codeInput = document.querySelector<HTMLInputElement>('#pairing-code-input');
   const connectBtn = document.querySelector<HTMLButtonElement>('#pairing-connect-btn');

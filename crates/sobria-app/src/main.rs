@@ -27,7 +27,10 @@ use sobria_app::{
         ReferentielStatusDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
         SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
-    logic, AppState, IpcError, IpcResult,
+    logic,
+    team_client::{self, EnrollRequest, TeamClient},
+    team_settings::{self, TeamStatus},
+    AppState, IpcError, IpcResult,
 };
 use tauri::Manager;
 use tracing::info;
@@ -347,7 +350,10 @@ fn install_extension_bridge(
     extension_id: String,
 ) -> IpcResult<Vec<PathBuf>> {
     let bridge_path = resolve_bridge_path().ok_or_else(|| {
-        IpcError::new("internal", "binaire sobria-bridge introuvable à côté de l'app")
+        IpcError::new(
+            "internal",
+            "binaire sobria-bridge introuvable à côté de l'app",
+        )
     })?;
     let mut written = Vec::with_capacity(browsers.len());
     for b in browsers {
@@ -356,6 +362,171 @@ fn install_extension_bridge(
         written.push(path);
     }
     Ok(written)
+}
+
+// ─── C28.6 — Mode Équipe (self-hosted aggregator) ────────────────────────────
+
+#[tauri::command]
+fn team_status(state: tauri::State<'_, AppState>) -> IpcResult<TeamStatus> {
+    let store = state
+        .team_settings
+        .lock()
+        .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+    store
+        .snapshot()
+        .map_err(|e| IpcError::new("internal", format!("team_status: {e}")))
+}
+
+#[tauri::command]
+fn team_set_url(url: String, state: tauri::State<'_, AppState>) -> IpcResult<()> {
+    if !url.starts_with("https://") {
+        return Err(IpcError::new(
+            "bad_request",
+            "url doit commencer par https://",
+        ));
+    }
+    let trimmed = url.trim_end_matches('/').to_string();
+    let store = state
+        .team_settings
+        .lock()
+        .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+    store
+        .set(team_settings::KEY_URL, &trimmed)
+        .map_err(|e| IpcError::new("internal", format!("team_set_url: {e}")))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn team_set_mode(mode: String, state: tauri::State<'_, AppState>) -> IpcResult<()> {
+    let normalized = team_settings::TeamMode::parse(&mode);
+    let store = state
+        .team_settings
+        .lock()
+        .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+    store
+        .set(team_settings::KEY_MODE, normalized.as_str())
+        .map_err(|e| IpcError::new("internal", format!("team_set_mode: {e}")))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn team_set_accept_invalid_certs(accept: bool, state: tauri::State<'_, AppState>) -> IpcResult<()> {
+    let store = state
+        .team_settings
+        .lock()
+        .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+    store
+        .set(
+            team_settings::KEY_ACCEPT_INVALID_CERTS,
+            if accept { "1" } else { "0" },
+        )
+        .map_err(|e| IpcError::new("internal", format!("team_set_accept: {e}")))?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn team_ping(state: tauri::State<'_, AppState>) -> IpcResult<team_client::HealthResponse> {
+    let cfg = {
+        let store = state
+            .team_settings
+            .lock()
+            .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+        team_client::ClientConfig::read(&store).map_err(team_client::map_team_err)?
+    };
+    let client = TeamClient::new(cfg).map_err(team_client::map_team_err)?;
+    client.ping().await.map_err(team_client::map_team_err)
+}
+
+#[tauri::command]
+async fn team_enroll(
+    code: String,
+    password: String,
+    fingerprint: String,
+    display_name: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<team_client::EnrollResponse> {
+    let req = EnrollRequest {
+        code,
+        password,
+        fingerprint,
+        display_name,
+    };
+    let cfg = {
+        let store = state
+            .team_settings
+            .lock()
+            .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+        team_client::ClientConfig::read(&store).map_err(team_client::map_team_err)?
+    };
+    let client = TeamClient::new(cfg).map_err(team_client::map_team_err)?;
+    let (resp, side) = client
+        .enroll(req)
+        .await
+        .map_err(team_client::map_team_err)?;
+    // Persiste tokens + side effects en re-lockant le store.
+    {
+        let store = state
+            .team_settings
+            .lock()
+            .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+        team_client::persist::save_tokens(&store, &resp.access_token, &resp.refresh_token)
+            .map_err(team_client::map_team_err)?;
+        team_client::persist::save_enroll_side_effects(&store, &side)
+            .map_err(team_client::map_team_err)?;
+    }
+    Ok(resp)
+}
+
+#[tauri::command]
+fn team_logout(state: tauri::State<'_, AppState>) -> IpcResult<()> {
+    let store = state
+        .team_settings
+        .lock()
+        .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+    team_client::logout_local(&store)
+        .map_err(|e| IpcError::new("internal", format!("team_logout: {e}")))
+}
+
+#[tauri::command]
+async fn team_push_estimation(
+    payload: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<bool> {
+    // Best-effort : retourne `false` si dispatch non éligible (mode=local
+    // ou non enrôlé), pas une erreur.
+    let (snapshot, cfg) = {
+        let store = state
+            .team_settings
+            .lock()
+            .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+        let snap = store
+            .snapshot()
+            .map_err(|e| IpcError::new("internal", format!("snapshot: {e}")))?;
+        let cfg = if team_client::should_dispatch_team(&snap) {
+            Some(team_client::ClientConfig::read(&store).map_err(team_client::map_team_err)?)
+        } else {
+            None
+        };
+        (snap, cfg)
+    };
+    let Some(cfg) = cfg else {
+        return Ok(false);
+    };
+    let _ = snapshot;
+    let client = TeamClient::new(cfg).map_err(team_client::map_team_err)?;
+    let outcome = client
+        .push_estimation(&payload)
+        .await
+        .map_err(team_client::map_team_err)?;
+    if let Some((access, refresh)) = outcome.new_tokens {
+        let store = state
+            .team_settings
+            .lock()
+            .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
+        team_client::persist::save_tokens(&store, &access, &refresh)
+            .map_err(team_client::map_team_err)?;
+    }
+    Ok(outcome.data.ack)
 }
 
 #[tauri::command]
@@ -462,6 +633,14 @@ fn main() {
             bridge_status,
             install_extension_bridge,
             uninstall_extension_bridge,
+            team_status,
+            team_set_url,
+            team_set_mode,
+            team_set_accept_invalid_certs,
+            team_ping,
+            team_enroll,
+            team_logout,
+            team_push_estimation,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");
