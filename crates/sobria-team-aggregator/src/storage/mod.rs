@@ -12,6 +12,7 @@
 //! que l'ouverture/migrations + l'accès au KV `config`.
 
 pub mod admins;
+pub mod analytics;
 pub mod enrollment_codes;
 pub mod estimations;
 pub mod schema;

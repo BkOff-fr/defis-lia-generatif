@@ -1,5 +1,6 @@
 //! Routes `/api/v1/*` agrégées dans un sous-routeur.
 
+pub mod admin;
 pub mod enroll;
 pub mod estimations;
 pub mod login;
@@ -21,4 +22,5 @@ pub fn router() -> Router<ServerState> {
         .route("/refresh", post(refresh::handle))
         .route("/estimations", post(estimations::handle))
         .route("/me/usage", get(me::handle))
+        .nest("/admin", admin::router())
 }
