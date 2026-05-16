@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sobr.ia — réglages</title>
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body>
+    <main class="options" data-sobria-version="0.6.0">
+      <header class="options__header">
+        <div class="options__brand">
+          <img class="options__mark" src="/icons/mark.svg" alt="" aria-hidden="true" />
+          <h1 class="options__title"><em>Sobr.ia</em> · réglages</h1>
+        </div>
+        <span class="options__version">v0.6.0</span>
+      </header>
+
+      <!-- Pairing app (C27.5) -->
+      <section class="section">
+        <h2 class="section__title">Pairing avec l'app desktop</h2>
+        <p class="section__intro">
+          Sync facultative avec l'app Sobr.ia desktop pour faire remonter les estimations dans
+          Journal/Dashboard. Native messaging local — aucun trafic réseau.
+        </p>
+
+        <div class="pairing-status" id="pairing-status" data-state="loading">
+          <span class="pairing-dot" aria-hidden="true"></span>
+          <span class="pairing-status__label">Chargement…</span>
+        </div>
+
+        <!-- État : non pairée + bridge dispo → champ code -->
+        <div class="pairing-pane" id="pairing-form" hidden>
+          <p class="pairing-pane__hint">
+            Lance l'app Sobr.ia desktop, va dans <em>Paramètres → Extension navigateur</em> et
+            saisis ici le code à 6 chiffres affiché.
+          </p>
+          <div class="pairing-input-row">
+            <input
+              type="text"
+              id="pairing-code-input"
+              inputmode="numeric"
+              autocomplete="off"
+              maxlength="6"
+              pattern="\d{6}"
+              placeholder="123456"
+              class="pairing-input"
+              aria-label="Code de pairing à 6 chiffres"
+            />
+            <button type="button" class="btn btn--primary" id="pairing-connect-btn">
+              Connecter
+            </button>
+          </div>
+          <p class="pairing-pane__error" id="pairing-error" aria-live="polite"></p>
+        </div>
+
+        <!-- État : pairée -->
+        <div class="pairing-pane" id="pairing-info" hidden>
+          <dl class="pairing-info">
+            <dt>Fingerprint</dt>
+            <dd id="pairing-fingerprint">—</dd>
+            <dt>Pairée depuis</dt>
+            <dd id="pairing-since">—</dd>
+            <dt>ID</dt>
+            <dd><code id="pairing-id">—</code></dd>
+          </dl>
+          <button type="button" class="btn btn--danger" id="pairing-revoke-btn">
+            Dépaire cette extension
+          </button>
+        </div>
+
+        <!-- État : bridge non détecté -->
+        <div class="pairing-pane callout callout--info" id="pairing-no-bridge" hidden>
+          <span class="callout__icon" aria-hidden="true">⏳</span>
+          <div class="callout__body">
+            <strong>App Sobr.ia desktop pas détectée</strong>
+            <p>
+              Le bridge natif n'est pas installé sur ce système. Installer
+              <a href="https://sobr.ia/downloads" target="_blank" rel="noopener"
+                >l'app Sobr.ia desktop</a
+              >, puis dans Paramètres → Extension navigateur, active la synchronisation. L'extension
+              continue à fonctionner en mode standalone (100 % local).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sites surveillés -->
+      <section class="section">
+        <h2 class="section__title">Sites surveillés</h2>
+        <p class="section__intro">
+          Désactiver un site empêche l'injection du badge et de l'indicateur live. Les content
+          scripts restent installés mais ne s'activent pas (pas besoin de recharger l'extension).
+        </p>
+        <ul class="sites-list">
+          <li class="site-row">
+            <label class="toggle">
+              <input type="checkbox" data-site="chatgpt" />
+              <span class="toggle__visual"></span>
+              <div class="toggle__label">
+                <span class="toggle__name">ChatGPT</span>
+                <span class="toggle__sub">chat.openai.com · chatgpt.com</span>
+              </div>
+            </label>
+          </li>
+          <li class="site-row">
+            <label class="toggle">
+              <input type="checkbox" data-site="claude" />
+              <span class="toggle__visual"></span>
+              <div class="toggle__label">
+                <span class="toggle__name">Claude</span>
+                <span class="toggle__sub">claude.ai</span>
+              </div>
+            </label>
+          </li>
+          <li class="site-row">
+            <label class="toggle">
+              <input type="checkbox" data-site="leChat" />
+              <span class="toggle__visual"></span>
+              <div class="toggle__label">
+                <span class="toggle__name">Le Chat</span>
+                <span class="toggle__sub">chat.mistral.ai</span>
+              </div>
+            </label>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Confidentialité -->
+      <section class="section">
+        <h2 class="section__title">Confidentialité</h2>
+        <p class="section__intro">
+          Toutes les données sont stockées localement dans
+          <code>chrome.storage.local</code>. Aucun envoi vers Sobr.ia ou un tiers.
+        </p>
+
+        <label class="toggle toggle--inline">
+          <input type="checkbox" id="badge-visible-toggle" />
+          <span class="toggle__visual"></span>
+          <div class="toggle__label">
+            <span class="toggle__name">Afficher le badge sur les pages</span>
+            <span class="toggle__sub"
+              >Le pill Sobr.ia apparaît dans la rangée d'actions du bot.</span
+            >
+          </div>
+        </label>
+
+        <div class="confid-actions">
+          <button type="button" class="btn btn--secondary" id="export-btn">
+            Exporter mes données (JSON)
+          </button>
+          <button type="button" class="btn btn--danger" id="purge-btn">
+            Purger toutes les données locales
+          </button>
+        </div>
+        <p class="confid-status" id="confid-status" aria-live="polite"></p>
+      </section>
+
+      <!-- Méthodologie -->
+      <section class="section">
+        <h2 class="section__title">Méthodologie</h2>
+        <p class="section__intro">
+          Deux méthodologies embarquées en v0.6.0 : <strong>AFNOR SPEC 2314</strong> (référentiel
+          français) et <strong>EcoLogits 2026-01</strong> (peer-reviewed JOSS 2025). Le choix se
+          fait depuis la popup. Sources et formules détaillées dans l'app desktop /methodologies.
+        </p>
+        <div class="method-grid">
+          <article class="method-card">
+            <span class="method-card__eyebrow">AFNOR SPEC 2314</span>
+            <h3 class="method-card__title">Sobr.ia</h3>
+            <p class="method-card__body">
+              Référentiel français de mesure de l'empreinte LLM. Coefficient K_DECODE = 25
+              mJ/token/B recalibré audit B (ADR-0012). Point-estimate sur les P50 des distributions
+              (le Monte-Carlo N=10⁴ reste côté app desktop).
+            </p>
+            <p class="method-card__source">AFNOR SPEC publique, code Sobr.ia MIT</p>
+          </article>
+          <article class="method-card">
+            <span class="method-card__eyebrow">EcoLogits 2026-01</span>
+            <h3 class="method-card__title">GenAI Impact</h3>
+            <p class="method-card__body">
+              Port direct des formules f_E, f_L, n_GPU (Rincé & Banse, JOSS 2025). Marge ≤ 2 % vs
+              Python notebook. Calibré sur le serveur p5.48xlarge (8× H100) avec batch B=64 (vLLM).
+            </p>
+            <p class="method-card__source">
+              <a href="https://doi.org/10.21105/joss.07471" target="_blank" rel="noopener"
+                >doi:10.21105/joss.07471</a
+              >
+              · CC BY-SA 4.0 (méthodo) · code Sobr.ia MIT
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- À propos -->
+      <section class="section">
+        <h2 class="section__title">À propos</h2>
+        <dl class="about-list">
+          <dt>Version</dt>
+          <dd>0.6.0 (C27 — extension WebExtension MV3)</dd>
+          <dt>Licence</dt>
+          <dd>MIT</dd>
+          <dt>Source</dt>
+          <dd>
+            <a
+              href="https://github.com/anthropics/defis-lia-generatif"
+              target="_blank"
+              rel="noopener"
+              >github.com/anthropics/defis-lia-generatif</a
+            >
+          </dd>
+          <dt>Privacy</dt>
+          <dd>
+            100 % local, aucun trafic réseau vers Sobr.ia ou tiers. Tout est calculé dans le
+            navigateur.
+          </dd>
+        </dl>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

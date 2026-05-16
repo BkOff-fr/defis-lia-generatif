@@ -1333,6 +1333,92 @@ impl From<&sobria_estimator::MethodologyInfo> for MethodologyInfoDto {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// extension navigateur — pairing (C27.5.c/d)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Code 6 chiffres affiché à l'utilisateur côté UI Sobr.ia pour appairer
+/// l'extension navigateur. TTL 5 min.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PairingCodeDto {
+    /// Les 6 chiffres à recopier dans l'extension.
+    pub code: String,
+    /// Instant d'expiration en RFC 3339.
+    pub expires_at: String,
+    /// Secondes restantes (calculé serveur, indicatif pour l'UI).
+    pub seconds_remaining: i64,
+}
+
+/// Secret produit après validation d'un code de pairing — c'est ce que
+/// l'extension va stocker en `chrome.storage.local` et présenter à chaque
+/// requête.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PairingSecretDto {
+    /// `id` du pairing créé (ULID).
+    pub pairing_id: String,
+    /// Secret 32 octets encodé hex (64 chars). À transmettre tel quel à
+    /// l'extension via le bridge, puis jeté côté app desktop.
+    pub secret_hex: String,
+}
+
+/// Représentation UI d'un pairing actif (liste dans /parametres).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PairingDto {
+    pub id: String,
+    pub fingerprint: String,
+    pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_seen_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revoked_at: Option<String>,
+}
+
+impl From<&crate::extension_store::PairingRow> for PairingDto {
+    fn from(r: &crate::extension_store::PairingRow) -> Self {
+        Self {
+            id: r.id.clone(),
+            fingerprint: r.fingerprint.clone(),
+            created_at: r.created_at.to_rfc3339(),
+            last_seen_at: r.last_seen_at.map(|d| d.to_rfc3339()),
+            revoked_at: r.revoked_at.map(|d| d.to_rfc3339()),
+        }
+    }
+}
+
+/// Représentation UI d'un événement ingéré depuis l'extension.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtensionEventDto {
+    pub id: String,
+    pub pairing_id: String,
+    pub ts: String,
+    pub method: String,
+    pub model_id: String,
+    pub tokens_in: u32,
+    pub tokens_out: u32,
+    pub gco2eq_p50: f64,
+    pub water_ml: f64,
+    pub energy_wh: f64,
+    pub ingested_at: String,
+}
+
+impl From<&crate::extension_store::ExtensionEventRow> for ExtensionEventDto {
+    fn from(r: &crate::extension_store::ExtensionEventRow) -> Self {
+        Self {
+            id: r.id.clone(),
+            pairing_id: r.pairing_id.clone(),
+            ts: r.ts.to_rfc3339(),
+            method: r.method.clone(),
+            model_id: r.model_id.clone(),
+            tokens_in: r.tokens_in,
+            tokens_out: r.tokens_out,
+            gco2eq_p50: r.gco2eq_p50,
+            water_ml: r.water_ml,
+            energy_wh: r.energy_wh,
+            ingested_at: r.ingested_at.to_rfc3339(),
+        }
+    }
+}
+
 /// Champs extraits d'un payload `estimation_result_json` du ledger.
 /// Utilisé par [`AuditEntrySummaryDto::from_entry`].
 struct ParsedPayload {

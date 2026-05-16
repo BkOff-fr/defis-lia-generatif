@@ -1,0 +1,7 @@
+{
+  "name": "com.sobria.bridge",
+  "description": "Sobr.ia native messaging bridge",
+  "path": "{{BRIDGE_PATH}}",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://{{EXTENSION_ID}}/"]
+}

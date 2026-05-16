@@ -69,7 +69,38 @@ Détails complets : [`docs/methodology/`](docs/methodology/), [ADR-0012](docs/ad
 - **M15 — Dashboard personnel** : agrégat jour/semaine/mois
 - **M25 — Eco-budget** : objectifs personnels + alerte dépassement
 
-**Différé v1.1+** : M2 Workbench · M5 Rapports génériques · M6 Géoloc unitaire · M10 Import logs · M11 Extension navigateur · M16 Forecaster UI · M18 Batch CSV UI · M19 Équipe · M21 Alertes · M23 Marchés publics · M24 Apprendre.
+**Différé v1.1+** : M2 Workbench · M5 Rapports génériques · M6 Géoloc unitaire · M10 Import logs · M16 Forecaster UI · M18 Batch CSV UI · M19 Équipe · M21 Alertes · M23 Marchés publics · M24 Apprendre.
+
+**M11 Extension navigateur** : livrée en v0.6.0 (cf. ci-dessous).
+
+## Extension navigateur (v0.6.0)
+
+Mesurez l'empreinte de vos prompts **directement dans le navigateur**, sans
+ouvrir l'app Tauri. Sites supportés : ChatGPT, Claude (claude.ai), Le Chat
+(chat.mistral.ai). Gemini reporté v0.7+.
+
+- **WebExtension MV3** (Chrome 120+ et Firefox 120+) — ~207 KB par bundle,
+  vanilla DOM + TypeScript strict, zéro dépendance runtime hors
+  `webextension-polyfill`.
+- **Estimation 100 % locale** : port JS du moteur Sobr.ia (AFNOR + EcoLogits),
+  parité < 2 % vs Rust. Aucun prompt n'est envoyé à un serveur distant.
+- **Badge circulaire** à côté du composer affichant le score Sobr.ia (A-F)
+  + estimation gCO₂eq/Wh/mL après envoi.
+- **Pairing perso optionnel** : un code 6 chiffres généré dans
+  `/parametres` permet à l'app desktop d'ingérer les estimations dans le
+  Journal + Dashboard via un **native messaging bridge** (binaire local
+  `sobria-bridge`, pas de port réseau).
+- **Privacy by design** : permissions minimales (`activeTab`, `storage`,
+  `nativeMessaging` opt-in), CSP stricte, no remote code.
+
+Téléchargement (v0.6.0) — Releases GitHub :
+
+- `sobria-extension-chrome-v0.6.0.zip` (load unpacked depuis
+  `chrome://extensions/`)
+- `sobria-extension-firefox-v0.6.0.xpi` (drag-drop dans `about:debugging`)
+
+Architecture : [ADR-0013](docs/adr/ADR-0013-extension-pairing-team-mode.md)
+· installation manifest natif : [`crates/sobria-bridge/README.md`](crates/sobria-bridge/README.md).
 
 Cf. [ADR-0011](docs/adr/ADR-0011-reduction-perimetre-v1-0.md) pour la justification de la réduction de périmètre.
 
@@ -145,12 +176,12 @@ Datasets ODRÉ Etalab 2.0, traçabilité SHA-256 + URL source dans le JSON produ
 
 ## Architecture
 
-- **9 crates Rust** : `sobria-core`, `sobria-estimator`, `sobria-audit`, `sobria-referentiel`, `sobria-geoloc`, `sobria-import`, `sobria-export`, `sobria-ingest`, `sobria-app`.
+- **10 crates Rust** : `sobria-core`, `sobria-estimator`, `sobria-audit`, `sobria-referentiel`, `sobria-geoloc`, `sobria-import`, `sobria-export`, `sobria-ingest`, `sobria-app`, `sobria-bridge` (native messaging extension navigateur).
 - **Architecture médaillon** Copper/Silver/Gold pour toutes les sources externes ([ADR-0009](docs/adr/ADR-0009-medallion-architecture.md)).
 - **Pipeline ingest** unique : `cargo run -p sobria-ingest -- fetch ...` télécharge ODRÉ + RTE en local.
-- **IPC Tauri** : 30+ commandes typées DTO ↔ TypeScript.
+- **IPC Tauri** : 37+ commandes typées DTO ↔ TypeScript (dont 7 pour le pairing extension navigateur v0.6.0).
 
-Cf. [`docs/adr/`](docs/adr/) pour les 12 décisions architecturales (ADR-0012 = catalogue multi-méthodologie).
+Cf. [`docs/adr/`](docs/adr/) pour les 13 décisions architecturales (ADR-0012 = catalogue multi-méthodologie, ADR-0013 = WebExtension MV3 + pairing).
 
 ## Statut
 
@@ -191,4 +222,4 @@ Si vous utilisez Sobr.ia dans un travail académique :
 
 ---
 
-*Sobr.ia — Made in France · Privacy by design · v0.4.0 (C24 multi-méthodologie + polish A-H)*
+*Sobr.ia — Made in France · Privacy by design · v0.6.0 (C27 extension navigateur + pairing perso)*

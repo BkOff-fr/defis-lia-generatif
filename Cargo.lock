@@ -5554,9 +5554,11 @@ dependencies = [
  "chrono",
  "csv",
  "dirs 5.0.1",
+ "rand 0.8.6",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "sobria-audit",
  "sobria-core",
  "sobria-estimator",
@@ -5587,6 +5589,18 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "sobria-bridge"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs 5.0.1",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

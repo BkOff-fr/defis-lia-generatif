@@ -39,6 +39,9 @@ chrono = { workspace = true }
 dirs = { workspace = true }
 rusqlite = { workspace = true }
 csv = { workspace = true }
+# C27.5 pairing : OS RNG + hash secret partagé
+rand = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

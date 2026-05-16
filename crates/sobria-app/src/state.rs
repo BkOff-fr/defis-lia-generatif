@@ -15,8 +15,8 @@ use sobria_estimator::MonteCarloEngine;
 use tracing::info;
 
 use crate::{
-    error::AppError, goals_store::PersonalGoalsStore, preferences_store::PreferencesStore,
-    project_store::ProjectStore,
+    error::AppError, extension_store::ExtensionStore, goals_store::PersonalGoalsStore,
+    pairing::PendingCode, preferences_store::PreferencesStore, project_store::ProjectStore,
 };
 
 /// State partagé de l'application.
@@ -37,6 +37,11 @@ pub struct AppState {
     pub projects: Mutex<ProjectStore>,
     /// Moteur Monte-Carlo (immuable, partageable).
     pub estimator: MonteCarloEngine,
+    /// Code de pairing extension en attente d'utilisation (C27.5.c).
+    /// `None` tant qu'aucun pairing n'a été initié ou que le précédent est consommé/expiré.
+    pub pending_code: Mutex<Option<PendingCode>>,
+    /// Store SQLite des pairings + events extension (C27.5.d).
+    pub extension_store: Mutex<ExtensionStore>,
 }
 
 impl AppState {
@@ -61,6 +66,8 @@ impl AppState {
         let preferences = PreferencesStore::open(&referentiel_path)?;
         let goals = PersonalGoalsStore::open(&referentiel_path)?;
         let projects = ProjectStore::open(&referentiel_path)?;
+        let extension_store = ExtensionStore::open(&referentiel_path)
+            .map_err(|e| AppError::Internal(format!("extension_store: {e}")))?;
 
         let estimator = MonteCarloEngine::default();
         Ok(Self {
@@ -72,6 +79,8 @@ impl AppState {
             goals: Mutex::new(goals),
             projects: Mutex::new(projects),
             estimator,
+            pending_code: Mutex::new(None),
+            extension_store: Mutex::new(extension_store),
         })
     }
 

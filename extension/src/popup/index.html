@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sobr.ia — bilan</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="popup" data-sobria-version="0.6.0">
+      <!-- Header brand -->
+      <header class="popup__header">
+        <div class="popup__brand">
+          <img class="popup__mark" src="/icons/mark.svg" alt="" aria-hidden="true" />
+          <span class="popup__wordmark">Sobr<em>.</em>ia</span>
+        </div>
+        <span class="popup__version">v0.6.0</span>
+      </header>
+
+      <!-- Section "Dernier prompt" -->
+      <section class="card" id="last-prompt-card" aria-labelledby="last-prompt-title">
+        <header class="card__head">
+          <span class="card__eyebrow">Dernier prompt</span>
+          <span class="card__meta" id="last-prompt-ts">—</span>
+        </header>
+        <div class="card__body" id="last-prompt-body">
+          <div class="empty-state">
+            <p>Aucun prompt mesuré pour l'instant.</p>
+            <p class="empty-state__hint">Va sur ChatGPT, Claude ou Le Chat et envoie un prompt.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section "Aujourd'hui" -->
+      <section class="card" id="today-card" aria-labelledby="today-title">
+        <header class="card__head">
+          <span class="card__eyebrow">Aujourd'hui</span>
+          <span class="card__meta" id="today-count">0 prompt</span>
+        </header>
+        <div class="card__body today-grid">
+          <div class="today-stat">
+            <span class="today-stat__label">CO₂eq</span>
+            <span class="today-stat__value" id="today-gco2">0<span class="u">g</span></span>
+          </div>
+          <div class="today-stat">
+            <span class="today-stat__label">Eau</span>
+            <span class="today-stat__value" id="today-water">0<span class="u">mL</span></span>
+          </div>
+          <div class="today-stat">
+            <span class="today-stat__label">Énergie</span>
+            <span class="today-stat__value" id="today-energy">0<span class="u">Wh</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Toggle méthodologie -->
+      <section class="card method-card" aria-labelledby="method-title">
+        <header class="card__head">
+          <span class="card__eyebrow" id="method-title">Méthodologie</span>
+        </header>
+        <div class="method-toggle" role="radiogroup" aria-labelledby="method-title">
+          <button
+            type="button"
+            class="method-toggle__opt"
+            data-method="afnor_sobria"
+            role="radio"
+            aria-checked="false"
+          >
+            <span class="method-toggle__name">AFNOR</span>
+            <span class="method-toggle__sub">SPEC 2314 · FR</span>
+          </button>
+          <button
+            type="button"
+            class="method-toggle__opt"
+            data-method="ecologits"
+            role="radio"
+            aria-checked="false"
+          >
+            <span class="method-toggle__name">EcoLogits</span>
+            <span class="method-toggle__sub">2026-01 · JOSS</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Actions -->
+      <footer class="popup__actions">
+        <button
+          type="button"
+          class="btn btn--secondary"
+          id="open-app-btn"
+          disabled
+          title="Disponible après l'installation de l'app Sobr.ia desktop (C27.5)"
+        >
+          Voir dans Sobr.ia
+        </button>
+        <button type="button" class="btn btn--primary" id="open-options-btn">Réglages</button>
+      </footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

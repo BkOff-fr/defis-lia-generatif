@@ -1,0 +1,75 @@
+{
+  "manifest_version": 3,
+  "name": "Sobr.ia",
+  "short_name": "Sobr.ia",
+  "version": "0.6.0",
+  "description": "Mesurez l'empreinte environnementale de vos prompts IA en direct. 100 % local, sans compte, sans cloud.",
+  "author": "Sobr.ia contributors",
+  "homepage_url": "https://sobr.ia",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sobria@sobr.ia",
+      "strict_min_version": "120.0"
+    }
+  },
+  "icons": {
+    "16": "icons/favicon.svg",
+    "48": "icons/mark.svg",
+    "128": "icons/tile.svg"
+  },
+  "permissions": ["activeTab", "storage", "nativeMessaging"],
+  "optional_permissions": ["nativeMessaging"],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://chat.mistral.ai/*"
+  ],
+  "background": {
+    "scripts": ["service-worker.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+      "js": ["content-chatgpt.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content-claude.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.mistral.ai/*"],
+      "js": ["content-le-chat.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "Sobr.ia — empreinte de vos prompts",
+    "default_icon": {
+      "16": "icons/favicon.svg",
+      "48": "icons/mark.svg",
+      "128": "icons/tile.svg"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.woff2", "icons/*.svg"],
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://chat.mistral.ai/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

@@ -2,93 +2,66 @@
   "manifest_version": 3,
   "name": "Sobr.ia",
   "short_name": "Sobr.ia",
-  "version": "0.1.0",
-  "description": "Mesurez la sobriété de votre IA générative en vie réelle. 100 % local.",
+  "version": "0.6.0",
+  "description": "Mesurez l'empreinte environnementale de vos prompts IA en direct. 100 % local, sans compte, sans cloud.",
   "author": "Sobr.ia contributors",
   "homepage_url": "https://sobr.ia",
-
   "icons": {
-    "16": "icons/icon-16.png",
-    "32": "icons/icon-32.png",
-    "48": "icons/icon-48.png",
-    "128": "icons/icon-128.png"
+    "16": "icons/favicon.svg",
+    "48": "icons/mark.svg",
+    "128": "icons/tile.svg"
   },
-
-  "permissions": [
-    "activeTab",
-    "storage",
-    "notifications"
-  ],
-
+  "permissions": ["activeTab", "storage", "nativeMessaging"],
+  "optional_permissions": ["nativeMessaging"],
   "host_permissions": [
-    "https://chatgpt.com/*",
     "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://chat.mistral.ai/*",
-    "https://gemini.google.com/*",
-    "https://chat.lechat.ai/*"
+    "https://chat.mistral.ai/*"
   ],
-
   "background": {
-    "service_worker": "src/background/index.ts",
-    "type": "module"
+    "service_worker": "service-worker.js"
   },
-
   "content_scripts": [
     {
-      "matches": [
-        "https://chatgpt.com/*",
-        "https://chat.openai.com/*"
-      ],
-      "js": ["src/content/chatgpt.ts"],
+      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+      "js": ["content-chatgpt.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["https://claude.ai/*"],
-      "js": ["src/content/claude.ts"],
+      "js": ["content-claude.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["https://chat.mistral.ai/*"],
-      "js": ["src/content/mistral.ts"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://gemini.google.com/*"],
-      "js": ["src/content/gemini.ts"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://chat.lechat.ai/*"],
-      "js": ["src/content/lechat.ts"],
+      "js": ["content-le-chat.js"],
       "run_at": "document_idle"
     }
   ],
-
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "Sobr.ia — bilan d'usage",
+    "default_title": "Sobr.ia — empreinte de vos prompts",
     "default_icon": {
-      "16": "icons/icon-16.png",
-      "32": "icons/icon-32.png"
+      "16": "icons/favicon.svg",
+      "48": "icons/mark.svg",
+      "128": "icons/tile.svg"
     }
   },
-
-  "options_ui": {
-    "page": "src/options/index.html",
-    "open_in_tab": false
-  },
-
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "sobria@sobr.ia",
-      "strict_min_version": "120.0"
-    }
-  },
-
+  "options_page": "src/options/index.html",
   "minimum_chrome_version": "120",
-
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.woff2", "icons/*.svg"],
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://chat.mistral.ai/*"
+      ]
+    }
+  ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 }

@@ -17,11 +17,11 @@ use sobria_app::{
         BenchmarkRequestDto, BenchmarkResultDto, BudgetStatusDto, CountryAggregateDto,
         CreateProjectDto, CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto,
         DatacenterDetailDto, DatacenterSummaryDto, DatasheetDto, EstimationRequestDto,
-        EstimationResultDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo,
-        MethodologyInfoDto, ModelDetailDto, ModelPresetDto, PersonalGoalDto, ProjectDto,
-        ReferentielReloadResultDto, ReferentielStatusDto, RegionFrAggregateDto, SankeyDataDto,
-        SimulationRequestDto, SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto,
-        YearlyForecastResultDto,
+        EstimationResultDto, ExtensionEventDto, IndustrialSiteSummaryDto, IntegrityReportDto,
+        MetaInfo, MethodologyInfoDto, ModelDetailDto, ModelPresetDto, PairingCodeDto, PairingDto,
+        PairingSecretDto, PersonalGoalDto, ProjectDto, ReferentielReloadResultDto,
+        ReferentielStatusDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
+        SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     logic, AppState, IpcResult,
 };
@@ -270,6 +270,51 @@ fn reload_referentiel() -> IpcResult<ReferentielReloadResultDto> {
     logic::reload_referentiel()
 }
 
+// ─── C27.5 — extension navigateur ────────────────────────────────────────────
+
+#[tauri::command]
+fn regenerate_pairing_code(state: tauri::State<'_, AppState>) -> IpcResult<PairingCodeDto> {
+    logic::regenerate_pairing_code(state.inner())
+}
+
+#[tauri::command]
+fn get_pairing_code_status(state: tauri::State<'_, AppState>) -> IpcResult<Option<PairingCodeDto>> {
+    logic::get_pairing_code_status(state.inner())
+}
+
+#[tauri::command]
+fn verify_pairing_code(
+    code: String,
+    fingerprint: String,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<PairingSecretDto> {
+    logic::verify_pairing_code(state.inner(), &code, &fingerprint)
+}
+
+#[tauri::command]
+fn list_pairings(state: tauri::State<'_, AppState>) -> IpcResult<Vec<PairingDto>> {
+    logic::list_pairings(state.inner())
+}
+
+#[tauri::command]
+fn revoke_pairing(id: String, state: tauri::State<'_, AppState>) -> IpcResult<()> {
+    logic::revoke_pairing(state.inner(), &id)
+}
+
+#[tauri::command]
+fn list_extension_events(
+    limit: u32,
+    offset: u32,
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<ExtensionEventDto>> {
+    logic::list_extension_events(state.inner(), limit, offset)
+}
+
+#[tauri::command]
+fn drain_extension_spool(state: tauri::State<'_, AppState>) -> IpcResult<usize> {
+    logic::drain_extension_spool(state.inner())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -330,6 +375,13 @@ fn main() {
             run_batch_from_csv,
             get_referentiel_status,
             reload_referentiel,
+            regenerate_pairing_code,
+            get_pairing_code_status,
+            verify_pairing_code,
+            list_pairings,
+            revoke_pairing,
+            list_extension_events,
+            drain_extension_spool,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");

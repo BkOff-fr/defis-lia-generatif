@@ -840,3 +840,78 @@ export function getReferentielStatus(): Promise<ReferentielStatusDto> {
 export function reloadReferentiel(): Promise<ReferentielReloadResultDto> {
   return call<ReferentielReloadResultDto>('reload_referentiel');
 }
+
+// ─── Extension navigateur — pairing perso (C27.5) ───────────────────────────
+//
+// Mirroirs TypeScript de `crates/sobria-app/src/dto.rs::Pairing*Dto`.
+
+export interface PairingCodeDto {
+  /** Les 6 chiffres à recopier dans l'extension. */
+  code: string;
+  /** RFC 3339 — instant d'expiration du code (TTL 5 min). */
+  expires_at: string;
+  /** Secondes restantes (calculé serveur, indicatif pour l'UI). */
+  seconds_remaining: number;
+}
+
+export interface PairingSecretDto {
+  pairing_id: string;
+  /** Secret 32 octets en hex (64 chars) — à transmettre à l'extension. */
+  secret_hex: string;
+}
+
+export interface PairingDto {
+  id: string;
+  fingerprint: string;
+  created_at: string;
+  last_seen_at?: string | undefined;
+  revoked_at?: string | undefined;
+}
+
+export interface ExtensionEventDto {
+  id: string;
+  pairing_id: string;
+  ts: string;
+  method: string;
+  model_id: string;
+  tokens_in: number;
+  tokens_out: number;
+  gco2eq_p50: number;
+  water_ml: number;
+  energy_wh: number;
+  ingested_at: string;
+}
+
+export function regeneratePairingCode(): Promise<PairingCodeDto> {
+  return call<PairingCodeDto>('regenerate_pairing_code');
+}
+
+export function getPairingCodeStatus(): Promise<PairingCodeDto | null> {
+  return call<PairingCodeDto | null>('get_pairing_code_status');
+}
+
+export function verifyPairingCode(
+  code: string,
+  fingerprint: string
+): Promise<PairingSecretDto> {
+  return call<PairingSecretDto>('verify_pairing_code', { code, fingerprint });
+}
+
+export function listPairings(): Promise<PairingDto[]> {
+  return call<PairingDto[]>('list_pairings');
+}
+
+export async function revokePairing(id: string): Promise<void> {
+  await call<null>('revoke_pairing', { id });
+}
+
+export function listExtensionEvents(
+  limit: number,
+  offset: number
+): Promise<ExtensionEventDto[]> {
+  return call<ExtensionEventDto[]>('list_extension_events', { limit, offset });
+}
+
+export function drainExtensionSpool(): Promise<number> {
+  return call<number>('drain_extension_spool');
+}

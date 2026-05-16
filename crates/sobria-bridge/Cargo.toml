@@ -1,0 +1,25 @@
+[package]
+name = "sobria-bridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Native messaging bridge entre l'extension navigateur Sobr.ia et l'app desktop (C27.5)"
+
+[lib]
+name = "sobria_bridge"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sobria-bridge"
+path = "src/main.rs"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+dirs = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

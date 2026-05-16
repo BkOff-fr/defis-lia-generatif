@@ -1,29 +1,39 @@
 {
   "name": "sobria-extension",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "Extension navigateur Sobr.ia — Manifest V3 cross-browser (ADR-0005)",
+  "description": "Extension navigateur Sobr.ia — WebExtension MV3, mesure d'empreinte LLM 100 % locale (C27, ADR-0013 Phase 1)",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "vite --mode development",
-    "build": "vite build && npm run package",
+    "dev": "node scripts/build.js --watch",
+    "build": "node scripts/build.js",
+    "build:firefox": "node scripts/build.js --firefox",
     "package": "node scripts/package.js",
     "lint": "prettier --check . && eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "sync-logos": "node scripts/sync-logos.js"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "^2.0.0-beta.30",
+    "@playwright/test": "^1.48.0",
     "@types/chrome": "^0.0.279",
     "@types/firefox-webext-browser": "^120.0.4",
-    "@typescript-eslint/eslint-plugin": "^8.10.0",
-    "@typescript-eslint/parser": "^8.10.0",
+    "@types/node": "^22.7.5",
+    "@types/webextension-polyfill": "^0.12.1",
+    "@vitest/coverage-v8": "^2.1.3",
     "eslint": "^9.13.0",
     "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.11.0",
+    "happy-dom": "^20.9.0",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.10.0",
     "vite": "^5.4.10",
-    "web-ext": "^8.3.0"
+    "vitest": "^2.1.3"
   },
   "dependencies": {
     "webextension-polyfill": "^0.12.0"

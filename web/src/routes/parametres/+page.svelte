@@ -23,19 +23,27 @@
     Code2,
     Building2,
     Landmark,
-    Microscope
+    Microscope,
+    Puzzle,
+    X
   } from '@lucide/svelte';
   import {
+    getPairingCodeStatus,
     getReferentielStatus,
     isTauriContext,
     listMethodologies,
+    listPairings,
     metaInfo,
+    regeneratePairingCode,
     reloadReferentiel,
+    revokePairing,
     SobriaIpcError,
     type EmpreinteMethod,
     type IpcErrorCode,
     type MetaInfo,
     type MethodologyInfoDto,
+    type PairingCodeDto,
+    type PairingDto,
     type ReferentielStatusDto
   } from '$lib/api';
   import {
@@ -78,6 +86,14 @@
   let reloading = $state(false);
   let reloadMessage = $state<string | null>(null);
 
+  // C27.5 — Extension navigateur (pairing perso)
+  let pairingCode = $state<PairingCodeDto | null>(null);
+  let pairingCodeNow = $state(Date.now());
+  let pairings = $state<PairingDto[]>([]);
+  let pairingBusy = $state(false);
+  let pairingError = $state<string | null>(null);
+  let pairingTicker: ReturnType<typeof setInterval> | null = null;
+
   const tauriAvailable = $derived(isTauriContext());
 
   $effect(() => {
@@ -92,14 +108,18 @@
         return;
       }
       try {
-        const [m, list, ref] = await Promise.all([
+        const [m, list, ref, code, pairs] = await Promise.all([
           metaInfo(),
           listMethodologies(),
-          getReferentielStatus()
+          getReferentielStatus(),
+          getPairingCodeStatus(),
+          listPairings()
         ]);
         meta = m;
         methodologies = list;
         referentiel = ref;
+        pairingCode = code;
+        pairings = pairs;
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           loadError = { code: err.code, message: err.message };
@@ -113,9 +133,56 @@
   });
 
   onMount(() => {
-    // Si l'utilisateur arrive ici sans avoir fait l'onboarding (cas
-    // hors-Tauri où la garde du layout est désactivée), on ne le force pas.
+    // Tick 1s pour faire défiler le compte-à-rebours du code de pairing.
+    pairingTicker = setInterval(() => {
+      pairingCodeNow = Date.now();
+    }, 1000);
+    return () => {
+      if (pairingTicker) clearInterval(pairingTicker);
+    };
   });
+
+  // ─── C27.5 — extension navigateur ────────────────────────────────────
+  const pairingSecondsLeft = $derived.by(() => {
+    if (!pairingCode) return 0;
+    const left = Math.max(
+      0,
+      Math.floor((new Date(pairingCode.expires_at).getTime() - pairingCodeNow) / 1000)
+    );
+    return left;
+  });
+  const pairingActiveCount = $derived(pairings.filter((p) => !p.revoked_at).length);
+
+  async function handleGeneratePairingCode() {
+    pairingError = null;
+    pairingBusy = true;
+    try {
+      pairingCode = await regeneratePairingCode();
+    } catch (e) {
+      pairingError = e instanceof SobriaIpcError ? e.message : 'Échec de la génération du code.';
+    } finally {
+      pairingBusy = false;
+    }
+  }
+
+  async function handleRevokePairing(id: string) {
+    pairingError = null;
+    pairingBusy = true;
+    try {
+      await revokePairing(id);
+      pairings = await listPairings();
+    } catch (e) {
+      pairingError = e instanceof SobriaIpcError ? e.message : 'Échec de la révocation.';
+    } finally {
+      pairingBusy = false;
+    }
+  }
+
+  function formatPairingTimer(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
 
   // ─── Helpers ─────────────────────────────────────────────────────────
   const currentPersona = $derived($preferences.persona);
@@ -777,6 +844,118 @@
       Le référentiel Gold est généré par <code>cargo run -p sobria-ingest -- pipeline run</code>
       et versionné via DVC. Voir
       <a href="/methodo">Méthodologie</a> et <code>docs/operations/dvc.md</code>.
+    </p>
+  </section>
+
+  <!-- ╭─── Extension navigateur (C27.5 — pairing perso) ───────╮ -->
+  <section class="section">
+    <header class="section-head">
+      <Puzzle size={16} strokeWidth={1.8} />
+      <h2>Extension navigateur</h2>
+      <span class="section-hint mono">pairing perso · <code>com.sobria.bridge</code></span>
+    </header>
+
+    {#if bootstrapping}
+      <div class="runtime-skel">Chargement…</div>
+    {:else}
+      <p class="ext-intro">
+        Appairez l'extension navigateur Sobr.ia à votre instance locale. L'extension
+        observe vos prompts dans Chat&nbsp;LLM (ChatGPT, Claude, Mistral, etc.), calcule
+        l'estimation, et la transmet à cette app via le <em>native messaging bridge</em>.
+        Aucune donnée n'est envoyée à un serveur distant — tout reste sur votre machine.
+      </p>
+
+      <div class="dual ext-grid">
+        <!-- Bloc gauche : code de pairing ─────────────────────── -->
+        <div class="ext-pane">
+          <h3 class="ext-pane-title">Code de pairing</h3>
+          {#if pairingCode && pairingSecondsLeft > 0}
+            <div class="pairing-code" aria-live="polite">
+              {#each pairingCode.code.split('') as digit}
+                <span class="pairing-digit">{digit}</span>
+              {/each}
+            </div>
+            <p class="pairing-timer">
+              Expire dans <strong>{formatPairingTimer(pairingSecondsLeft)}</strong>
+            </p>
+            <p class="ext-hint">
+              Ouvrez la page <code>Options</code> de l'extension Sobr.ia dans votre
+              navigateur et saisissez ce code dans la section « Pairing avec l'app
+              desktop ».
+            </p>
+          {:else}
+            <p class="ext-hint">
+              Aucun code en attente. Cliquez sur « Générer un code » pour démarrer
+              l'appairage.
+            </p>
+          {/if}
+          <div class="reload-row">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick={handleGeneratePairingCode}
+              disabled={pairingBusy}
+              aria-busy={pairingBusy}
+            >
+              <RefreshCw size={14} strokeWidth={1.8} />
+              {pairingCode && pairingSecondsLeft > 0
+                ? 'Régénérer un nouveau code'
+                : 'Générer un code'}
+            </button>
+            {#if pairingError}
+              <p class="reload-msg" style="color: var(--danger, #ff6b6b)">{pairingError}</p>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Bloc droit : appariements actifs ──────────────────── -->
+        <div class="ext-pane">
+          <h3 class="ext-pane-title">
+            Appariements <span class="ext-count">({pairingActiveCount} actif{pairingActiveCount > 1 ? 's' : ''})</span>
+          </h3>
+          {#if pairings.length === 0}
+            <p class="ext-hint">Aucune extension appariée pour le moment.</p>
+          {:else}
+            <ul class="pairing-list">
+              {#each pairings as p (p.id)}
+                <li class="pairing-row" class:revoked={!!p.revoked_at}>
+                  <div class="pairing-info">
+                    <div class="pairing-fp mono">{p.fingerprint}</div>
+                    <div class="pairing-meta mono">
+                      Créé {formatDate(p.created_at)}
+                      {#if p.last_seen_at}
+                        · vu {formatDate(p.last_seen_at)}
+                      {/if}
+                      {#if p.revoked_at}
+                        · <span class="pairing-revoked-label">révoqué</span>
+                      {/if}
+                    </div>
+                  </div>
+                  {#if !p.revoked_at}
+                    <button
+                      type="button"
+                      class="btn-ghost btn-revoke"
+                      onclick={() => handleRevokePairing(p.id)}
+                      disabled={pairingBusy}
+                      aria-label="Révoquer ce pairing"
+                      title="Révoquer ce pairing"
+                    >
+                      <X size={14} strokeWidth={1.8} />
+                    </button>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+      </div>
+    {/if}
+
+    <p class="section-foot">
+      <Hammer size={11} strokeWidth={1.8} />
+      Binaire local <code>sobria-bridge</code> + extension WebExtension MV3. Voir
+      <code>crates/sobria-bridge/README.md</code> et
+      <a href="/methodo">ADR-0013</a>.
     </p>
   </section>
 
@@ -1705,6 +1884,112 @@
     cursor: not-allowed;
   }
 
+  /* C27.5 — Extension navigateur (pairing perso) ──────────────────── */
+  .ext-intro {
+    font: 400 13px/1.55 var(--font-ui);
+    color: var(--ivory-2, rgba(244, 240, 232, 0.78));
+    margin: 0 0 18px;
+    max-width: 760px;
+  }
+  .ext-grid {
+    margin-top: 8px;
+  }
+  .ext-pane {
+    padding: 18px 18px 14px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 10px);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .ext-pane-title {
+    font: 500 13px/1 var(--font-ui);
+    color: var(--ivory, #f4f0e8);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 14px;
+  }
+  .ext-count {
+    color: var(--ivory-3, rgba(244, 240, 232, 0.55));
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .ext-hint {
+    font: 400 12.5px/1.55 var(--font-ui);
+    color: var(--ivory-2, rgba(244, 240, 232, 0.72));
+    margin: 0 0 14px;
+  }
+  .pairing-code {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 8px 0 14px;
+  }
+  .pairing-digit {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    font: 500 30px/1 var(--font-mono);
+    color: var(--lime, #c5f04a);
+    background: rgba(197, 240, 74, 0.06);
+    border: 1px solid rgba(197, 240, 74, 0.28);
+    border-radius: var(--radius-sm, 8px);
+  }
+  .pairing-timer {
+    font: 400 12px/1 var(--font-ui);
+    color: var(--ivory-3, rgba(244, 240, 232, 0.6));
+    text-align: center;
+    margin: 0 0 14px;
+  }
+  .pairing-timer strong {
+    color: var(--ivory, #f4f0e8);
+    font-weight: 500;
+    font-family: var(--font-mono);
+  }
+  .pairing-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .pairing-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    border-radius: var(--radius-sm, 6px);
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .pairing-row.revoked {
+    opacity: 0.55;
+  }
+  .pairing-info {
+    min-width: 0;
+    flex: 1;
+  }
+  .pairing-fp {
+    font: 500 12.5px/1.3 var(--font-mono);
+    color: var(--ivory, #f4f0e8);
+    overflow-wrap: anywhere;
+  }
+  .pairing-meta {
+    font: 400 11px/1.4 var(--font-mono);
+    color: var(--ivory-3, rgba(244, 240, 232, 0.55));
+    margin-top: 2px;
+  }
+  .pairing-revoked-label {
+    color: var(--danger, #ff8090);
+  }
+  .btn-revoke {
+    padding: 4px;
+    border-radius: var(--radius-sm, 6px);
+  }
+
   @media (max-width: 720px) {
     .canvas-inner {
       padding: 24px 16px 60px;
@@ -1724,6 +2009,11 @@
     }
     .persona-current .btn-ghost {
       grid-column: 1 / -1;
+    }
+    .pairing-digit {
+      width: 36px;
+      height: 48px;
+      font-size: 24px;
     }
   }
 </style>

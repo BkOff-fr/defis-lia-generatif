@@ -1,0 +1,29 @@
+<!doctype html>
+<!--
+  Fixture statique Claude (claude.ai) — capturée 2026-05 (anonymisée).
+  Le textarea est un contenteditable, le bouton porte aria-label="Send Message".
+-->
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Claude (fixture 2026-05)</title>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <button aria-label="Claude 3.5 Sonnet">Claude 3.5 Sonnet</button>
+      </nav>
+      <section class="conversation">
+        <div data-testid="user-message">Salut Claude, parle-moi de la sobriété numérique.</div>
+      </section>
+      <footer>
+        <div class="composer">
+          <div contenteditable="true" role="textbox" aria-label="Write a message">
+            Quelle empreinte CO2 a ce prompt ?
+          </div>
+          <button aria-label="Send Message">↵</button>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

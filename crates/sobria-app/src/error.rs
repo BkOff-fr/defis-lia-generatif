@@ -82,6 +82,12 @@ pub enum AppError {
     Internal(String),
 }
 
+impl From<anyhow::Error> for AppError {
+    fn from(e: anyhow::Error) -> Self {
+        AppError::Internal(e.to_string())
+    }
+}
+
 impl From<AppError> for IpcError {
     fn from(e: AppError) -> Self {
         let (code, message) = match &e {

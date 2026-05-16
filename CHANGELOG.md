@@ -5,6 +5,129 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.6.0] — 2026-05-16 — Extension navigateur + pairing perso (C27)
+
+### Added — C27.1/2/3/4 Extension WebExtension MV3
+
+- **Nouvelle crate workspace logique** : `extension/` (TypeScript strict,
+  Vite multi-pass, vanilla DOM). Manifest V3 Chrome + Firefox, deux artefacts
+  packagés : `sobria-extension-chrome-v0.6.0.zip` (~207 KB) et
+  `sobria-extension-firefox-v0.6.0.xpi` (~207 KB) — bien sous les 500 KB
+  visés par la DoD.
+- **Port JS du moteur Sobr.ia** dans `src/lib/empreinte/` : AFNOR/Sobr.ia +
+  EcoLogits 2026-01, presets modèles minimaux, parité < 2 % vs Rust
+  (golden snapshots dans `tests/unit/empreinte.spec.ts`).
+- **Détection de prompts** sur ChatGPT, Claude (claude.ai) et Le Chat
+  (chat.mistral.ai) via content scripts isolés (`content-chatgpt.js`,
+  `content-claude.js`, `content-le-chat.js`). Heuristique DOM partagée
+  (`prompt-detector.ts`) + mapping URL → `modelId`.
+- **Indicateur composer** : badge circulaire 36 px avec progress ring,
+  injecté à droite du prompt input. Affiche le score Sobr.ia (A-F) au
+  passage de la souris, l'estimation gCO₂eq + Wh + mL après l'envoi.
+  Pas de bannière en bas de chat (retour utilisateur — *less is more*).
+- **Modèles non supportés** : badge dédié sans estimation factice (pas de
+  fallback silencieux sur un preset par défaut, conformément à CLAUDE.md
+  §13 « Ne JAMAIS implémenter un calcul scientifique sans source »).
+- **Popup compacte** : dernier résultat, modèle détecté, total journalier
+  (gCO₂eq + eau + énergie), avec persistance via `chrome.storage.local`.
+- **Page Options** : choix méthodologie (AFNOR/EcoLogits), opt-out par
+  site (toggles), opt-in pont natif vers app desktop, section pairing
+  (cf. C27.5).
+- **Build pipeline** : `scripts/build.js` Vite multi-pass (ES modules pour
+  background + service worker, IIFE par content script pour isolation
+  cross-frame). `scripts/package.js` génère .zip Chrome + .xpi Firefox
+  avec SHA-256 de chaque archive.
+- **Tests Vitest** : 55 tests verts (happy-dom), couvrant `empreinte`
+  (24), `prompt-detector` (9) et `badge-injector` (22).
+- **CSP stricte** : pas de `unsafe-eval` ni `unsafe-inline`. Aucune
+  dépendance runtime hors `webextension-polyfill`.
+
+### Added — C27.5 Bridge natif + pairing 6 chiffres + ingestion app
+
+- **Nouveau binaire `sobria-bridge`** (`crates/sobria-bridge/`) : pont
+  Native Messaging WebExtensions. Lit `stdin` (uint32 LE + JSON UTF-8) du
+  navigateur, écrit `stdout` au même format. Pas de port réseau, pas de
+  service permanent — sécurité OS standard.
+  - `Ping` → `{ pong: true }` (heartbeat extension).
+  - `Estimate{ secret, payload }` → spool fichier append-only
+    `~/.sobria/spool/incoming.jsonl` (rotation 10 MB).
+  - `Pair{ code }` / `Revoke{ secret }` retournent une erreur tant que
+    l'app desktop n'est pas joignable (POC v0.6.0 — socket forward
+    différé à v0.6.1).
+  - Manifest template `manifest/com.sobria.bridge.json.tmpl` + README
+    d'installation manuelle (macOS / Linux / Windows × Chrome / Firefox).
+  - 8 tests d'intégration (`tests/protocol.rs`) couvrant lecture / EOF /
+    oversize / write length-prefix / handle ping/pair/estimate / rotation
+    spool.
+- **Module `crates/sobria-app::pairing`** : logique pure du pairing par
+  code 6 chiffres, TTL 5 min, single-use, comparaison constant-time.
+  - `PendingCode::new()` — 6 chiffres random, padding zéro (ex. `042039`).
+  - `PairingSecret::new()` — 32 octets random, hash SHA-256 + sel 16
+    octets (Argon2id différé à C27.6 — le secret est un random 256-bit,
+    pas un mot de passe humain).
+  - `verify_code(pending, submitted, now)` — constant-time + expire-aware.
+  - 14 tests unitaires.
+- **Module `crates/sobria-app::extension_store`** : persistance SQLite
+  dans `referentiel.sqlite`.
+  - Tables `device_pairings(id, fingerprint, secret_hash, salt_hex,
+    created_at, last_seen_at, revoked_at)` (UNIQUE sur fingerprint avec
+    REPLACE pour ré-appariement après dépair) et `extension_events(id,
+    pairing_id, ts, method, model_id, tokens_in, tokens_out, gco2eq_p50,
+    water_ml, energy_wh, raw_payload_json, ingested_at)` (FK pairing_id).
+  - **ULID** comme identifiant (26 chars Crockford Base32, time-sortable —
+    ordre lexicographique = ordre chronologique, monotone pour B-tree).
+  - `drain_spool(store, spool_path)` : lit le spool fichier, valide les
+    secrets, insère dans `extension_events`. Atomique (rename → read →
+    remove pour éviter les pertes pendant le drain).
+  - 14 tests unitaires.
+- **Wiring `AppState`** : `pending_code: Mutex<Option<PendingCode>>` +
+  `extension_store: Mutex<ExtensionStore>` ouverts depuis
+  `referentiel.sqlite` au boot.
+- **7 nouvelles commandes IPC Tauri** dans `crates/sobria-app/src/main.rs`
+  + mirrors TypeScript dans `web/src/lib/api.ts` :
+  - `regenerate_pairing_code()` → `PairingCodeDto`
+  - `get_pairing_code_status()` → `Option<PairingCodeDto>`
+  - `verify_pairing_code(code, fingerprint)` → `PairingSecretDto`
+  - `list_pairings()` → `Vec<PairingDto>`
+  - `revoke_pairing(id)` → `()`
+  - `list_extension_events(limit, offset)` → `Vec<ExtensionEventDto>`
+  - `drain_extension_spool()` → `usize`
+- **Nouvelle section UI** dans `/parametres` (entre Référentiel et
+  Runtime) : grille 2 colonnes — code 6 chiffres affichage grand format
+  (chaque chiffre dans un cadre lime sur fond ink, font mono) + compte-
+  à-rebours TTL en `M:SS`, bouton « Générer / Régénérer un code » ; et
+  liste des appariements actifs avec fingerprint, dates création / vu /
+  révocation, bouton X par ligne pour révoquer.
+
+### Added — Documents
+
+- **ADR-0013** « WebExtension MV3 + native messaging bridge + pairing
+  perso/équipe » documente la séparation Phase 1 (pairing perso v0.6.0,
+  code 6 chiffres + spool fichier) vs Phase 2 (mode Équipe self-hosted
+  différé à C28/v0.7.0) vs Phase 3 (SSO entreprise, multi-device, RBAC —
+  v0.8+).
+- **`crates/sobria-bridge/README.md`** : guide d'installation manuelle
+  du manifest natif sur macOS / Linux / Windows pour Chrome / Firefox /
+  Chromium / Brave / Edge.
+- **`briefs/chantiers/C27-extension-navigateur.md`** + **`C27-PROMPT-CLAUDE-CODE.md`** :
+  brief chantier + prompt structuré utilisé pour piloter Claude Code.
+
+### Quality gates v0.6.0
+
+- ✅ `cargo test -p sobria-app -p sobria-bridge` : 198 + 8 = 206 tests verts.
+- ✅ `cargo clippy -p sobria-app -p sobria-bridge -- -D warnings` clean
+  (pedantic activé).
+- ✅ `cargo fmt --check` clean.
+- ✅ `cd web && npm run check` : 0 erreur, 1 warning préexistant (tsconfig
+  node types).
+- ✅ `cd extension && npm run check && npm run lint && npm run test` :
+  TypeScript strict + Prettier + 55 Vitest tests verts.
+- ✅ Bundles : Chrome 206.7 KB, Firefox 206.8 KB (< 500 KB DoD).
+- ⚠️ `npm audit` extension : 6 vulnérabilités moderate dans des deps
+  **devDependencies** uniquement (vite, vitest, @vitest/mocker) — aucun
+  code livré au navigateur. Acceptées pour v0.6.0, à revoir au prochain
+  bump majeur de Vite (différé hors C27).
+
 ## [0.5.0] — 2026-05-15 — Activation du pipeline médaillon (C26)
 
 ### Added — C26.1 Câblage CLI sobria-ingest

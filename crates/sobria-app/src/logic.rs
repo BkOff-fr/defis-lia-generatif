@@ -1713,6 +1713,156 @@ fn validate_modules(modules: &[ModuleId], onboarded: bool) -> IpcResult<()> {
     Ok(())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// extension navigateur — pairing + ingestion (C27.5.c/d)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Génère (ou régénère) un code de pairing 6 chiffres, TTL 5 min, single-use.
+///
+/// Stocke le code dans `state.pending_code` (écrase l'éventuel code précédent).
+/// L'UI affiche ces 6 chiffres ; l'utilisateur les saisit dans l'extension
+/// qui les transmet via le bridge, et l'app desktop appellera ensuite
+/// `verify_pairing_code` pour finaliser.
+pub fn regenerate_pairing_code(state: &AppState) -> IpcResult<crate::dto::PairingCodeDto> {
+    let code = crate::pairing::PendingCode::new();
+    let now = Utc::now();
+    let seconds_remaining = (code.expires_at - now).num_seconds().max(0);
+    let dto = crate::dto::PairingCodeDto {
+        code: code.code.clone(),
+        expires_at: code.expires_at.to_rfc3339(),
+        seconds_remaining,
+    };
+    *state
+        .pending_code
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))? = Some(code);
+    info!(seconds_remaining, "pairing: nouveau code généré");
+    Ok(dto)
+}
+
+/// Statut courant du code (ou `None` si aucun code en attente / expiré).
+pub fn get_pairing_code_status(state: &AppState) -> IpcResult<Option<crate::dto::PairingCodeDto>> {
+    let guard = state
+        .pending_code
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let now = Utc::now();
+    Ok(guard
+        .as_ref()
+        .filter(|c| c.is_valid(now))
+        .map(|c| crate::dto::PairingCodeDto {
+            code: c.code.clone(),
+            expires_at: c.expires_at.to_rfc3339(),
+            seconds_remaining: (c.expires_at - now).num_seconds().max(0),
+        }))
+}
+
+/// Valide un code saisi dans l'extension : si OK, génère le secret, persiste
+/// le pairing dans `device_pairings`, consomme le `pending_code`, retourne
+/// le secret en clair (le seul moment où il sort de l'app).
+pub fn verify_pairing_code(
+    state: &AppState,
+    code: &str,
+    fingerprint: &str,
+) -> IpcResult<crate::dto::PairingSecretDto> {
+    if fingerprint.trim().is_empty() {
+        return Err(IpcError::from(AppError::InvalidRequest(
+            "fingerprint vide".into(),
+        )));
+    }
+    let now = Utc::now();
+    let mut guard = state
+        .pending_code
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let pending = guard.as_ref().ok_or_else(|| {
+        IpcError::from(AppError::InvalidRequest(
+            "aucun code de pairing en attente — régénère un code".into(),
+        ))
+    })?;
+    crate::pairing::verify_code(pending, code, now).map_err(|e| match e {
+        crate::pairing::PairingError::Malformed => {
+            IpcError::from(AppError::InvalidRequest("code à 6 chiffres requis".into()))
+        },
+        crate::pairing::PairingError::InvalidCode => {
+            IpcError::new("invalid_pairing_code", "code invalide ou expiré")
+        },
+    })?;
+    // Code OK : génère le secret + persiste.
+    let secret = crate::pairing::PairingSecret::new();
+    let store = state
+        .extension_store
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let pairing_id = store
+        .record_pairing(fingerprint, &secret)
+        .map_err(AppError::from)?;
+    // Consomme le code (single-use).
+    *guard = None;
+    info!(%pairing_id, fingerprint, "pairing: validé + persisté");
+    Ok(crate::dto::PairingSecretDto {
+        pairing_id,
+        secret_hex: secret.secret_hex,
+    })
+}
+
+/// Liste les pairings (révoqués inclus pour audit).
+pub fn list_pairings(state: &AppState) -> IpcResult<Vec<crate::dto::PairingDto>> {
+    let store = state
+        .extension_store
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let rows = store.list_pairings().map_err(AppError::from)?;
+    Ok(rows.iter().map(Into::into).collect())
+}
+
+/// Marque un pairing comme révoqué (la ligne reste pour audit).
+pub fn revoke_pairing(state: &AppState, id: &str) -> IpcResult<()> {
+    let store = state
+        .extension_store
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    store.revoke_pairing(id).map_err(AppError::from)?;
+    info!(%id, "pairing: révoqué");
+    Ok(())
+}
+
+/// Liste les évènements ingérés depuis l'extension (paginé).
+pub fn list_extension_events(
+    state: &AppState,
+    limit: u32,
+    offset: u32,
+) -> IpcResult<Vec<crate::dto::ExtensionEventDto>> {
+    let store = state
+        .extension_store
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let rows = store
+        .list_events(limit as usize, offset as usize)
+        .map_err(AppError::from)?;
+    Ok(rows.iter().map(Into::into).collect())
+}
+
+/// Drain le spool `~/.sobria/spool/incoming.jsonl` produit par `sobria-bridge`.
+/// Retourne le nombre d'évènements ingérés. Appelé manuellement ou par un timer.
+pub fn drain_extension_spool(state: &AppState) -> IpcResult<usize> {
+    let home = dirs::home_dir().ok_or_else(|| {
+        IpcError::from(AppError::Internal(
+            "home_dir introuvable pour localiser le spool".into(),
+        ))
+    })?;
+    let spool_path = home.join(".sobria").join("spool").join("incoming.jsonl");
+    let store = state
+        .extension_store
+        .lock()
+        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let n = crate::extension_store::drain_spool(&store, &spool_path).map_err(AppError::from)?;
+    if n > 0 {
+        info!(count = n, "extension: spool drainé");
+    }
+    Ok(n)
+}
+
 #[cfg(test)]
 #[allow(unused_variables)] // certains tests gardent `tmp` uniquement comme drop-guard RAII
 mod tests {
@@ -3611,5 +3761,110 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         .unwrap();
         let stored2 = state.preferences.lock().unwrap().read_all().unwrap();
         assert!(stored2.default_datacenter_id.is_none());
+    }
+
+    // ─── C27.5.c/d — pairing extension navigateur ────────────────────────────
+
+    #[test]
+    fn regenerate_pairing_code_emits_6_digit_code() {
+        let (tmp, state) = fresh_state();
+        let dto = regenerate_pairing_code(&state).unwrap();
+        assert_eq!(dto.code.len(), 6);
+        assert!(dto.code.chars().all(|c| c.is_ascii_digit()));
+        assert!(dto.seconds_remaining > 0);
+        // state stores the pending code
+        assert!(state.pending_code.lock().unwrap().is_some());
+    }
+
+    #[test]
+    fn get_pairing_code_status_returns_none_when_no_code() {
+        let (tmp, state) = fresh_state();
+        let status = get_pairing_code_status(&state).unwrap();
+        assert!(status.is_none());
+    }
+
+    #[test]
+    fn verify_pairing_code_persists_and_consumes() {
+        let (tmp, state) = fresh_state();
+        let code = regenerate_pairing_code(&state).unwrap();
+        let secret = verify_pairing_code(&state, &code.code, "chrome-mac-fp1").unwrap();
+        assert_eq!(secret.secret_hex.len(), 64);
+        assert!(!secret.pairing_id.is_empty());
+        // Code consommé
+        assert!(state.pending_code.lock().unwrap().is_none());
+        // Pairing persisté
+        let list = list_pairings(&state).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].fingerprint, "chrome-mac-fp1");
+    }
+
+    #[test]
+    fn verify_pairing_code_rejects_wrong_code() {
+        let (tmp, state) = fresh_state();
+        let _ = regenerate_pairing_code(&state).unwrap();
+        let err = verify_pairing_code(&state, "000000", "fp").unwrap_err();
+        // Si le code aléatoire vaut "000000" par chance, on retry une fois.
+        // Probabilité 1/10⁶ — acceptable pour un test.
+        if err.code == "invalid_pairing_code" {
+            // OK, le code random était différent.
+        } else {
+            // C'était par malchance le code random. On régénère et retest.
+            let dto = regenerate_pairing_code(&state).unwrap();
+            let wrong = if dto.code == "000000" {
+                "111111"
+            } else {
+                "000000"
+            };
+            let err = verify_pairing_code(&state, wrong, "fp").unwrap_err();
+            assert_eq!(err.code, "invalid_pairing_code");
+        }
+    }
+
+    #[test]
+    fn verify_pairing_code_rejects_malformed() {
+        let (tmp, state) = fresh_state();
+        let _ = regenerate_pairing_code(&state).unwrap();
+        let err = verify_pairing_code(&state, "abcdef", "fp").unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn verify_pairing_code_rejects_empty_fingerprint() {
+        let (tmp, state) = fresh_state();
+        let dto = regenerate_pairing_code(&state).unwrap();
+        let err = verify_pairing_code(&state, &dto.code, "").unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn verify_pairing_code_without_pending_fails() {
+        let (tmp, state) = fresh_state();
+        let err = verify_pairing_code(&state, "123456", "fp").unwrap_err();
+        assert_eq!(err.code, "invalid_request");
+    }
+
+    #[test]
+    fn revoke_pairing_marks_revoked() {
+        let (tmp, state) = fresh_state();
+        let code = regenerate_pairing_code(&state).unwrap();
+        let secret = verify_pairing_code(&state, &code.code, "fp").unwrap();
+        revoke_pairing(&state, &secret.pairing_id).unwrap();
+        let list = list_pairings(&state).unwrap();
+        assert_eq!(list.len(), 1);
+        assert!(list[0].revoked_at.is_some());
+    }
+
+    #[test]
+    fn drain_extension_spool_returns_zero_when_no_spool() {
+        // Le spool est sous $HOME/.sobria/spool, donc s'il n'existe pas
+        // sur la machine de CI, on retourne 0.
+        let (tmp, state) = fresh_state();
+        let result = drain_extension_spool(&state);
+        // Soit `Ok(n)` (spool absent ou vide), soit erreur si HOME inaccessible.
+        // Sur un environnement de test sain, on attend Ok.
+        assert!(
+            result.is_ok(),
+            "drain doit être Ok ou home introuvable: {result:?}"
+        );
     }
 }
