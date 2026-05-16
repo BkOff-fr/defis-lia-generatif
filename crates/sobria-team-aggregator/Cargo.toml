@@ -61,6 +61,16 @@ uuid = { version = "1", features = ["v4"] }
 # UX
 rpassword = "7"
 
+# Exports CSRD PDF + PROV-O + CSV (C28.5) — réutilise la chaîne
+# sobria-export (printpdf) pour produire un PDF aligné sur le rapport CSRD
+# du desktop. On convertit les `estimations` team en AuditEntry shims pour
+# que la chaîne d'agrégation reste celle de l'app principale.
+sobria-export = { path = "../sobria-export" }
+sobria-core = { path = "../sobria-core" }
+sobria-audit = { path = "../sobria-audit" }
+csv = { workspace = true }
+sha2 = { workspace = true }
+
 # Dashboard embedded (C28.4) — bundle Svelte servi en statique par axum.
 # - include-exclude  : autorise les attributs `#[include = "*.ext"]`.
 # - debug-embed      : embarque toujours, même en debug build (sinon le

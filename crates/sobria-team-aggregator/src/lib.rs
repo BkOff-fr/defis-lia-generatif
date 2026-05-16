@@ -13,5 +13,6 @@ pub mod commands;
 pub mod config;
 pub mod crypto;
 pub mod error;
+pub mod exports;
 pub mod server;
 pub mod storage;

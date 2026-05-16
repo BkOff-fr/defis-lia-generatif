@@ -83,6 +83,75 @@ pub fn insert(conn: &Connection, e: &NewEstimation<'_>) -> AggregatorResult<()> 
     Ok(())
 }
 
+/// Row complet `estimations` (lecture pour exports — joint le user pour
+/// avoir fingerprint + display_name disponibles, anonymisables côté handler).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EstimationRow {
+    pub id: String,
+    pub user_id: String,
+    pub user_fingerprint: String,
+    pub user_display_name: Option<String>,
+    pub ts: DateTime<Utc>,
+    pub method: String,
+    pub model_id: String,
+    pub tokens_in: u32,
+    pub tokens_out: u32,
+    pub gco2eq_p50: f64,
+    pub gco2eq_p5: Option<f64>,
+    pub gco2eq_p95: Option<f64>,
+    pub water_ml: f64,
+    pub energy_wh: f64,
+    pub region: Option<String>,
+}
+
+/// Liste les estimations dans la fenêtre `[from, to]` (incluses), avec le
+/// fingerprint + display_name du user joint. Utilisé par les exports.
+pub fn list_for_window(
+    conn: &Connection,
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+) -> AggregatorResult<Vec<EstimationRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT e.id, e.user_id, u.fingerprint, u.display_name, e.ts, e.method,
+                e.model_id, e.tokens_in, e.tokens_out, e.gco2eq_p50, e.gco2eq_p5,
+                e.gco2eq_p95, e.water_ml, e.energy_wh, e.region
+         FROM estimations e
+         JOIN users u ON u.id = e.user_id
+         WHERE e.ts BETWEEN ?1 AND ?2
+         ORDER BY e.ts ASC",
+    )?;
+    let rows = stmt.query_map(params![from.to_rfc3339(), to.to_rfc3339()], |row| {
+        let ts_s: String = row.get(4)?;
+        let ts = DateTime::parse_from_rfc3339(&ts_s)
+            .map(|d| d.with_timezone(&Utc))
+            .map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    4,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
+            })?;
+        Ok(EstimationRow {
+            id: row.get(0)?,
+            user_id: row.get(1)?,
+            user_fingerprint: row.get(2)?,
+            user_display_name: row.get(3)?,
+            ts,
+            method: row.get(5)?,
+            model_id: row.get(6)?,
+            tokens_in: row.get::<_, i64>(7)?.max(0) as u32,
+            tokens_out: row.get::<_, i64>(8)?.max(0) as u32,
+            gco2eq_p50: row.get(9)?,
+            gco2eq_p5: row.get(10)?,
+            gco2eq_p95: row.get(11)?,
+            water_ml: row.get(12)?,
+            energy_wh: row.get(13)?,
+            region: row.get(14)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
 /// Totaux pour un utilisateur (toute période confondue).
 pub fn totals_for_user(conn: &Connection, user_id: &str) -> AggregatorResult<UsageTotals> {
     let mut totals = UsageTotals::default();

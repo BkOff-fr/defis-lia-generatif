@@ -2,6 +2,7 @@
 
 pub mod analytics;
 pub mod codes;
+pub mod exports;
 pub mod users;
 
 use axum::{
@@ -18,4 +19,7 @@ pub fn router() -> Router<ServerState> {
         .route("/codes", post(codes::handle_create))
         .route("/codes/:id", delete(codes::handle_revoke))
         .route("/analytics", get(analytics::handle))
+        .route("/exports/csrd", post(exports::handle_csrd))
+        .route("/exports/prov-o", post(exports::handle_provo))
+        .route("/exports/csv", post(exports::handle_csv))
 }
