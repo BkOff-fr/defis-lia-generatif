@@ -298,7 +298,115 @@ ss -tunap | grep sobria-team-aggregator
 
 - rustls + ring uniquement (pas d'OpenSSL).
 - TLS 1.2 et 1.3 acceptés ; le client (extension/app) négocie.
-- Le cert auto-signé est valable 10 ans. Plan de rotation v0.7.1.
+- Le cert auto-signé est valable 10 ans, mais peut être régénéré à la
+  demande via `serve --regen-cert` (voir « Opérations »).
+
+---
+
+## Opérations courantes (v0.7.1, C29)
+
+### Réinitialiser le mot de passe d'un admin
+
+Si un admin oublie son mot de passe, ne **jamais** éditer la SQLite à la main —
+utiliser :
+
+```bash
+sobria-team-aggregator --data-dir /var/lib/sobria/team-data \
+  admin reset-password alice
+```
+
+- Prompt interactif (saisie double, sans écho).
+- Le nouveau hash est Argon2id PHC.
+- **Tous** les tokens admin actifs sont révoqués (un `/login` est nécessaire).
+
+Lister les admins :
+
+```bash
+sobria-team-aggregator admin list
+```
+
+### Rotation du certificat TLS
+
+Le cert auto-signé est valable 10 ans, mais on peut vouloir le régénérer pour :
+
+- changer l'empreinte (post-incident, rotation de routine) ;
+- ajouter de nouveaux SANs si la machine change de hostname.
+
+Procédure :
+
+```bash
+sudo systemctl stop sobria-team-aggregator
+sobria-team-aggregator --data-dir /var/lib/sobria/team-data \
+  serve --regen-cert
+```
+
+Le binaire :
+
+1. Sauvegarde l'ancien cert / la clé en `cert.pem.bak.<unix_ts>` et
+   `key.pem.bak.<unix_ts>` à côté.
+2. Génère un nouveau cert auto-signé (mêmes SANs : `localhost`, `127.0.0.1`,
+   `::1` + hostname OS, validité 10 ans).
+3. Affiche l'empreinte SHA-256 du nouveau certificat — **à communiquer aux
+   utilisateurs** (ils devront re-accepter le fingerprint dans leur
+   navigateur ou cocher « accepter les certs auto-signés » dans l'app
+   Tauri si non déjà fait).
+
+> ⚠️ Tous les clients qui avaient accepté l'ancien cert devront ré-accepter
+> le nouveau. Pour une rotation transparente, prévoir une fenêtre où l'on
+> peut prévenir les utilisateurs.
+
+### Configurer les alertes seuils (C29.4)
+
+Les alertes notifient quand la conso `gCO₂eq` d'un utilisateur ou de toute
+l'équipe dépasse un plafond sur une période (daily / weekly / monthly UTC).
+Voir le dashboard admin « Alertes » (web-team) pour créer / désactiver via UI.
+
+#### Notifications webhook
+
+Aucune config serveur n'est requise — l'URL est définie par seuil.
+Format du POST JSON (timeout 5 s) :
+
+```json
+{
+  "threshold_id": "01HZZZ…",
+  "scope": "team",
+  "target_id": null,
+  "period": "daily",
+  "gco2eq_max": 100.0,
+  "observed_gco2eq": 127.3,
+  "period_start": "2026-05-16T00:00:00+00:00",
+  "period_end":   "2026-05-16T23:59:59+00:00",
+  "triggered_at": "2026-05-16T14:32:01+00:00"
+}
+```
+
+#### Notifications email (SMTP optionnel)
+
+Pour activer l'envoi email, poser deux clés dans le KV `config` côté SQLite :
+
+```bash
+sqlite3 /var/lib/sobria/team-data/team.sqlite <<SQL
+INSERT INTO config (key, value) VALUES
+  ('smtp_url',  'smtps://user:pass@smtp.example.org:465'),
+  ('smtp_from', 'sobria@example.org')
+ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+SQL
+```
+
+- Schémas supportés : `smtp://host:port` (STARTTLS implicite via port) et
+  `smtps://user:pass@host:port` (TLS direct). `user:pass@` optionnel.
+- Si l'une des deux clés est absente : **fallback automatique en log_only**
+  (le trigger est journalisé via `tracing::warn!`, `notify_error` est rempli
+  dans `alert_triggers`). Pas de crash.
+
+#### Garanties
+
+- 1 trigger par `(threshold_id, period_start)` (UNIQUE SQL).
+- Le trigger est inséré pendant le handler `POST /api/v1/estimations` —
+  la notification webhook/email est `tokio::spawn`-ée (non bloquante pour
+  l'ack du client).
+- `alert_triggers.notified_at` est mis à jour après envoi ;
+  `alert_triggers.notify_error` contient l'erreur transport éventuelle.
 
 ---
 
@@ -333,9 +441,10 @@ sudo systemctl start sobria-team-aggregator
 
 - Les **prompts en clair** ne sont jamais stockés sur le serveur —
   seules les estimations agrégées (model, tokens, gCO₂eq).
-- Les **mots de passe admins/users** sont en Argon2id PHC,
-  irréversibles. En cas de perte : commande `admin reset-password`
-  prévue v0.7.1.
+- Les **mots de passe admins/users** sont en Argon2id PHC, irréversibles.
+  En cas de perte côté admin : `admin reset-password` (cf. § Opérations
+  courantes). Côté user : révoquer l'enrollment code via `code revoke`
+  puis en émettre un nouveau.
 
 ---
 

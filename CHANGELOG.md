@@ -5,6 +5,142 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.7.1] — 2026-05-16 — Polish Mode Équipe (C29)
+
+> Patch release qui ferme les 4 manques honnêtement notés en C28 :
+> UI Mode Équipe côté app Tauri (les 8 IPC `team_*` étaient prêts mais
+> non câblés au front), reset-password admin, rotation TLS, et alertes
+> seuils CSRD. Voir `briefs/chantiers/C29-v0.7.1-polish-mode-equipe.md`
+> et `docs/operations/team-aggregator.md` § « Opérations courantes ».
+
+### Added — C29.1 UI Mode Équipe (app Tauri)
+
+- **Backend Rust non-breaking** : `team_settings::TeamStatus` étendu avec
+  `last_seen_at: Option<String>` et `estimations_sent: u32`. Les IPC
+  `team_ping` et `team_push_estimation` mettent à jour ces champs sur
+  succès. 5 nouveaux unit tests + tests étendus (244 tests `sobria-app`).
+- **TypeScript** : 7 wrappers IPC + types dans `web/src/lib/api.ts`
+  (`TeamMode`, `TeamStatusDto`, `TeamHealthResponseDto`,
+  `TeamEnrollResponseDto`).
+- **Store** `web/src/lib/team-store.ts` : `writable<TeamState>` typé +
+  `loadTeam()` + `saveTeamField()` optimistic + rollback.
+- **Section UI** « Mode Équipe self-hosted » dans `/parametres` entre
+  Extension navigateur et Runtime — 4 sous-blocs : Statut (pill
+  lime/ambre/coral), Configuration (URL + toggle cert auto-signé),
+  Enrôlement (code 12 chiffres + password 8+ + display name), Dispatcher
+  (radios Local/Équipe/Les deux). 2 tests Playwright no-mock verts.
+- **Fingerprint éphémère** par session : `crypto.randomUUID()` côté UI,
+  persistance côté Rust après `/enroll`.
+
+### Added — C29.2 CLI admin reset-password + list
+
+- Nouvelle sous-commande `admin {list, reset-password}` dans
+  `sobria-team-aggregator`.
+- **`reset-password`** : prompt double via `rpassword`, hash Argon2id PHC,
+  `last_login_at = NULL`, révocation de **TOUS** les tokens admin actifs.
+  Affiche « Mot de passe de X réinitialisé. N token(s) révoqué(s). ».
+- **`list`** : table `id | username | created_at | last_login_at`.
+- Storage helpers : `admins::list_all`, `admins::set_password_hash`,
+  `tokens::revoke_all_for_admin`. 4 unit tests + 2 integration tests
+  (`tests/cli_admin.rs`).
+
+### Added — C29.3 Rotation TLS (`serve --regen-cert`)
+
+- Nouveau flag `serve --regen-cert` : avant de bind, sauvegarde
+  `cert.pem` + `key.pem` en `*.pem.bak.<unix_ts>` puis régénère via
+  `rcgen` (mêmes SANs `localhost`/`127.0.0.1`/`::1` + hostname OS,
+  validité 10 ans). Affiche l'empreinte SHA-256 du nouveau cert.
+- Helpers `crypto::tls::regen_self_signed` + `cert_fingerprint_sha256`.
+- 4 unit tests + 2 integration tests (`tests/regen_cert.rs`).
+- **`docs/operations/team-aggregator.md`** enrichi : nouvelle section
+  « Opérations courantes » avec « Rotation TLS » détaillée + reset
+  password admin + configuration des alertes (webhook + SMTP).
+
+### Added — C29.4 Alertes seuils (CSRD)
+
+- **Migration SQLite v2** dans `storage/schema.rs` (idempotente,
+  pilotée par `PRAGMA user_version`) :
+  - `alert_thresholds` (id ULID, scope user|team, target_id?, period
+    daily|weekly|monthly, gco2eq_max, notify_kind webhook|email|log_only,
+    notify_target?, created_by_admin_id, created_at, disabled_at) avec
+    CHECK XOR sur (scope, target_id).
+  - `alert_triggers` (id, threshold_id, period_start, period_end,
+    observed_gco2eq, triggered_at, notified_at, notify_error) avec
+    UNIQUE sur `(threshold_id, period_start)` — garantit **1 trigger
+    par période** même sous concurrence.
+- **Module `src/alerts/`** :
+  - `periods.rs` — bornes UTC pour daily / weekly ISO / monthly,
+    leap year safe. 7 unit tests.
+  - `store.rs` — CRUD typé sur les 2 tables, validations métier
+    (scope/target cohérent, notify_kind/notify_target cohérent,
+    gco2eq_max > 0). 5 unit tests.
+  - `checker.rs` — `check_thresholds_for_user(conn, user_id, now)` :
+    liste seuils actifs (user + team), calcule l'observé, insère
+    trigger si dépassement (UNIQUE protège contre re-déclenchement).
+    4 unit tests.
+  - `notify.rs` — `notify(event, smtp_cfg).await` :
+    - **webhook** : POST JSON `reqwest` 5s timeout, payload documenté.
+    - **email** : `lettre = "0.11"` SMTP (smtp:// + smtps://), creds
+      `user:pass@` optionnels. Config lue depuis KV `config`
+      (`smtp_url` + `smtp_from`).
+    - **fallback log_only** si SMTP non configuré, webhook sans URL,
+      ou email sans destinataire (graceful degrade exigé par le brief).
+    - 4 unit tests.
+- **Routes admin REST** `/api/v1/admin/alerts*` :
+  - `POST   /alerts`          : créer un seuil.
+  - `GET    /alerts`          : lister (actifs + désactivés).
+  - `DELETE /alerts/:id`      : soft delete (`disabled_at`).
+  - `GET    /alerts/triggers` : historique (limit 1..500, defaut 50).
+- **Wiring** dans `server::api::estimations::handle` : après
+  `estimations::insert`, appelle `alerts::checker::check_thresholds_for_user`
+  sous le lock SQLite, drop le lock, puis `tokio::spawn` la
+  notification (non-bloquante pour l'ack du client). Persiste
+  `notified_at`/`notify_error` après envoi.
+- **UI `/admin/alerts`** (web-team) : form de création (scope radio,
+  user picker conditionnel, period radio, gCO₂eq max, notify_kind
+  + target conditionnel), table des seuils avec bouton « Désactiver »,
+  historique des 50 derniers triggers (timestamp, threshold, observé,
+  badge notification OK/erreur/en cours). Nouvelle entrée dans la
+  nav admin.
+- **Tests d'intégration** `tests/integration_alerts.rs` :
+  - CRUD end-to-end (POST scope=user sans target_id → 400, POST
+    team OK, DELETE soft + idempotent).
+  - **Webhook réel via wiremock** : 10 estimations dépassant un seuil
+    team daily de 5g → 1 trigger inséré, webhook POST reçu par le
+    mock (`expect(1..)` + `verify().await`).
+
+### Changed
+
+- `team_settings::TeamSettingsStore::clear_session` purge maintenant
+  aussi `last_seen_at` + `estimations_sent` (rotation propre au logout).
+- `team_settings::TeamMode` est exporté côté TS comme `'local' | 'team' | 'both'`.
+- `IpcErrorCode` (`web/src/lib/api.ts`) étend la liste des codes
+  team (`no_url`, `bad_request`, `unauthorized`, `http_error`,
+  `transport`, `storage`).
+- Migration SQLite v1 → v2 idempotente : les bases C28 (v1) ne
+  ré-installent que le DDL v2 (alert tables), pas le DDL v1.
+
+### Tests
+
+- `sobria-team-aggregator` : **106 tests verts** (88 unit + 18 intégration,
+  vs 81 + 12 en v0.7.0).
+- `sobria-app` : +5 tests `team_settings` → 244 tests verts (+0 régression).
+- `web` (Playwright) : +2 tests `parametres-mode-equipe` no-mock verts.
+- `cargo clippy --workspace -D warnings` clean, `cargo fmt --check` clean.
+- `cd web && npm run check && npm run lint` clean (sur les fichiers
+  touchés ; les autres warnings sont pré-existants).
+- `cd web-team && npm run check && npm run lint` clean.
+
+### Sécurité
+
+- Argon2id PHC partout pour les hashs (admin reset, refresh tokens).
+- Pas d'OpenSSL : rustls + ring + rcgen.
+- Notifications email via `lettre` avec backend rustls (pas de native-tls).
+- Webhook payload ne contient **pas** de prompts utilisateurs (uniquement
+  les agrégats de seuil). Conforme CLAUDE.md §7.
+- Fallback `log_only` quand SMTP non configuré → pas de crash, log clair
+  avec `notify_error`.
+
 ## [0.7.0] — 2026-05-16 — Mode Équipe self-hosted (C28)
 
 > Binaire Rust standalone `sobria-team-aggregator` déployable par une
@@ -138,10 +274,11 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 ### Différé v0.7.1+
 
 - Page `/parametres → Mode Équipe` côté `web/` (frontend Svelte de l'app
-  Tauri) — les 8 IPC sont prêts à être consommés via `invoke`.
-- Alertes seuils (table `alert_thresholds`).
-- Commande `admin reset-password`.
-- Commande `serve --regen-cert` / `--regen-key`.
+  Tauri) — les 8 IPC sont prêts à être consommés via `invoke`. **→ Livré
+  en v0.7.1 (C29.1).**
+- Alertes seuils (table `alert_thresholds`). **→ Livré en v0.7.1 (C29.4).**
+- Commande `admin reset-password`. **→ Livré en v0.7.1 (C29.2).**
+- Commande `serve --regen-cert` / `--regen-key`. **→ Livré en v0.7.1 (C29.3).**
 
 ### Sécurité
 

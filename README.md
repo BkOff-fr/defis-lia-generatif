@@ -72,7 +72,7 @@ Détails complets : [`docs/methodology/`](docs/methodology/), [ADR-0012](docs/ad
 **Différé v1.1+** : M2 Workbench · M5 Rapports génériques · M6 Géoloc unitaire · M10 Import logs · M16 Forecaster UI · M18 Batch CSV UI · M21 Alertes · M23 Marchés publics · M24 Apprendre.
 
 **M11 Extension navigateur** : livrée en v0.6.0 (cf. ci-dessous).
-**M19 Équipe** : Mode Équipe self-hosted livré en v0.7.0 (cf. ci-dessous).
+**M19 Équipe** : Mode Équipe self-hosted livré en v0.7.0, polish v0.7.1 (cf. ci-dessous).
 
 ## Extension navigateur (v0.6.0)
 
@@ -105,7 +105,7 @@ Architecture : [ADR-0013](docs/adr/ADR-0013-extension-pairing-team-mode.md)
 
 Cf. [ADR-0011](docs/adr/ADR-0011-reduction-perimetre-v1-0.md) pour la justification de la réduction de périmètre.
 
-## Mode Équipe self-hosted (v0.7.0)
+## Mode Équipe self-hosted (v0.7.0 + polish v0.7.1)
 
 Pour les TPE/PME et DSI qui veulent **agréger les estimations de leurs N
 employés sans cloud externe**. Un binaire Rust standalone
@@ -116,7 +116,9 @@ VPS interne et expose :
   (séries quotidiennes/hebdo/mensuelles, top modèles, top employés
   anonymisables, breakdown AFNOR vs EcoLogits, 4 cards KPI), gestion
   des **enrollment codes** 12 chiffres (création / révocation),
-  liste des employés enrôlés avec leurs totaux.
+  liste des employés enrôlés avec leurs totaux, **alertes seuils
+  CSRD** (v0.7.1) : plafond gCO₂eq par jour/semaine/mois avec
+  notification webhook ou email.
 - **Dashboard employé perso** : son usage personnel + transparence
   (« ce qui est partagé / ce qui ne l'est jamais »).
 - **API REST** `/api/v1/*` (JWT HS256 24h + refresh 7j Argon2id, TLS
@@ -124,7 +126,13 @@ VPS interne et expose :
 - **Exports** CSRD PDF (réutilise la chaîne `sobria-export`), PROV-O
   JSON-LD avec per-user agents anonymisables, CSV brut RFC 4180.
 - **Extension + app desktop** étendues : section « Mode Équipe » dans
-  les Options avec dispatch radio (`local | team | both`).
+  les Options avec dispatch radio (`local | team | both`). **L'app
+  Tauri permet désormais (v0.7.1) d'enrôler son device depuis
+  `/parametres` sans toucher la SQLite.**
+- **Outillage admin v0.7.1** : `sobria-team-aggregator admin
+  reset-password <user>` (Argon2id PHC + révocation tokens),
+  `sobria-team-aggregator admin list`, et `serve --regen-cert` pour
+  rotation TLS sans perdre la base.
 
 **Aucun cloud Sobr.ia n'est impliqué** — votre entreprise contrôle
 son serveur et ses données.
