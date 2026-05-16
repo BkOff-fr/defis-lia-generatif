@@ -78,6 +78,10 @@ rand_xoshiro = "0.6"
 # Cryptographie
 sha2 = "0.10"
 blake3 = "1.5"
+# Argon2id pour le hash du secret de pairing extension (patch C27 v0.6.0,
+# remplace SHA-256 + sel manuel). Version 0.5 = stable, dépend uniquement
+# de `password-hash` + `base64ct` — pas d'OpenSSL.
+argon2 = "0.5"
 
 # CLI
 clap = { version = "4.5", features = ["derive", "env"] }

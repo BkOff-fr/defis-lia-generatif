@@ -26,6 +26,9 @@ sobria-audit = { path = "../sobria-audit" }
 sobria-geoloc = { path = "../sobria-geoloc" }
 sobria-import = { path = "../sobria-import" }
 sobria-export = { path = "../sobria-export" }
+# C27 patch v0.6.0 — socket forward bridge ↔ app : on partage les types
+# `BridgeRequest`/`BridgeResponse` et `default_socket_path()` avec le bridge.
+sobria-bridge = { path = "../sobria-bridge" }
 tauri = { workspace = true }
 tauri-plugin-dialog = { workspace = true }
 serde = { workspace = true }
@@ -42,6 +45,9 @@ csv = { workspace = true }
 # C27.5 pairing : OS RNG + hash secret partagé
 rand = { workspace = true }
 sha2 = { workspace = true }
+# C27 patch v0.6.0 — Argon2id remplace SHA-256+sel pour le hash du secret
+# pairing (cf. brief Patch 3).
+argon2 = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

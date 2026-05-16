@@ -1,6 +1,6 @@
 # ADR-0013 — Extension navigateur + pairing local + mode Équipe self-hosted
 
-- **Statut** : Accepted
+- **Statut** : Phase 1 Implemented (v0.6.0, 2026-05-16) ; Phase 2 Planned (v0.7.0) ; Phase 3 Backlog (v0.8+)
 - **Date** : 2026-05-15
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : avant chantier C27 (v0.6.0 extension) et C28 (v0.7.0 mode équipe)

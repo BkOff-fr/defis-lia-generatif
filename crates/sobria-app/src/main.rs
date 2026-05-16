@@ -11,7 +11,11 @@
 #![allow(clippy::needless_pass_by_value)]
 #![allow(clippy::doc_markdown)]
 
+use std::path::PathBuf;
+
 use sobria_app::{
+    bridge_install::{self, BridgeStatus, BrowserKind},
+    bridge_server,
     dto::{
         AppPreferencesDto, AuditEntrySummaryDto, BatchRequestDto, BatchResultDto,
         BenchmarkRequestDto, BenchmarkResultDto, BudgetStatusDto, CountryAggregateDto,
@@ -23,10 +27,25 @@ use sobria_app::{
         ReferentielStatusDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
         SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
-    logic, AppState, IpcResult,
+    logic, AppState, IpcError, IpcResult,
 };
 use tauri::Manager;
 use tracing::info;
+
+/// Chemin attendu du binaire `sobria-bridge` à côté de l'app. Utilisé pour
+/// remplir le manifest natif et indiquer à l'extension où trouver le pont.
+/// Si l'exécutable courant n'est pas localisable, on retombe sur `None` et
+/// les IPC d'install rejettent proprement.
+fn resolve_bridge_path() -> Option<PathBuf> {
+    let current = std::env::current_exe().ok()?;
+    let dir = current.parent()?.to_path_buf();
+    let name = if cfg!(target_os = "windows") {
+        "sobria-bridge.exe"
+    } else {
+        "sobria-bridge"
+    };
+    Some(dir.join(name))
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Commandes IPC — délégation pure vers `logic::*`
@@ -315,6 +334,39 @@ fn drain_extension_spool(state: tauri::State<'_, AppState>) -> IpcResult<usize> 
     logic::drain_extension_spool(state.inner())
 }
 
+// ─── C27 patch v0.6.0 — auto-install bridge ─────────────────────────────────
+
+#[tauri::command]
+fn bridge_status() -> BridgeStatus {
+    bridge_install::bridge_status(resolve_bridge_path())
+}
+
+#[tauri::command]
+fn install_extension_bridge(
+    browsers: Vec<BrowserKind>,
+    extension_id: String,
+) -> IpcResult<Vec<PathBuf>> {
+    let bridge_path = resolve_bridge_path().ok_or_else(|| {
+        IpcError::new("internal", "binaire sobria-bridge introuvable à côté de l'app")
+    })?;
+    let mut written = Vec::with_capacity(browsers.len());
+    for b in browsers {
+        let path = bridge_install::install_native_manifest(b, &bridge_path, &extension_id)
+            .map_err(|e| IpcError::new("internal", format!("install {}: {e}", b.id())))?;
+        written.push(path);
+    }
+    Ok(written)
+}
+
+#[tauri::command]
+fn uninstall_extension_bridge(browsers: Vec<BrowserKind>) -> IpcResult<()> {
+    for b in browsers {
+        bridge_install::uninstall_native_manifest(b)
+            .map_err(|e| IpcError::new("internal", format!("uninstall {}: {e}", b.id())))?;
+    }
+    Ok(())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrée principale
 // ─────────────────────────────────────────────────────────────────────────────
@@ -336,6 +388,31 @@ fn main() {
                 Box::new(e) as Box<dyn std::error::Error>
             })?;
             app.manage(state);
+
+            // C27 patch v0.6.0 — démarre le socket server pour le forward
+            // bridge ↔ app en temps réel (Unix socket / Windows named pipe).
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = bridge_server::run(app_handle).await {
+                    tracing::warn!(error = %e, "bridge_server: arrêt anormal");
+                }
+            });
+
+            // C27 patch v0.6.0 — poller de fallback offline : draine toutes
+            // les 5 s le spool écrit par le bridge quand l'app était fermée
+            // ou que le socket était injoignable.
+            let spool_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut ticker = tokio::time::interval(std::time::Duration::from_secs(5));
+                ticker.tick().await; // saute le premier tick immédiat
+                loop {
+                    ticker.tick().await;
+                    let state = spool_handle.state::<AppState>();
+                    if let Err(e) = logic::drain_extension_spool(state.inner()) {
+                        tracing::debug!(error = %e, "spool poller: drain a échoué");
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -382,6 +459,9 @@ fn main() {
             revoke_pairing,
             list_extension_events,
             drain_extension_spool,
+            bridge_status,
+            install_extension_bridge,
+            uninstall_extension_bridge,
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");

@@ -17,7 +17,11 @@ pub const NATIVE_HOST_NAME: &str = "com.sobria.bridge";
 pub const SPOOL_MAX_BYTES: u64 = 10 * 1024 * 1024;
 
 /// Requête envoyée par l'extension (discriminée par `type`).
-#[derive(Debug, Deserialize)]
+///
+/// `Serialize` est ajoutée pour le patch v0.6.0 — le bridge sérialise la
+/// requête vers le socket app desktop ; les tests round-trip exercent les
+/// deux sens.
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BridgeRequest {
     Ping {
@@ -54,7 +58,11 @@ impl BridgeRequest {
 }
 
 /// Réponse renvoyée à l'extension.
-#[derive(Debug, Serialize)]
+///
+/// `Deserialize` est ajoutée pour le patch v0.6.0 — le bridge décode la
+/// réponse renvoyée par le socket app desktop avant de la repasser à
+/// l'extension par stdout.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BridgeResponse {
     #[serde(rename = "reqId")]
     pub req_id: String,
@@ -160,6 +168,99 @@ pub fn append_to_spool_at(path: &std::path::Path, payload: &Value, max_bytes: u6
     let line = serde_json::to_string(payload)?;
     writeln!(file, "{line}")?;
     Ok(())
+}
+
+/// Chemin par défaut du socket / named pipe partagé bridge ↔ app (patch
+/// C27 v0.6.0).
+///
+///   - **Unix** : `$XDG_RUNTIME_DIR/sobria-bridge.sock` si défini, sinon
+///     `/tmp/sobria-bridge.sock`.
+///   - **Windows** : `\\.\pipe\sobria-bridge`.
+///
+/// Les permissions du fs (Unix) ou la portée HKCU (named pipe) suffisent
+/// à scoper à l'utilisateur courant — pas de port réseau, pas d'auth réseau.
+pub fn default_socket_path() -> std::path::PathBuf {
+    #[cfg(unix)]
+    {
+        if let Some(rt) = std::env::var_os("XDG_RUNTIME_DIR") {
+            return std::path::PathBuf::from(rt).join("sobria-bridge.sock");
+        }
+        std::path::PathBuf::from("/tmp/sobria-bridge.sock")
+    }
+    #[cfg(windows)]
+    {
+        std::path::PathBuf::from(r"\\.\pipe\sobria-bridge")
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        std::path::PathBuf::from("sobria-bridge.sock")
+    }
+}
+
+/// Timeout court (2 s) pour les forwards synchrones : si l'app desktop ne
+/// répond pas en 2 s, on retombe sur le spool fichier. Sur Windows on
+/// s'appuie sur le timeout natif du `OpenOptions` sur le pipe.
+#[cfg(unix)]
+const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2_000);
+
+/// Tente de forwarder une requête au serveur de socket de l'app desktop.
+///
+/// Protocole identique au stdio bridge : `u32 little-endian` de longueur +
+/// payload JSON UTF-8. La réponse est lue dans le même format.
+///
+/// Retourne `Err` si :
+///   - le socket / pipe n'existe pas (app non lancée) ;
+///   - la connexion timeout (2 s) ;
+///   - la réponse est malformée.
+///
+/// Le bridge utilise ce retour pour décider de retomber sur `append_to_spool`.
+pub fn try_forward_to(
+    path: &std::path::Path,
+    req: &BridgeRequest,
+) -> Result<BridgeResponse> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::net::UnixStream;
+        let mut stream = UnixStream::connect(path)
+            .with_context(|| format!("connect {}", path.display()))?;
+        stream.set_read_timeout(Some(FORWARD_TIMEOUT))?;
+        stream.set_write_timeout(Some(FORWARD_TIMEOUT))?;
+        forward_over(&mut stream, req)
+    }
+    #[cfg(windows)]
+    {
+        let path_str = path.to_str().context("pipe path non-UTF-8")?;
+        let mut stream = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path_str)
+            .with_context(|| format!("open pipe {path_str}"))?;
+        forward_over(&mut stream, req)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (path, req);
+        anyhow::bail!("plateforme non supportée pour try_forward_to")
+    }
+}
+
+fn forward_over<S: Read + Write>(stream: &mut S, req: &BridgeRequest) -> Result<BridgeResponse> {
+    let bytes = serde_json::to_vec(req).context("encode BridgeRequest")?;
+    let len = u32::try_from(bytes.len()).context("request > u32")?;
+    stream.write_all(&len.to_le_bytes())?;
+    stream.write_all(&bytes)?;
+    stream.flush()?;
+    let mut len_buf = [0u8; 4];
+    stream.read_exact(&mut len_buf).context("read response length")?;
+    let resp_len = u32::from_le_bytes(len_buf) as usize;
+    if resp_len > 1024 * 1024 {
+        anyhow::bail!("response too large: {resp_len}");
+    }
+    let mut payload = vec![0u8; resp_len];
+    stream.read_exact(&mut payload).context("read response payload")?;
+    let resp: BridgeResponse =
+        serde_json::from_slice(&payload).context("decode BridgeResponse")?;
+    Ok(resp)
 }
 
 /// Hash court (8 hex chars d'un FNV-like) — éviter de logger le secret en clair.

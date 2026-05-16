@@ -17,6 +17,8 @@
 #![allow(clippy::needless_pass_by_value)]
 
 pub mod batch;
+pub mod bridge_install;
+pub mod bridge_server;
 pub mod dashboard;
 pub mod dto;
 pub mod error;

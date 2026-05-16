@@ -2,10 +2,12 @@
 //!
 //! Deux tables SQLite (vivent dans `referentiel.sqlite`) :
 //!
-//! - `device_pairings(id, fingerprint, secret_hash, salt_hex, created_at,
+//! - `device_pairings(id, fingerprint, secret_hash, created_at,
 //!   last_seen_at, revoked_at)`
 //!   Identifiant unique par appariement extension ↔ app. Le `secret_hash`
-//!   est SHA-256 + sel (cf. `crate::pairing`) : aucun secret en clair en DB.
+//!   est une **PHC string Argon2id** (cf. `crate::pairing`) qui embarque
+//!   sel + paramètres ; aucun secret en clair en DB. La colonne `salt_hex`
+//!   précédente a été supprimée par la migration v2 → v3 (patch C27 v0.6.0).
 //!
 //! - `extension_events(id, pairing_id, ts, method, model_id, tokens_in,
 //!   tokens_out, gco2eq_p50, water_ml, energy_wh, raw_payload_json,
@@ -27,13 +29,16 @@ use serde_json::Value;
 
 use crate::pairing::PairingSecret;
 
-/// Schéma DDL (idempotent : `CREATE TABLE IF NOT EXISTS`).
+/// Schéma DDL v3 (idempotent : `CREATE TABLE IF NOT EXISTS`).
+///
+/// Depuis le patch C27 v0.6.0, `secret_hash` est une PHC string Argon2id
+/// auto-portante : l'ancienne colonne `salt_hex` est supprimée par
+/// [`migrate_device_pairings_v3`] sur les bases existantes.
 const SCHEMA: &str = r"
 CREATE TABLE IF NOT EXISTS device_pairings (
     id           TEXT PRIMARY KEY,
     fingerprint  TEXT NOT NULL,
     secret_hash  TEXT NOT NULL,
-    salt_hex     TEXT NOT NULL,
     created_at   TEXT NOT NULL,
     last_seen_at TEXT,
     revoked_at   TEXT,
@@ -97,6 +102,8 @@ impl ExtensionStore {
         let conn = Connection::open(path).with_context(|| format!("open {}", path.display()))?;
         conn.execute_batch(SCHEMA)
             .context("install extension_store schema")?;
+        migrate_device_pairings_v3(&conn)
+            .context("migration device_pairings v2 → v3 (Argon2id)")?;
         Ok(Self { conn })
     }
 
@@ -105,27 +112,28 @@ impl ExtensionStore {
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
+        migrate_device_pairings_v3(&conn)?;
         Ok(Self { conn })
     }
 
     /// Enregistre un nouveau pairing.
     ///
     /// Si `fingerprint` existe déjà (UNIQUE), on remplace l'entrée (ré-appariement
-    /// après dépair). Retourne l'`id` (UUID v4) attribué.
+    /// après dépair). Retourne l'`id` (ULID) attribué. Le `secret_hash` est une
+    /// PHC string Argon2id qui embarque sel + paramètres.
     pub fn record_pairing(&self, fingerprint: &str, secret: &PairingSecret) -> Result<String> {
         let id = ulid();
         let now = Utc::now().to_rfc3339();
         self.conn.execute(
-            "INSERT INTO device_pairings(id, fingerprint, secret_hash, salt_hex, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
+            "INSERT INTO device_pairings(id, fingerprint, secret_hash, created_at)
+             VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(fingerprint) DO UPDATE SET
                id = excluded.id,
                secret_hash = excluded.secret_hash,
-               salt_hex = excluded.salt_hex,
                created_at = excluded.created_at,
                last_seen_at = NULL,
                revoked_at = NULL",
-            params![id, fingerprint, secret.secret_hash, secret.salt_hex, now],
+            params![id, fingerprint, secret.secret_hash, now],
         )?;
         Ok(id)
     }
@@ -170,23 +178,18 @@ impl ExtensionStore {
 
     /// Vérifie qu'un secret en clair correspond à un pairing actif.
     /// Retourne l'`id` du pairing matché, ou `None` si secret invalide /
-    /// pairing révoqué.
+    /// pairing révoqué. Le hash stocké est une PHC string Argon2id ; la
+    /// migration v3 garantit qu'aucun hash SHA-256 legacy ne subsiste actif.
     pub fn verify_secret(&self, fingerprint: &str, candidate_hex: &str) -> Result<Option<String>> {
         let row = self.conn.query_row(
-            "SELECT id, secret_hash, salt_hex FROM device_pairings
+            "SELECT id, secret_hash FROM device_pairings
              WHERE fingerprint = ?1 AND revoked_at IS NULL",
             params![fingerprint],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            },
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
         );
         match row {
-            Ok((id, hash, salt)) => {
-                if PairingSecret::verify_against(&hash, &salt, candidate_hex) {
+            Ok((id, hash)) => {
+                if PairingSecret::verify_against(&hash, candidate_hex) {
                     // Met à jour `last_seen_at` (best-effort).
                     let now = Utc::now().to_rfc3339();
                     let _ = self.conn.execute(
@@ -487,6 +490,47 @@ fn _spool_default_path() -> Result<PathBuf> {
     Ok(home.join(".sobria").join("spool").join("incoming.jsonl"))
 }
 
+/// Migration v2 → v3 du schéma `device_pairings` (patch C27 v0.6.0).
+///
+/// Ancien schéma v2 : `(id, fingerprint, secret_hash[SHA-256 hex], salt_hex,
+/// created_at, last_seen_at, revoked_at)`.
+/// Nouveau schéma v3 : idem **sans** `salt_hex` ; `secret_hash` est une PHC
+/// string Argon2id auto-portante.
+///
+/// Stratégie sur base existante :
+/// 1. Détecter la présence de la colonne `salt_hex` via `PRAGMA table_info`.
+/// 2. Révoquer tous les pairings encore actifs dont `secret_hash` n'est PAS
+///    une PHC Argon2id (justifié : v0.6.0 vient de sortir, peu de pairings
+///    en prod ; obliger un re-pairing manuel est acceptable et préférable
+///    à garder un mécanisme de vérif duale fragile).
+/// 3. `ALTER TABLE ... DROP COLUMN salt_hex` (SQLite ≥ 3.35 — bundled via
+///    `rusqlite[bundled]`).
+///
+/// Sur base v3 fraîche (créée par `SCHEMA` ci-dessus), la fonction est
+/// idempotente : pas de colonne `salt_hex`, donc rien à faire.
+fn migrate_device_pairings_v3(conn: &Connection) -> Result<()> {
+    let has_salt_hex = conn
+        .prepare("PRAGMA table_info(device_pairings)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(rusqlite::Result::ok)
+        .any(|name| name == "salt_hex");
+    if !has_salt_hex {
+        return Ok(());
+    }
+    let now = Utc::now().to_rfc3339();
+    let revoked = conn.execute(
+        "UPDATE device_pairings SET revoked_at = ?1
+         WHERE revoked_at IS NULL AND secret_hash NOT LIKE '$argon2id$%'",
+        params![now],
+    )?;
+    conn.execute_batch("ALTER TABLE device_pairings DROP COLUMN salt_hex;")?;
+    tracing::info!(
+        revoked,
+        "extension_store: migration v2 → v3 (Argon2id) — pairings legacy révoqués"
+    );
+    Ok(())
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -503,6 +547,76 @@ mod tests {
         let store = ExtensionStore::open_in_memory().unwrap();
         let _ = store.list_pairings().unwrap();
         let _ = store.list_events(10, 0).unwrap();
+    }
+
+    /// Migration v2 → v3 : sur une base avec l'ancien schéma (colonne
+    /// `salt_hex`, secret_hash = SHA-256 hex), les pairings legacy doivent
+    /// être révoqués et la colonne supprimée.
+    #[test]
+    fn migration_v2_to_v3_revokes_legacy_pairings_and_drops_salt_hex() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Recrée le schéma v2 à la main (sans appeler open()).
+        conn.execute_batch(
+            r"CREATE TABLE device_pairings (
+                id TEXT PRIMARY KEY,
+                fingerprint TEXT NOT NULL,
+                secret_hash TEXT NOT NULL,
+                salt_hex TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                last_seen_at TEXT,
+                revoked_at TEXT,
+                UNIQUE(fingerprint)
+            );",
+        )
+        .unwrap();
+        // 1 pairing legacy SHA-256 (64 hex), 1 déjà migré (PHC argon2id).
+        conn.execute(
+            "INSERT INTO device_pairings(id, fingerprint, secret_hash, salt_hex, created_at)
+             VALUES ('a', 'fp-legacy', ?1, 'deadbeef', '2026-05-01T00:00:00Z')",
+            params![&"a".repeat(64)],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO device_pairings(id, fingerprint, secret_hash, salt_hex, created_at)
+             VALUES ('b', 'fp-phc',
+                     '$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHRzYWx0c2FsdA$Zm9v',
+                     'unused', '2026-05-01T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+
+        migrate_device_pairings_v3(&conn).unwrap();
+
+        // Colonne salt_hex supprimée.
+        let cols: Vec<String> = conn
+            .prepare("PRAGMA table_info(device_pairings)")
+            .unwrap()
+            .query_map([], |r| r.get::<_, String>(1))
+            .unwrap()
+            .filter_map(rusqlite::Result::ok)
+            .collect();
+        assert!(!cols.iter().any(|c| c == "salt_hex"), "salt_hex must be dropped");
+
+        // Le legacy est révoqué, le PHC reste actif.
+        let revoked_legacy: Option<String> = conn
+            .query_row(
+                "SELECT revoked_at FROM device_pairings WHERE id = 'a'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(revoked_legacy.is_some(), "legacy pairing must be revoked");
+        let revoked_phc: Option<String> = conn
+            .query_row(
+                "SELECT revoked_at FROM device_pairings WHERE id = 'b'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(revoked_phc.is_none(), "argon2id pairing must remain active");
+
+        // Idempotence : un second appel ne casse pas la base.
+        migrate_device_pairings_v3(&conn).unwrap();
     }
 
     #[test]
@@ -694,7 +808,7 @@ mod tests {
         // Le préfixe temporel (10 premiers chars) doit être croissant.
         let prefixes: Vec<&str> = ids.iter().map(|s| &s[..10]).collect();
         let mut sorted = prefixes.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         assert_eq!(prefixes, sorted, "préfixes temporels triés croissants");
     }
 }

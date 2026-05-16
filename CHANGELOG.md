@@ -51,9 +51,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - `Ping` → `{ pong: true }` (heartbeat extension).
   - `Estimate{ secret, payload }` → spool fichier append-only
     `~/.sobria/spool/incoming.jsonl` (rotation 10 MB).
-  - `Pair{ code }` / `Revoke{ secret }` retournent une erreur tant que
-    l'app desktop n'est pas joignable (POC v0.6.0 — socket forward
-    différé à v0.6.1).
+  - `Pair{ code }` / `Revoke{ secret }` forwardés en temps réel à l'app
+    via **socket forward** (Unix domain socket `/tmp/sobria-bridge.sock`
+    sur macOS/Linux, named pipe `\\.\pipe\sobria-bridge` sur Windows),
+    timeout 2 s avec fallback spool fichier si l'app n'est pas lancée.
   - Manifest template `manifest/com.sobria.bridge.json.tmpl` + README
     d'installation manuelle (macOS / Linux / Windows × Chrome / Firefox).
   - 8 tests d'intégration (`tests/protocol.rs`) couvrant lecture / EOF /
@@ -62,9 +63,11 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **Module `crates/sobria-app::pairing`** : logique pure du pairing par
   code 6 chiffres, TTL 5 min, single-use, comparaison constant-time.
   - `PendingCode::new()` — 6 chiffres random, padding zéro (ex. `042039`).
-  - `PairingSecret::new()` — 32 octets random, hash SHA-256 + sel 16
-    octets (Argon2id différé à C27.6 — le secret est un random 256-bit,
-    pas un mot de passe humain).
+  - `PairingSecret::new()` — 32 octets random (OS RNG), hash **Argon2id**
+    (PHC string, params standards), stocké tel quel dans `secret_hash`
+    (le PHC inclut le sel — plus de colonne `salt_hex` séparée).
+    Migration SQLite v3 : les pairings v2 (SHA-256+salt) sont
+    automatiquement révoqués au boot, l'utilisateur re-saisit son code.
   - `verify_code(pending, submitted, now)` — constant-time + expire-aware.
   - 14 tests unitaires.
 - **Module `crates/sobria-app::extension_store`** : persistance SQLite
@@ -99,13 +102,29 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   liste des appariements actifs avec fingerprint, dates création / vu /
   révocation, bouton X par ligne pour révoquer.
 
+### Added — Patches finaux v0.6.0 (avant tag)
+
+- **Auto-install des manifests natifs par l'app Tauri** (nouveau module
+  `crates/sobria-app/src/bridge_install.rs`) : détection des navigateurs
+  installés (Chrome, Firefox, Edge, Brave, Chromium) + écriture
+  programmatique des manifests `com.sobria.bridge.json` aux bons
+  emplacements OS (macOS / Linux / clé registre Windows). Dialog Svelte
+  `aria-modal` avec consentement explicite, toast non bloquant au premier
+  démarrage post-update. IPC `bridge_status`, `install_extension_bridge`,
+  `uninstall_extension_bridge`. Les scripts `crates/sobria-bridge/scripts/`
+  restent en fallback pour les setups custom.
+- **Socket forward temps réel bridge ↔ app** (`crates/sobria-app/src/bridge_server.rs`
+  + extension de `crates/sobria-bridge/src/lib.rs`) : Unix domain socket
+  sur macOS/Linux, named pipe sur Windows. Pair/Revoke répondent en ≤ 2 s
+  quand l'app tourne. Fallback spool fichier conservé pour le mode offline.
+
 ### Added — Documents
 
 - **ADR-0013** « WebExtension MV3 + native messaging bridge + pairing
   perso/équipe » documente la séparation Phase 1 (pairing perso v0.6.0,
   code 6 chiffres + spool fichier) vs Phase 2 (mode Équipe self-hosted
   différé à C28/v0.7.0) vs Phase 3 (SSO entreprise, multi-device, RBAC —
-  v0.8+).
+  v0.8+). Statut : **Phase 1 Implemented (v0.6.0, 2026-05-16)**.
 - **`crates/sobria-bridge/README.md`** : guide d'installation manuelle
   du manifest natif sur macOS / Linux / Windows pour Chrome / Firefox /
   Chromium / Brave / Edge.
