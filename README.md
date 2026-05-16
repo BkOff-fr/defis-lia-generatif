@@ -1,27 +1,83 @@
 # Sobr.ia
 
-> **Mesurez et comprenez l'empreinte environnementale de vos prompts LLM.**
-> Native, frugale, scientifique, open source.
+> **Sobr.ia mesure l'empreinte de vos prompts IA en local, agrège les
+> chiffres officiels des fabricants (Mistral × ADEME, Google, Meta) et
+> vous donne un journal scientifique reproductible — pour particulier,
+> équipe ou administration, sans cloud Sobr.ia.**
 >
 > *Candidat au défi data.gouv.fr — « L'impact environnemental de l'IA générative »*
 
 ---
 
-## En une phrase
+## Sobr.ia, c'est quoi ?
 
-Sobr.ia est une application **native multi-plateforme** (Tauri 2 + Rust +
-SvelteKit) qui estime, journalise et restitue l'empreinte CO₂eq, énergie
-et eau d'un usage IA générative, avec une **rigueur scientifique
-auditable** (AFNOR SPEC 2314, Monte-Carlo, audit ledger SHA-256) et un
-**angle territorial français unique** (ComparIA × RTE IRIS).
+Sobr.ia est une **application qui vous dit combien chaque prompt IA
+coûte vraiment** — en grammes de CO₂, en watts-heures, en gouttes
+d'eau, et en équivalents concrets (km de voiture, douches, minutes
+de streaming).
 
-## Différenciateurs
+Elle tourne **en 100 % local** sur votre ordinateur (Windows, macOS,
+Linux). **Aucune inscription, aucun compte, aucun envoi de prompt
+vers un serveur tiers.**
+
+Sous le capot, **deux méthodologies scientifiques** (AFNOR SPEC 2314
++ EcoLogits peer-reviewed) calculent vos chiffres, et **les
+disclosures officielles des fabricants** (Mistral × ADEME, Google
+Gemini, Meta Llama) viennent enrichir le référentiel.
+
+---
+
+## Pour qui ?
+
+Sobr.ia sert **cinq publics** distincts, avec un bundle de modules
+adapté à chacun. Vous choisissez votre profil au premier lancement
+et personnalisez ensuite librement.
+
+### 🎓 Étudiant·e / Curieux·se
+
+Comprendre l'empreinte de vos usages IA, apprendre les bons
+réflexes, suivre votre semaine.
+
+→ [Guide Étudiant·e](docs/personas/student.md)
+
+### 💻 Professionnel·le tech (dev, ML eng)
+
+Estimer, comparer, journaliser pour vos intégrations API. Audit
+SHA-256, exports JSON-LD PROV-O.
+
+→ [Guide Pro Tech](docs/personas/pro-tech.md)
+
+### 🏢 Entreprise (DSI, RSE)
+
+Piloter votre scope 3 IA, sortir un rapport CSRD, forecast budget
+carbone, agrégation équipe self-hosted.
+
+→ [Guide Entreprise](docs/personas/enterprise.md)
+
+### 🏛️ Collectivité / Service public
+
+Empreinte territoriale (IRIS RTE × ComparIA), critères de marchés
+publics frugaux, rapport AGEC.
+
+→ [Guide Service public](docs/personas/public-sector.md)
+
+### 🔬 Chercheur·se / Journaliste
+
+Datasheet Gebru, multi-méthodologie, datasets publiables,
+reproductibilité scientifique, citation DOI.
+
+→ [Guide Chercheur·se](docs/personas/researcher.md)
+
+---
+
+## Pourquoi Sobr.ia ?
 
 | 🎯 | Détail |
 |---|---|
 | **Catalogue souverain de méthodologies** | Sobr.ia v1.0 embarque **2 méthodologies scientifiques** d'estimation d'empreinte LLM (AFNOR SPEC 2314 française + EcoLogits 2026-01 peer-reviewed). L'utilisateur choisit la sienne par défaut, active les autres en référence pour comparer les résultats côté Atelier. **Aucun concurrent ne fait ça** : EcoLogits / BoaVizta / AI Energy Score sont mono-méthodologie. Cf. [ADR-0012](docs/adr/ADR-0012-multi-methodology-engine.md). |
+| **Tiers de confiance vendor disclosure** | Sobr.ia agrège les disclosures environnementales officielles publiées par les fabricants : **Mistral × ADEME** (Large 2, 1.14 gCO₂eq pour 400 tokens), **Google Gemini** (0.03 gCO₂eq prompt médian, août 2025), **Meta Llama** (training location-based / market-based). Encadrés explicites par modèle dans la Bibliothèque. |
 | **Audit chaîné SHA-256 avec méthodologie tracée** | Chaque estimation est journalisée dans un ledger ACID SQLite avec chaînage cryptographique + **méthodologie utilisée** (colonne `method`). Anti-tampering vérifiable, reproductible à la nanoseconde, filtrable par méthodologie pour reporting CSRD historique. |
-| **Territoire FR (M20)** | Cartographie des sites industriels par IRIS (RTE/NaTran/Teréga) croisée avec ComparIA. Sankey énergétique national. Différenciateur unique du défi data.gouv. |
+| **Angle territorial FR unique** | Cartographie des sites industriels par IRIS (RTE/NaTran/Teréga) croisée avec ComparIA. Sankey énergétique national. Différenciateur unique du défi data.gouv. |
 | **Datasheet Gebru** | Génération automatique du format académique standard (Gebru et al. 2018) pour reproductibilité scientifique. Adopté par NeurIPS, ICML, FAccT. |
 | **Rapport CSRD/AGEC** | Export PDF officiel + JSON-LD PROV-O signé SHA-256, prêt pour reporting réglementaire UE. |
 | **Privacy by design** | Tout en local. Zéro télémétrie, zéro tracking, zéro appel réseau au runtime. RGPD : droit à l'oubli implémenté avec préservation de la chaîne d'audit. |
@@ -49,30 +105,30 @@ Détails complets : [`docs/methodology/`](docs/methodology/), [ADR-0012](docs/ad
 ## 13 modules essentiels (v1.0)
 
 ### 🏆 Cœur méthodologique & transparence
-- **M1 — Estimer un prompt** : moteur Monte-Carlo + UI unitaire
-- **M7 — Journal d'audit** : ledger chaîné SHA-256, anti-tampering
-- **M9 — Référentiel modèles** : 8 modèles avec triplets P5/P50/P95
-- **M8 — Méthodologie interactive** : doc embarquée
-- **M14 — À propos** : licences, sources, mentions
+- **Estimer un prompt** : moteur Monte-Carlo + UI unitaire
+- **Journal d'audit** : ledger chaîné SHA-256, anti-tampering
+- **Bibliothèque de modèles** : 8 modèles avec triplets P5/P50/P95 + encadrés vendor disclosure (Mistral, Google, Meta)
+- **Comment ça marche (méthodologie)** : doc embarquée
+- **À propos** : licences, sources, mentions
 
 ### 🇫🇷 Angle territorial unique
-- **M20 — Territoire FR** : IRIS + Sankey énergétique (RTE eco2mix)
-- **M12 — Datacenters Europe** : 28 DC carte Leaflet + drill-down 24h
+- **Territoire FR** : IRIS + Sankey énergétique (RTE eco2mix)
+- **Datacenters Europe** : 28 DC carte Leaflet + drill-down 24h
 
 ### 💼 Use cases pros & chercheurs
-- **M22 — Rapport CSRD/AGEC** : PDF + JSON-LD PROV-O conforme SPEC 2314
-- **M17 — Empreinte projet** : datasheet Gebru 2018 (reproductibilité)
-- **M3 — Comparer modèles** : benchmark côte-à-côte 3 indicateurs
+- **Rapport réglementaire (CSRD/AGEC)** : PDF + JSON-LD PROV-O conforme SPEC 2314
+- **Datasheet scientifique** : datasheet Gebru 2018 (reproductibilité)
+- **Comparer modèles** : benchmark côte-à-côte 3 indicateurs
 
 ### 🎓 Pédagogie & rétention
-- **M13 — Simulateur « Et si...? »** : 7 leviers, waterfall, projection 12 mois
-- **M15 — Dashboard personnel** : agrégat jour/semaine/mois
-- **M25 — Eco-budget** : objectifs personnels + alerte dépassement
+- **Simulateur « Et si...? »** : 7 leviers, waterfall, projection 12 mois
+- **Tableau de bord** : agrégat jour/semaine/mois
+- **Eco-budget** : objectifs personnels + alerte dépassement
 
-**Différé v1.1+** : M2 Workbench · M5 Rapports génériques · M6 Géoloc unitaire · M10 Import logs · M16 Forecaster UI · M18 Batch CSV UI · M21 Alertes · M23 Marchés publics · M24 Apprendre.
+**Différé v1.1+** : Workbench multi-prompts · Rapports génériques · Géoloc unitaire · Import logs · Forecaster UI · Batch CSV UI · Alertes · Marchés publics · Apprendre.
 
-**M11 Extension navigateur** : livrée en v0.6.0 (cf. ci-dessous).
-**M19 Équipe** : Mode Équipe self-hosted livré en v0.7.0, polish v0.7.1 (cf. ci-dessous).
+**Extension navigateur** : livrée en v0.6.0 (cf. ci-dessous).
+**Mode Équipe** : self-hosted livré en v0.7.0, polish v0.7.1 (cf. ci-dessous).
 
 ## Extension navigateur (v0.6.0)
 
@@ -153,22 +209,6 @@ multi-stage dans [`crates/sobria-team-aggregator/Dockerfile`](crates/sobria-team
 
 Architecture : [ADR-0013 Phase 2](docs/adr/ADR-0013-extension-pairing-team-mode.md)
 · brief : [`briefs/chantiers/C28-mode-equipe-self-hosted.md`](briefs/chantiers/C28-mode-equipe-self-hosted.md).
-
-## Personas et bundles
-
-L'app sert **5 publics** aux exigences distinctes. Au premier lancement,
-un wizard d'onboarding propose 5 personas avec bundles pré-cochés
-(activables/désactivables individuellement) :
-
-| Persona | Bundle par défaut |
-|---|---|
-| 🎓 Étudiant·e | M1, M8, M13, M14, M15, M25 |
-| 🧑‍💻 Pro tech | M1, M3, M7, M8, M9, M13, M14 |
-| 🏢 Entreprise | M1, M7, M12, M14, M15, M17, M20, M22, M25 |
-| 🏛️ Collectivité | M1, M8, M12, M14, M17, M20, M22 |
-| 🔬 Chercheur·se | M1, M3, M7, M8, M9, M14, M17 |
-
-Cf. [ADR-0010](docs/adr/ADR-0010-personas-and-module-gating.md).
 
 ## Stack technique
 
@@ -270,6 +310,8 @@ Si vous utilisez Sobr.ia dans un travail académique :
 }
 ```
 
+*Un DOI Zenodo sera publié avec la release v0.8.0 (cf. C32.5).*
+
 ---
 
-*Sobr.ia — Made in France · Privacy by design · v0.6.0 (C27 extension navigateur + pairing perso)*
+*Sobr.ia — Made in France · Privacy by design*
