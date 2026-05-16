@@ -309,7 +309,6 @@
                   {/if}
                 </span>
                 <span class="module-body">
-                  <span class="module-id mono">{m.toUpperCase()}</span>
                   <span class="module-label">{moduleLabel(m)}</span>
                   <span class="module-desc">{moduleDescription(m)}</span>
                 </span>
@@ -356,7 +355,6 @@
                       {/if}
                     </span>
                     <span class="module-body">
-                      <span class="module-id mono">{m.toUpperCase()}</span>
                       <span class="module-label">{moduleLabel(m)}</span>
                       <span class="module-desc">{moduleDescription(m)}</span>
                     </span>
@@ -944,21 +942,11 @@
     box-shadow: 0 0 0 3px rgba(197, 240, 74, 0.3);
   }
   .module-body {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px 10px;
-    align-items: baseline;
-  }
-  .module-id {
-    font-size: 11px;
-    color: var(--ivory-4);
-    letter-spacing: 0.08em;
-    grid-row: 1;
-    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .module-label {
-    grid-row: 1;
-    grid-column: 2;
     font: 500 14px/1.25 var(--font-ui);
     color: var(--ivory);
   }
@@ -966,9 +954,6 @@
     color: var(--lime);
   }
   .module-desc {
-    grid-row: 2;
-    grid-column: 1 / -1;
-    margin-top: 4px;
     font: 400 12px/1.45 var(--font-ui);
     color: var(--ivory-3);
   }

@@ -194,7 +194,7 @@
 </script>
 
 <svelte:head>
-  <title>Sobr.ia · Référentiel modèles</title>
+  <title>Sobr.ia · Bibliothèque de modèles</title>
 </svelte:head>
 
 <div class="canvas-inner">
@@ -202,7 +202,7 @@
   <div class="topbar">
     <nav class="breadcrumb" aria-label="Fil d'Ariane">
       Pédagogie <span class="sep">/</span>
-      <span class="current">Référentiel modèles</span>
+      <span class="current">Bibliothèque de modèles</span>
     </nav>
     <div class="spacer"></div>
     <span class="local-pill">

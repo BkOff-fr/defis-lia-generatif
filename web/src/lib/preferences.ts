@@ -238,7 +238,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
   },
   m9: {
     id: 'm9',
-    label: 'Référentiel modèles',
+    label: 'Bibliothèque de modèles',
     description: 'Catalogue des 25+ modèles couverts et leurs sources.',
     category: 'pedagogie',
     href: '/m9'
@@ -295,7 +295,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
   },
   m17: {
     id: 'm17',
-    label: 'Empreinte projet',
+    label: 'Datasheet scientifique',
     description: 'Bilan complet pour reproductibilité scientifique.',
     category: 'reporting',
     href: '/m17'
@@ -330,7 +330,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
   },
   m22: {
     id: 'm22',
-    label: 'Rapport CSRD / AGEC',
+    label: 'Rapport réglementaire (CSRD/AGEC)',
     description: 'PDF signé + bundle PROV-O conforme aux normes.',
     category: 'reporting',
     href: '/rapport-csrd'

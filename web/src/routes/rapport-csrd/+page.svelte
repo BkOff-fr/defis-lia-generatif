@@ -224,7 +224,7 @@
 </script>
 
 <svelte:head>
-  <title>Sobr.ia · Rapport CSRD / AGEC</title>
+  <title>Sobr.ia · Rapport réglementaire (CSRD/AGEC)</title>
 </svelte:head>
 
 <div class="canvas-inner">
@@ -232,7 +232,7 @@
   <div class="topbar">
     <nav class="breadcrumb" aria-label="Fil d'Ariane">
       Atelier <span class="sep">/</span>
-      <span class="current">Rapport CSRD / AGEC</span>
+      <span class="current">Rapport réglementaire (CSRD/AGEC)</span>
     </nav>
     <div class="spacer"></div>
     <span class="local-pill">

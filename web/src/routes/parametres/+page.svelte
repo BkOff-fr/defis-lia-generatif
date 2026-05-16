@@ -728,7 +728,6 @@
                       <Check size={11} strokeWidth={2.5} />
                     </span>
                     <span class="module-body">
-                      <span class="module-id mono">{m.toUpperCase()}</span>
                       <span class="module-label">{moduleLabel(m)}</span>
                       <span class="module-desc">{moduleDescription(m)}</span>
                     </span>
@@ -766,7 +765,6 @@
               />
               <span class="check-box" aria-hidden="true"></span>
               <span class="module-body">
-                <span class="module-id mono">{m.toUpperCase()}</span>
                 <span class="module-label">{moduleLabel(m)}</span>
                 <span class="module-desc">{moduleDescription(m)}</span>
               </span>
@@ -796,7 +794,6 @@
             <div class="module-line is-deferred" data-module={m}>
               <span class="check-box deferred" aria-hidden="true">v1.1</span>
               <span class="module-body">
-                <span class="module-id mono">{m.toUpperCase()}</span>
                 <span class="module-label">{moduleLabel(m)}</span>
                 <span class="module-desc">{moduleDescription(m)}</span>
               </span>
@@ -1923,28 +1920,18 @@
     margin-top: 4px;
   }
   .module-body {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 6px 10px;
-    align-items: baseline;
-  }
-  .module-id {
-    font-size: 10px;
-    color: var(--ivory-4);
-    letter-spacing: 0.08em;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
   .module-label {
     font: 500 13px/1.2 var(--font-ui);
     color: var(--ivory);
-    grid-column: 2;
   }
   .module-line[data-checked='true'] .module-label {
     color: var(--lime);
   }
   .module-desc {
-    grid-row: 2;
-    grid-column: 1 / -1;
-    margin-top: 2px;
     font: 400 11px/1.4 var(--font-ui);
     color: var(--ivory-3);
   }

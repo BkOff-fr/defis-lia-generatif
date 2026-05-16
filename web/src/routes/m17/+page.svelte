@@ -580,7 +580,7 @@
 </script>
 
 <svelte:head>
-  <title>Sobr.ia · Empreinte projet</title>
+  <title>Sobr.ia · Datasheet scientifique</title>
 </svelte:head>
 
 <div class="canvas-inner">
@@ -588,7 +588,7 @@
   <div class="topbar">
     <nav class="breadcrumb" aria-label="Fil d'Ariane">
       Atelier <span class="sep">/</span>
-      <span class="current">Empreinte projet</span>
+      <span class="current">Datasheet scientifique</span>
     </nav>
     <div class="spacer"></div>
     <span class="local-pill">

@@ -21,7 +21,7 @@ import { expect, test } from '@playwright/test';
 test('Rapport CSRD/AGEC : refuse de servir un PDF mocké hors contexte Tauri', async ({ page }) => {
   await page.goto('/rapport-csrd');
 
-  await expect(page).toHaveTitle(/Rapport CSRD/);
+  await expect(page).toHaveTitle(/Rapport réglementaire \(CSRD\/AGEC\)/);
   await expect(
     page.getByRole('heading', { name: /Un rapport.*conforme.*prêt à signer/i })
   ).toBeVisible();

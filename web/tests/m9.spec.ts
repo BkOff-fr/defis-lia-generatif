@@ -22,7 +22,7 @@ test('Référentiel modèles : refuse de servir un catalogue mocké hors context
 }) => {
   await page.goto('/m9');
 
-  await expect(page).toHaveTitle(/Référentiel modèles/);
+  await expect(page).toHaveTitle(/Bibliothèque de modèles/);
   await expect(
     page.getByRole('heading', { name: /chiffres derrière.*chaque modèle/i })
   ).toBeVisible();

@@ -28,7 +28,7 @@ test('Empreinte projet : refuse de servir des projets ou un datasheet mocké hor
 }) => {
   await page.goto('/m17');
 
-  await expect(page).toHaveTitle(/Empreinte projet/);
+  await expect(page).toHaveTitle(/Datasheet scientifique/);
 
   // Hero h1 (italic "publie")
   await expect(page.getByRole('heading', { name: /Documente.*publie.*reproduis/i })).toBeVisible();

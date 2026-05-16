@@ -130,12 +130,17 @@
   const itemsIO: RailItem[] = [
     { label: 'Datacenters Europe', icon: Server, href: '/datacenters', moduleId: 'm12' },
     { label: 'Territoire FR', icon: Globe, href: '/territoire', moduleId: 'm20' },
-    { label: 'Empreinte projet', icon: FlaskConical, href: '/m17', moduleId: 'm17' },
-    { label: 'Rapport CSRD/AGEC', icon: FileText, href: '/rapport-csrd', moduleId: 'm22' }
+    { label: 'Datasheet scientifique', icon: FlaskConical, href: '/m17', moduleId: 'm17' },
+    {
+      label: 'Rapport réglementaire (CSRD/AGEC)',
+      icon: FileText,
+      href: '/rapport-csrd',
+      moduleId: 'm22'
+    }
   ];
   const itemsAudit: RailItem[] = [
     { label: "Journal d'audit", icon: ShieldCheck, href: '/journal', moduleId: 'm7' },
-    { label: 'Référentiel modèles', icon: Library, href: '/m9', moduleId: 'm9' },
+    { label: 'Bibliothèque de modèles', icon: Library, href: '/m9', moduleId: 'm9' },
     // Polish B — désambiguïsation des routes méthodologie :
     // `/methodo` = doc explicative de la méthodologie (cours, formules)
     // `/methodologies` = catalogue de choix utilisateur (settings global)
