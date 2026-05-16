@@ -33,6 +33,10 @@ pub enum AggregatorError {
     /// Le data dir existe déjà et la commande `init` a été appelée sans `--force`.
     #[error("data dir déjà initialisé : {0} (utiliser `--force` pour réinitialiser)")]
     AlreadyInitialized(String),
+
+    /// Erreur interne (validations métier, format inattendu, etc.).
+    #[error("erreur interne : {0}")]
+    Internal(String),
 }
 
 /// Alias pratique pour les chemins fallibles internes.

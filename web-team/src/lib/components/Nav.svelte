@@ -11,7 +11,8 @@
   const adminLinks: Link[] = [
     { href: '/admin/dashboard', label: 'Dashboard' },
     { href: '/admin/codes', label: 'Codes' },
-    { href: '/admin/users', label: 'Employés' }
+    { href: '/admin/users', label: 'Employés' },
+    { href: '/admin/alerts', label: 'Alertes' }
   ];
   const userLinks: Link[] = [{ href: '/user/dashboard', label: 'Mon usage' }];
 

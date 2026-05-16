@@ -1,5 +1,6 @@
 //! Routes admin `/api/v1/admin/*`. Toutes exigent `AuthenticatedAdmin`.
 
+pub mod alerts;
 pub mod analytics;
 pub mod codes;
 pub mod exports;
@@ -22,4 +23,8 @@ pub fn router() -> Router<ServerState> {
         .route("/exports/csrd", post(exports::handle_csrd))
         .route("/exports/prov-o", post(exports::handle_provo))
         .route("/exports/csv", post(exports::handle_csv))
+        // C29.4 — alertes seuils
+        .route("/alerts", get(alerts::handle_list).post(alerts::handle_create))
+        .route("/alerts/:id", delete(alerts::handle_delete))
+        .route("/alerts/triggers", get(alerts::handle_triggers))
 }

@@ -22,6 +22,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
+use crate::alerts::{self, store::mark_trigger_notified};
 use crate::server::auth::middleware::AuthenticatedUser;
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
@@ -124,6 +125,37 @@ pub async fn handle(
     };
     estimations::insert(storage.connection(), &new_estimation)?;
     let _ = users::touch_last_seen(storage.connection(), &user.claims.sub, now);
+
+    // C29.4 — vérification des seuils d'alerte applicables à ce user
+    // (incluant les seuils team). Les events détectés sont insérés en base
+    // sous le lock ; la notification asynchrone tourne ensuite hors lock.
+    let events = alerts::check_thresholds_for_user(storage.connection(), &user.claims.sub, now)
+        .map_err(|e| {
+            tracing::warn!(error = %e, "alerts: check échoué — ack quand même");
+            e
+        })
+        .unwrap_or_default();
+    // Snapshot SMTP avant de drop le lock.
+    let smtp_cfg = alerts::notify::read_smtp_config(&storage);
+    drop(storage);
+
+    if !events.is_empty() {
+        let state_for_persist = state.clone();
+        tokio::spawn(async move {
+            for ev in events {
+                let outcome = alerts::notify::notify(&ev, smtp_cfg.clone()).await;
+                let Ok(s) = state_for_persist.storage.lock() else {
+                    continue;
+                };
+                let _ = mark_trigger_notified(
+                    s.connection(),
+                    &ev.trigger_id,
+                    Utc::now(),
+                    outcome.error.as_deref(),
+                );
+            }
+        });
+    }
 
     Ok(Json(EstimateAck { id, ack: true }))
 }

@@ -8,6 +8,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod alerts;
 pub mod cli;
 pub mod commands;
 pub mod config;
