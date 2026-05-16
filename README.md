@@ -69,9 +69,10 @@ Détails complets : [`docs/methodology/`](docs/methodology/), [ADR-0012](docs/ad
 - **M15 — Dashboard personnel** : agrégat jour/semaine/mois
 - **M25 — Eco-budget** : objectifs personnels + alerte dépassement
 
-**Différé v1.1+** : M2 Workbench · M5 Rapports génériques · M6 Géoloc unitaire · M10 Import logs · M16 Forecaster UI · M18 Batch CSV UI · M19 Équipe · M21 Alertes · M23 Marchés publics · M24 Apprendre.
+**Différé v1.1+** : M2 Workbench · M5 Rapports génériques · M6 Géoloc unitaire · M10 Import logs · M16 Forecaster UI · M18 Batch CSV UI · M21 Alertes · M23 Marchés publics · M24 Apprendre.
 
 **M11 Extension navigateur** : livrée en v0.6.0 (cf. ci-dessous).
+**M19 Équipe** : Mode Équipe self-hosted livré en v0.7.0 (cf. ci-dessous).
 
 ## Extension navigateur (v0.6.0)
 
@@ -103,6 +104,47 @@ Architecture : [ADR-0013](docs/adr/ADR-0013-extension-pairing-team-mode.md)
 · installation manifest natif : [`crates/sobria-bridge/README.md`](crates/sobria-bridge/README.md).
 
 Cf. [ADR-0011](docs/adr/ADR-0011-reduction-perimetre-v1-0.md) pour la justification de la réduction de périmètre.
+
+## Mode Équipe self-hosted (v0.7.0)
+
+Pour les TPE/PME et DSI qui veulent **agréger les estimations de leurs N
+employés sans cloud externe**. Un binaire Rust standalone
+`sobria-team-aggregator` (~15 MB) se déploie sur poste admin / NAS /
+VPS interne et expose :
+
+- **Dashboard admin** (Svelte embedded, 201 KB) : analytics agrégés
+  (séries quotidiennes/hebdo/mensuelles, top modèles, top employés
+  anonymisables, breakdown AFNOR vs EcoLogits, 4 cards KPI), gestion
+  des **enrollment codes** 12 chiffres (création / révocation),
+  liste des employés enrôlés avec leurs totaux.
+- **Dashboard employé perso** : son usage personnel + transparence
+  (« ce qui est partagé / ce qui ne l'est jamais »).
+- **API REST** `/api/v1/*` (JWT HS256 24h + refresh 7j Argon2id, TLS
+  auto-signé via rcgen + ring, pas d'OpenSSL).
+- **Exports** CSRD PDF (réutilise la chaîne `sobria-export`), PROV-O
+  JSON-LD avec per-user agents anonymisables, CSV brut RFC 4180.
+- **Extension + app desktop** étendues : section « Mode Équipe » dans
+  les Options avec dispatch radio (`local | team | both`).
+
+**Aucun cloud Sobr.ia n'est impliqué** — votre entreprise contrôle
+son serveur et ses données.
+
+Quickstart :
+
+```bash
+chmod +x sobria-team-aggregator-linux-x86_64
+./sobria-team-aggregator --data-dir ./team-data init \
+    --admin-username admin --admin-password 'CHANGE-ME'
+./sobria-team-aggregator --data-dir ./team-data serve --port 8443
+```
+
+Doc complète : [`docs/operations/team-aggregator.md`](docs/operations/team-aggregator.md)
+(quickstart, TPE/PME systemd, DSI reverse proxy + Let's Encrypt,
+sauvegardes SQLite, upgrade, troubleshooting). Bonus : Dockerfile
+multi-stage dans [`crates/sobria-team-aggregator/Dockerfile`](crates/sobria-team-aggregator/Dockerfile).
+
+Architecture : [ADR-0013 Phase 2](docs/adr/ADR-0013-extension-pairing-team-mode.md)
+· brief : [`briefs/chantiers/C28-mode-equipe-self-hosted.md`](briefs/chantiers/C28-mode-equipe-self-hosted.md).
 
 ## Personas et bundles
 

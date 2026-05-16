@@ -1,0 +1,12 @@
+# Évite d'envoyer node_modules + targets dans le contexte build Docker.
+target
+**/node_modules
+**/.svelte-kit
+**/build
+team-data
+.git
+.github
+docs
+briefs
+*.log
+.DS_Store

@@ -1,0 +1,137 @@
+# Sobr.ia — release pipeline pour `sobria-team-aggregator` (C28.7).
+#
+# Trigger : tag `v*.*.*`. Build matrix Linux/macOS/Windows, build du
+# frontend web-team/ avec npm, puis cargo build --release du binaire
+# (rust-embed embarque web-team/build/ au compile time). Upload des
+# artefacts sur la GitHub Release.
+
+name: team-aggregator-release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.os.label }}
+    runs-on: ${{ matrix.os.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - label: linux-x86_64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            suffix: ''
+          - label: macos-arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            suffix: ''
+          - label: windows-x86_64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            suffix: .exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web-team/package-lock.json
+
+      - name: Build frontend web-team
+        run: |
+          cd web-team
+          npm ci
+          npm run build
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.os.target }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.os.target }} -p sobria-team-aggregator
+
+      - name: Stage artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET="sobria-team-aggregator-${{ matrix.os.label }}${{ matrix.os.suffix }}"
+          mkdir -p dist
+          cp "target/${{ matrix.os.target }}/release/sobria-team-aggregator${{ matrix.os.suffix }}" "dist/${ASSET}"
+          # SHA256 sidecar.
+          if [[ "${{ matrix.os.label }}" == "windows-x86_64" ]]; then
+            powershell -Command "Get-FileHash -Algorithm SHA256 dist/${ASSET} | Format-List" > "dist/${ASSET}.sha256"
+          else
+            shasum -a 256 "dist/${ASSET}" > "dist/${ASSET}.sha256"
+          fi
+          ls -lh dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sobria-team-aggregator-${{ matrix.os.label }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: publish GitHub release
+    needs: build
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten artifacts
+        run: |
+          find dist -type f -exec mv {} dist/ \;
+          find dist -type d -empty -delete
+          ls -lh dist/
+
+      - name: Create / update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            Binaires `sobria-team-aggregator` pour ${{ github.ref_name }}.
+
+            **Quickstart** :
+            ```bash
+            chmod +x sobria-team-aggregator-linux-x86_64
+            ./sobria-team-aggregator-linux-x86_64 --data-dir ./team-data init
+            ./sobria-team-aggregator-linux-x86_64 --data-dir ./team-data serve
+            ```
+
+            Voir [docs/operations/team-aggregator.md](docs/operations/team-aggregator.md)
+            pour la procédure complète (TPE/PME, DSI, reverse proxy,
+            Docker, troubleshooting). Aucun cloud Sobr.ia n'est impliqué.
+
+            Image Docker (bonus) :
+            `docker build -t sobria-team-aggregator -f crates/sobria-team-aggregator/Dockerfile .`

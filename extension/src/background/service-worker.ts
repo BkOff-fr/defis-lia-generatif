@@ -32,7 +32,7 @@ import type {
 } from '../lib/messages.js';
 
 self.addEventListener('install', () => {
-  console.info('[sobria] service worker installé (v0.6.0)');
+  console.info('[sobria] service worker installé (v0.7.0)');
 });
 
 self.addEventListener('activate', () => {

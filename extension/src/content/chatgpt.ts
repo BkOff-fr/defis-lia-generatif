@@ -125,7 +125,7 @@ function tryInjectComposerIndicator(): void {
     console.info('[sobria] ChatGPT désactivé via options — skip.');
     return;
   }
-  console.info('[sobria] content script ChatGPT chargé (v0.6.0, design 38)');
+  console.info('[sobria] content script ChatGPT chargé (v0.7.0, design 38)');
 
   // Indicateur composer initial + re-injection sur changement de DOM.
   tryInjectComposerIndicator();
