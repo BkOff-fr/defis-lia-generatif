@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="./options.css" />
   </head>
   <body>
-    <main class="options" data-sobria-version="0.6.0">
+    <main class="options" data-sobria-version="0.7.0">
       <header class="options__header">
         <div class="options__brand">
           <img class="options__mark" src="/icons/mark.svg" alt="" aria-hidden="true" />
           <h1 class="options__title"><em>Sobr.ia</em> · réglages</h1>
         </div>
-        <span class="options__version">v0.6.0</span>
+        <span class="options__version">v0.7.0</span>
       </header>
 
       <!-- Pairing app (C27.5) -->
@@ -82,6 +82,129 @@
               continue à fonctionner en mode standalone (100 % local).
             </p>
           </div>
+        </div>
+      </section>
+
+      <!-- Mode Équipe self-hosted (C28.6) -->
+      <section class="section">
+        <h2 class="section__title">Mode Équipe (self-hosted)</h2>
+        <p class="section__intro">
+          Si votre entreprise déploie le binaire <code>sobria-team-aggregator</code> en
+          interne, vous pouvez y envoyer vos estimations en plus (ou à la place) de votre
+          app desktop personnelle. <strong>Aucune donnée ne passe par Sobr.ia.</strong>
+          Voir
+          <a href="https://github.com/sobria/sobria" target="_blank" rel="noopener"
+            >la doc déploiement</a
+          >.
+        </p>
+
+        <div class="team-status" id="team-status" data-state="loading">
+          <span class="pairing-dot" aria-hidden="true"></span>
+          <span class="team-status__label">Chargement…</span>
+        </div>
+
+        <!-- Configuration URL serveur + ping -->
+        <div class="pairing-pane" id="team-config">
+          <label for="team-url-input" class="form-label">URL HTTPS du serveur équipe</label>
+          <div class="pairing-input-row">
+            <input
+              type="url"
+              id="team-url-input"
+              placeholder="https://team.exemple.fr:8443"
+              class="pairing-input"
+            />
+            <button type="button" class="btn btn--secondary" id="team-ping-btn">
+              Vérifier
+            </button>
+          </div>
+          <p class="callout callout--info" style="margin-top: 12px">
+            <span class="callout__icon" aria-hidden="true">ℹ️</span>
+            <span class="callout__body">
+              <strong>Certificat auto-signé</strong> : visitez d'abord cette URL dans un
+              autre onglet et acceptez l'avertissement de sécurité. Le navigateur
+              mémorisera votre consentement et l'extension pourra dialoguer avec le
+              serveur. Si votre admin a installé un certificat reconnu (Let's Encrypt,
+              CA interne), aucune étape supplémentaire n'est nécessaire.
+            </span>
+          </p>
+          <p class="pairing-pane__error" id="team-ping-error" aria-live="polite"></p>
+        </div>
+
+        <!-- État : non enrôlé → formulaire enrollment -->
+        <div class="pairing-pane" id="team-enroll-form" hidden>
+          <h3 style="margin: 16px 0 4px; font-size: 14px">S'enrôler avec un code</h3>
+          <p class="pairing-pane__hint">
+            Votre admin vous a remis un code à 12 chiffres. Choisissez un mot de passe
+            (≥ 8 caractères) pour pouvoir vous reconnecter au dashboard.
+          </p>
+          <label for="team-code-input" class="form-label">Code à 12 chiffres</label>
+          <input
+            type="text"
+            id="team-code-input"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="12"
+            pattern="\d{12}"
+            placeholder="123456789012"
+            class="pairing-input"
+          />
+          <label for="team-displayname-input" class="form-label">Nom affiché (optionnel)</label>
+          <input
+            type="text"
+            id="team-displayname-input"
+            placeholder="Alice"
+            class="pairing-input"
+          />
+          <label for="team-password-input" class="form-label">Mot de passe (≥ 8 caractères)</label>
+          <input
+            type="password"
+            id="team-password-input"
+            autocomplete="new-password"
+            minlength="8"
+            class="pairing-input"
+          />
+          <button type="button" class="btn btn--primary" id="team-enroll-btn" style="margin-top: 8px">
+            M'enrôler
+          </button>
+          <p class="pairing-pane__error" id="team-enroll-error" aria-live="polite"></p>
+        </div>
+
+        <!-- État : enrôlé -->
+        <div class="pairing-pane" id="team-info" hidden>
+          <dl class="pairing-info">
+            <dt>Serveur</dt>
+            <dd><code id="team-info-url">—</code></dd>
+            <dt>User ID</dt>
+            <dd><code id="team-info-user-id">—</code></dd>
+            <dt>Fingerprint</dt>
+            <dd><code id="team-info-fingerprint">—</code></dd>
+            <dt>Enrôlé depuis</dt>
+            <dd id="team-info-since">—</dd>
+          </dl>
+
+          <h3 style="margin: 16px 0 4px; font-size: 14px">Dispatch des estimations</h3>
+          <p class="pairing-pane__hint">
+            Choisissez où vos estimations remontent. « Les deux » est utile pendant la
+            transition vers le serveur équipe.
+          </p>
+          <div class="team-mode-row" role="radiogroup" aria-label="Dispatch estimations">
+            <label class="team-mode">
+              <input type="radio" name="team-mode" value="local" />
+              <span>Local seul (app desktop)</span>
+            </label>
+            <label class="team-mode">
+              <input type="radio" name="team-mode" value="team" />
+              <span>Mode Équipe seul</span>
+            </label>
+            <label class="team-mode">
+              <input type="radio" name="team-mode" value="both" />
+              <span>Les deux</span>
+            </label>
+          </div>
+
+          <button type="button" class="btn btn--danger" id="team-logout-btn" style="margin-top: 12px">
+            Me déconnecter (efface les tokens)
+          </button>
         </div>
       </section>
 
@@ -160,7 +283,7 @@
       <section class="section">
         <h2 class="section__title">Méthodologie</h2>
         <p class="section__intro">
-          Deux méthodologies embarquées en v0.6.0 : <strong>AFNOR SPEC 2314</strong> (référentiel
+          Deux méthodologies embarquées en v0.7.0 : <strong>AFNOR SPEC 2314</strong> (référentiel
           français) et <strong>EcoLogits 2026-01</strong> (peer-reviewed JOSS 2025). Le choix se
           fait depuis la popup. Sources et formules détaillées dans l'app desktop /methodologies.
         </p>
@@ -197,7 +320,7 @@
         <h2 class="section__title">À propos</h2>
         <dl class="about-list">
           <dt>Version</dt>
-          <dd>0.6.0 (C27 — extension WebExtension MV3)</dd>
+          <dd>0.7.0 (C27 — extension WebExtension MV3)</dd>
           <dt>Licence</dt>
           <dd>MIT</dd>
           <dt>Source</dt>

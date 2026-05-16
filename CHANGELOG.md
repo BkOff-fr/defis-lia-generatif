@@ -5,6 +5,290 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.7.1] — 2026-05-16 — Polish Mode Équipe (C29)
+
+> Patch release qui ferme les 4 manques honnêtement notés en C28 :
+> UI Mode Équipe côté app Tauri (les 8 IPC `team_*` étaient prêts mais
+> non câblés au front), reset-password admin, rotation TLS, et alertes
+> seuils CSRD. Voir `briefs/chantiers/C29-v0.7.1-polish-mode-equipe.md`
+> et `docs/operations/team-aggregator.md` § « Opérations courantes ».
+
+### Added — C29.1 UI Mode Équipe (app Tauri)
+
+- **Backend Rust non-breaking** : `team_settings::TeamStatus` étendu avec
+  `last_seen_at: Option<String>` et `estimations_sent: u32`. Les IPC
+  `team_ping` et `team_push_estimation` mettent à jour ces champs sur
+  succès. 5 nouveaux unit tests + tests étendus (244 tests `sobria-app`).
+- **TypeScript** : 7 wrappers IPC + types dans `web/src/lib/api.ts`
+  (`TeamMode`, `TeamStatusDto`, `TeamHealthResponseDto`,
+  `TeamEnrollResponseDto`).
+- **Store** `web/src/lib/team-store.ts` : `writable<TeamState>` typé +
+  `loadTeam()` + `saveTeamField()` optimistic + rollback.
+- **Section UI** « Mode Équipe self-hosted » dans `/parametres` entre
+  Extension navigateur et Runtime — 4 sous-blocs : Statut (pill
+  lime/ambre/coral), Configuration (URL + toggle cert auto-signé),
+  Enrôlement (code 12 chiffres + password 8+ + display name), Dispatcher
+  (radios Local/Équipe/Les deux). 2 tests Playwright no-mock verts.
+- **Fingerprint éphémère** par session : `crypto.randomUUID()` côté UI,
+  persistance côté Rust après `/enroll`.
+
+### Added — C29.2 CLI admin reset-password + list
+
+- Nouvelle sous-commande `admin {list, reset-password}` dans
+  `sobria-team-aggregator`.
+- **`reset-password`** : prompt double via `rpassword`, hash Argon2id PHC,
+  `last_login_at = NULL`, révocation de **TOUS** les tokens admin actifs.
+  Affiche « Mot de passe de X réinitialisé. N token(s) révoqué(s). ».
+- **`list`** : table `id | username | created_at | last_login_at`.
+- Storage helpers : `admins::list_all`, `admins::set_password_hash`,
+  `tokens::revoke_all_for_admin`. 4 unit tests + 2 integration tests
+  (`tests/cli_admin.rs`).
+
+### Added — C29.3 Rotation TLS (`serve --regen-cert`)
+
+- Nouveau flag `serve --regen-cert` : avant de bind, sauvegarde
+  `cert.pem` + `key.pem` en `*.pem.bak.<unix_ts>` puis régénère via
+  `rcgen` (mêmes SANs `localhost`/`127.0.0.1`/`::1` + hostname OS,
+  validité 10 ans). Affiche l'empreinte SHA-256 du nouveau cert.
+- Helpers `crypto::tls::regen_self_signed` + `cert_fingerprint_sha256`.
+- 4 unit tests + 2 integration tests (`tests/regen_cert.rs`).
+- **`docs/operations/team-aggregator.md`** enrichi : nouvelle section
+  « Opérations courantes » avec « Rotation TLS » détaillée + reset
+  password admin + configuration des alertes (webhook + SMTP).
+
+### Added — C29.4 Alertes seuils (CSRD)
+
+- **Migration SQLite v2** dans `storage/schema.rs` (idempotente,
+  pilotée par `PRAGMA user_version`) :
+  - `alert_thresholds` (id ULID, scope user|team, target_id?, period
+    daily|weekly|monthly, gco2eq_max, notify_kind webhook|email|log_only,
+    notify_target?, created_by_admin_id, created_at, disabled_at) avec
+    CHECK XOR sur (scope, target_id).
+  - `alert_triggers` (id, threshold_id, period_start, period_end,
+    observed_gco2eq, triggered_at, notified_at, notify_error) avec
+    UNIQUE sur `(threshold_id, period_start)` — garantit **1 trigger
+    par période** même sous concurrence.
+- **Module `src/alerts/`** :
+  - `periods.rs` — bornes UTC pour daily / weekly ISO / monthly,
+    leap year safe. 7 unit tests.
+  - `store.rs` — CRUD typé sur les 2 tables, validations métier
+    (scope/target cohérent, notify_kind/notify_target cohérent,
+    gco2eq_max > 0). 5 unit tests.
+  - `checker.rs` — `check_thresholds_for_user(conn, user_id, now)` :
+    liste seuils actifs (user + team), calcule l'observé, insère
+    trigger si dépassement (UNIQUE protège contre re-déclenchement).
+    4 unit tests.
+  - `notify.rs` — `notify(event, smtp_cfg).await` :
+    - **webhook** : POST JSON `reqwest` 5s timeout, payload documenté.
+    - **email** : `lettre = "0.11"` SMTP (smtp:// + smtps://), creds
+      `user:pass@` optionnels. Config lue depuis KV `config`
+      (`smtp_url` + `smtp_from`).
+    - **fallback log_only** si SMTP non configuré, webhook sans URL,
+      ou email sans destinataire (graceful degrade exigé par le brief).
+    - 4 unit tests.
+- **Routes admin REST** `/api/v1/admin/alerts*` :
+  - `POST   /alerts`          : créer un seuil.
+  - `GET    /alerts`          : lister (actifs + désactivés).
+  - `DELETE /alerts/:id`      : soft delete (`disabled_at`).
+  - `GET    /alerts/triggers` : historique (limit 1..500, defaut 50).
+- **Wiring** dans `server::api::estimations::handle` : après
+  `estimations::insert`, appelle `alerts::checker::check_thresholds_for_user`
+  sous le lock SQLite, drop le lock, puis `tokio::spawn` la
+  notification (non-bloquante pour l'ack du client). Persiste
+  `notified_at`/`notify_error` après envoi.
+- **UI `/admin/alerts`** (web-team) : form de création (scope radio,
+  user picker conditionnel, period radio, gCO₂eq max, notify_kind
+  + target conditionnel), table des seuils avec bouton « Désactiver »,
+  historique des 50 derniers triggers (timestamp, threshold, observé,
+  badge notification OK/erreur/en cours). Nouvelle entrée dans la
+  nav admin.
+- **Tests d'intégration** `tests/integration_alerts.rs` :
+  - CRUD end-to-end (POST scope=user sans target_id → 400, POST
+    team OK, DELETE soft + idempotent).
+  - **Webhook réel via wiremock** : 10 estimations dépassant un seuil
+    team daily de 5g → 1 trigger inséré, webhook POST reçu par le
+    mock (`expect(1..)` + `verify().await`).
+
+### Changed
+
+- `team_settings::TeamSettingsStore::clear_session` purge maintenant
+  aussi `last_seen_at` + `estimations_sent` (rotation propre au logout).
+- `team_settings::TeamMode` est exporté côté TS comme `'local' | 'team' | 'both'`.
+- `IpcErrorCode` (`web/src/lib/api.ts`) étend la liste des codes
+  team (`no_url`, `bad_request`, `unauthorized`, `http_error`,
+  `transport`, `storage`).
+- Migration SQLite v1 → v2 idempotente : les bases C28 (v1) ne
+  ré-installent que le DDL v2 (alert tables), pas le DDL v1.
+
+### Tests
+
+- `sobria-team-aggregator` : **106 tests verts** (88 unit + 18 intégration,
+  vs 81 + 12 en v0.7.0).
+- `sobria-app` : +5 tests `team_settings` → 244 tests verts (+0 régression).
+- `web` (Playwright) : +2 tests `parametres-mode-equipe` no-mock verts.
+- `cargo clippy --workspace -D warnings` clean, `cargo fmt --check` clean.
+- `cd web && npm run check && npm run lint` clean (sur les fichiers
+  touchés ; les autres warnings sont pré-existants).
+- `cd web-team && npm run check && npm run lint` clean.
+
+### Sécurité
+
+- Argon2id PHC partout pour les hashs (admin reset, refresh tokens).
+- Pas d'OpenSSL : rustls + ring + rcgen.
+- Notifications email via `lettre` avec backend rustls (pas de native-tls).
+- Webhook payload ne contient **pas** de prompts utilisateurs (uniquement
+  les agrégats de seuil). Conforme CLAUDE.md §7.
+- Fallback `log_only` quand SMTP non configuré → pas de crash, log clair
+  avec `notify_error`.
+
+## [0.7.0] — 2026-05-16 — Mode Équipe self-hosted (C28)
+
+> Binaire Rust standalone `sobria-team-aggregator` déployable par une
+> entreprise sur son infrastructure (poste admin, NAS, VPS interne).
+> **Aucun cloud Sobr.ia n'est impliqué.** Voir
+> `briefs/chantiers/C28-mode-equipe-self-hosted.md`, ADR-0013 Phase 2, et
+> `docs/operations/team-aggregator.md`.
+
+### Added — C28.1 Bootstrap + TLS
+
+- **Nouvelle crate** `crates/sobria-team-aggregator/` (binaire HTTPS ~15 MB,
+  rustls + ring, pas d'OpenSSL). CLI `init` + `serve` :
+  - `init` : crée `team.sqlite` (schéma v1 complet, WAL), génère cert TLS
+    auto-signé via rcgen (SANs `localhost`/`127.0.0.1`/`::1`/hostname OS,
+    validité 10 ans), pose JWT signing key 32 octets, crée admin initial
+    Argon2id PHC.
+  - `serve` : axum 0.7 + axum-server + tokio-rustls, route `/health`,
+    tracing middleware. `serve --regen-cert` planifié v0.7.1.
+- **Schéma SQLite v1** : `admins`, `enrollment_codes`, `users`, `tokens`,
+  `estimations`, `config`. Tables STRICT, `CHECK ((user_id IS NULL) <>
+  (admin_id IS NULL))` sur `tokens` pour XOR rôle. Migration idempotente
+  via `PRAGMA user_version`.
+- **Argon2id PHC** partout (passwords admin/user, hash des codes, hash des
+  refresh tokens). Aligné sur le pattern C27 v0.6.0.
+
+### Added — C28.2 Auth + API REST core
+
+- **JWT HS256 24h** + **refresh tokens 7j** au format `<ulid>.<uuid_v4>`
+  (selector+verifier — lookup O(1) par PRIMARY KEY puis Argon2id verify).
+  Rotation à chaque `/refresh` (ancien révoqué avant émission du nouveau).
+- **Routes `/api/v1`** : `POST /enroll` (code 12 chiffres + password + fingerprint),
+  `POST /login` (admin OU user), `POST /refresh` (rotation), `POST /estimations`
+  (auth user, payload compat extension v0.6.0 camelCase), `GET /me/usage`
+  (totaux agrégés du user).
+- **ApiError → IntoResponse** : mapping HTTP propre (401/403/409/400/500)
+  + JSON body `{ error, code }` + logs structurés.
+- **CLI `code`** : `create N --ttl-days 7`, `list`, `revoke <id>`. Codes
+  12 chiffres OS RNG, hashés Argon2id, affichés en clair UNE seule fois.
+
+### Added — C28.3 API admin + analytics SQL
+
+- **Routes admin** sous `/api/v1/admin/*` (RequireAdmin → 401 sans Bearer,
+  403 si role=user) : `GET /users` (liste + totaux LEFT JOIN), `POST /codes`
+  (clamp count ∈ [1, 500]), `DELETE /codes/:id` (soft delete idempotent),
+  `GET /analytics?from&to&group_by=day|week|month` (4 sections agrégées).
+- **`storage/analytics.rs`** : 4 fonctions SQL pures (`time_buckets`,
+  `top_models`, `top_users`, `method_breakdown`) avec `strftime` pour le
+  bucketing temporel.
+
+### Added — C28.4 Dashboard Svelte embedded
+
+- **Nouveau projet `web-team/`** (SvelteKit 2 + adapter-static + Svelte 5
+  runes + TypeScript strict). 5 pages : `/login` (3 onglets admin / employé
+  / s'enrôler), `/admin/dashboard` (4 cards + 3 charts SVG + breakdown),
+  `/admin/codes`, `/admin/users`, `/user/dashboard`.
+- **Charts SVG manuels** (`LineChart`, `BarChart`, `DonutChart`) — pas de
+  Plot/D3, ~3 KB chacun gzip. Économie ~200 KB. System fonts (pas de woff2
+  embarqué) → -300 KB supplémentaires. Bundle final 201 KB.
+- **Auth client** : access token JWT en mémoire (pas localStorage — XSS),
+  refresh en sessionStorage, retry auto sur 401, rotation honorée.
+- **`rust-embed` + SPA fallback** : `web-team/build/` embarqué via
+  `#[derive(RustEmbed)]` (features `include-exclude` + `debug-embed`).
+  Cache `_app/immutable/*` 1 an, fallback `index.html` SPA. Page « Bundle
+  non buildé » inline si compile sans frontend.
+
+### Added — C28.5 Exports CSRD + PROV-O + CSV agrégés équipe
+
+- **3 routes admin** `POST /api/v1/admin/exports/{csrd|prov-o|csv}` →
+  `application/pdf`, `application/ld+json`, `text/csv` avec
+  `Content-Disposition: attachment`.
+- **CSRD** : réutilise `sobria-export::generate_report` (PDF visuellement
+  identique au rapport desktop). Convertit chaque row team `estimations`
+  en `AuditEntry` shim ; synthèse `[P50×0.85, P50×1.15]` quand P5/P95
+  manquent.
+- **PROV-O** : variant team-spécifique (différent du sidecar audit-ledger).
+  `@graph` : `prov:Bundle` + `prov:SoftwareAgent` + N `prov:Agent` (users,
+  anonymisables → `fingerprint = null`, `displayName` → `Employé #N`) +
+  M `prov:Activity` (`prov:wasAssociatedWith` → user).
+- **CSV** : RFC 4180 UTF-8, 13 colonnes. Aliases `Employé #N` stables par
+  `user_id`.
+
+### Added — C28.6 Mode Équipe dans extension + app Tauri
+
+- **Extension** :
+  - `src/content/shared/team-storage.ts` (chrome.storage wrapper :
+    URL serveur, mode `local|team|both`, tokens, user_id, fingerprint).
+  - `src/lib/team-client.ts` (REST + Bearer JWT + rotation refresh auto
+    sur 401, `TeamApiError` typée).
+  - **Options page** : section « Mode Équipe self-hosted » (URL + ping +
+    enroll + dispatch radio + logout). Warning visible sur cert auto-signé
+    (utilisateur doit accepter le cert dans un autre onglet — limitation
+    `chrome.fetch`).
+  - **`service-worker.ts` dual-dispatch** sur `estimation_submitted` :
+    bridge natif (mode=local|both) + serveur équipe (mode=team|both),
+    best-effort sur chaque destination.
+- **App Tauri** :
+  - `crates/sobria-app/src/team_settings.rs` (SQLite KV dans
+    `referentiel.sqlite`).
+  - `crates/sobria-app/src/team_client.rs` (reqwest + rustls + opt-in
+    `accept_invalid_certs`). Pattern `ClientConfig` snapshot pour ne pas
+    garder `MutexGuard` à travers `.await`.
+  - **8 IPC commands** : `team_status`, `team_set_url`, `team_set_mode`,
+    `team_set_accept_invalid_certs`, `team_ping`, `team_enroll`,
+    `team_logout`, `team_push_estimation`.
+  - Activation auto `mode=both` au premier enrollment.
+
+### Added — C28.7 Doc + packaging
+
+- **`docs/operations/team-aggregator.md`** (~300 lignes) : quickstart 5 min,
+  sections TPE/PME (systemd) + DSI (reverse proxy Caddy/nginx + Let's
+  Encrypt + firewall + ACLs Windows), sauvegardes SQLite `.backup`,
+  upgrade, troubleshooting (cert refusé, code rejeté, refresh expiré,
+  bundle non buildé, performance).
+- **`crates/sobria-team-aggregator/Dockerfile`** (bonus) : multi-stage
+  build (node 22 web → rust 1.79 builder → debian:bookworm-slim runtime),
+  volume `/data`, expose 8443, healthcheck `/health`, user non-root.
+- **`.github/workflows/team-aggregator-release.yml`** : trigger tag
+  `v*.*.*`, matrix Linux x86_64 / macOS arm64 / Windows x86_64, build
+  frontend Svelte avant cargo build, upload assets + sha256 sidecars.
+- **README racine** : section « Mode Équipe self-hosted (v0.7.0) ».
+
+### Tests
+
+- **`sobria-team-aggregator`** : 68 tests verts (56 unit + 1 admin
+  intégration + 3 user API intégration + 1 health + 1 embedded UI +
+  6 exports intégration).
+- **`sobria-app`** : +13 tests `team_*` (5 settings + 8 client).
+- **Extension** : `npm run check` propre.
+- `cargo clippy --workspace -D warnings` clean. fmt clean partout.
+
+### Différé v0.7.1+
+
+- Page `/parametres → Mode Équipe` côté `web/` (frontend Svelte de l'app
+  Tauri) — les 8 IPC sont prêts à être consommés via `invoke`. **→ Livré
+  en v0.7.1 (C29.1).**
+- Alertes seuils (table `alert_thresholds`). **→ Livré en v0.7.1 (C29.4).**
+- Commande `admin reset-password`. **→ Livré en v0.7.1 (C29.2).**
+- Commande `serve --regen-cert` / `--regen-key`. **→ Livré en v0.7.1 (C29.3).**
+
+### Sécurité
+
+- Aucun trafic vers Sobr.ia — le serveur appartient à l'entreprise.
+- Pas d'OpenSSL : rustls + ring partout (axum, axum-server, tokio-rustls,
+  reqwest, rcgen).
+- Argon2id PHC pour tous les hashs (passwords, codes, refresh tokens).
+- TLS 1.2/1.3 acceptés ; le cert auto-signé `init` est valable 10 ans.
+- Le data dir doit être protégé par les ACLs OS (cf. doc déploiement).
+
 ## [0.6.0] — 2026-05-16 — Extension navigateur + pairing perso (C27)
 
 ### Added — C27.1/2/3/4 Extension WebExtension MV3

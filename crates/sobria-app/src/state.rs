@@ -17,6 +17,7 @@ use tracing::info;
 use crate::{
     error::AppError, extension_store::ExtensionStore, goals_store::PersonalGoalsStore,
     pairing::PendingCode, preferences_store::PreferencesStore, project_store::ProjectStore,
+    team_settings::TeamSettingsStore,
 };
 
 /// State partagé de l'application.
@@ -42,6 +43,8 @@ pub struct AppState {
     pub pending_code: Mutex<Option<PendingCode>>,
     /// Store SQLite des pairings + events extension (C27.5.d).
     pub extension_store: Mutex<ExtensionStore>,
+    /// Store SQLite KV du Mode Équipe self-hosted (C28.6).
+    pub team_settings: Mutex<TeamSettingsStore>,
 }
 
 impl AppState {
@@ -68,6 +71,8 @@ impl AppState {
         let projects = ProjectStore::open(&referentiel_path)?;
         let extension_store = ExtensionStore::open(&referentiel_path)
             .map_err(|e| AppError::Internal(format!("extension_store: {e}")))?;
+        let team_settings = TeamSettingsStore::open(&referentiel_path)
+            .map_err(|e| AppError::Internal(format!("team_settings: {e}")))?;
 
         let estimator = MonteCarloEngine::default();
         Ok(Self {
@@ -81,6 +86,7 @@ impl AppState {
             estimator,
             pending_code: Mutex::new(None),
             extension_store: Mutex::new(extension_store),
+            team_settings: Mutex::new(team_settings),
         })
     }
 

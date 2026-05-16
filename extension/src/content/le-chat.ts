@@ -76,7 +76,7 @@ function tryInjectComposerIndicator(): void {
     console.info('[sobria] Le Chat désactivé via options — skip.');
     return;
   }
-  console.info('[sobria] content script Le Chat chargé (v0.6.0, design 38)');
+  console.info('[sobria] content script Le Chat chargé (v0.7.0, design 38)');
 
   tryInjectComposerIndicator();
 

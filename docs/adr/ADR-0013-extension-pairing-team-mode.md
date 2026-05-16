@@ -1,6 +1,6 @@
 # ADR-0013 — Extension navigateur + pairing local + mode Équipe self-hosted
 
-- **Statut** : Phase 1 Implemented (v0.6.0, 2026-05-16) ; Phase 2 Planned (v0.7.0) ; Phase 3 Backlog (v0.8+)
+- **Statut** : Phase 1 Implemented (v0.6.0, 2026-05-16) ; Phase 2 Implemented (v0.7.0, 2026-05-16, C28) ; Phase 3 Backlog (v0.8+)
 - **Date** : 2026-05-15
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : avant chantier C27 (v0.6.0 extension) et C28 (v0.7.0 mode équipe)
@@ -115,7 +115,7 @@ Plus simple mais aucune protection contre une extension malveillante installée 
 | Phase | Version | Chantier | Périmètre |
 |-------|---------|----------|-----------|
 | Phase 1 | v0.6.0 | C27 | Extension + pairing perso 6 chiffres + bridge natif + ingestion Journal/Dashboard |
-| Phase 2 | v0.7.0 | C28 | `sobria-team-aggregator` + dashboard admin + mode Équipe extension/app |
+| Phase 2 | v0.7.0 | C28 | `sobria-team-aggregator` (binaire HTTPS standalone) + JWT 24h/refresh 7j + Argon2id partout + dashboard Svelte embedded (4 cards + 3 charts SVG) + exports CSRD PDF + PROV-O JSON-LD + CSV + mode Équipe extension/app (URL + ping + enroll + dispatch local/team/both + logout). Voir `briefs/chantiers/C28-mode-equipe-self-hosted.md` et `docs/operations/team-aggregator.md`. |
 | Phase 3 | v0.8.0 | C29 (TBD) | SSO entreprise (SAML/OIDC), multi-device, RBAC fin |
 
 ## Liens

@@ -72,8 +72,8 @@ async fn run_unix(app_handle: AppHandle, path: &std::path::Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let listener = UnixListener::bind(path)
-        .with_context(|| format!("bind unix socket {}", path.display()))?;
+    let listener =
+        UnixListener::bind(path).with_context(|| format!("bind unix socket {}", path.display()))?;
     tracing::info!(path = %path.display(), "bridge_server: en écoute (Unix)");
     loop {
         match listener.accept().await {
@@ -95,10 +95,7 @@ async fn run_unix(app_handle: AppHandle, path: &std::path::Path) -> Result<()> {
 #[cfg(windows)]
 async fn run_windows(app_handle: AppHandle, path: &std::path::Path) -> Result<()> {
     use tokio::net::windows::named_pipe::ServerOptions;
-    let pipe_name = path
-        .to_str()
-        .context("pipe path non-UTF-8")?
-        .to_owned();
+    let pipe_name = path.to_str().context("pipe path non-UTF-8")?.to_owned();
     tracing::info!(pipe = %pipe_name, "bridge_server: en écoute (Windows pipe)");
     // Premier instance — `first_pipe_instance(true)` bloque les binds
     // concurrents au même nom.

@@ -14,6 +14,8 @@ import {
   setPairingState,
   clearPairingState
 } from '../content/shared/storage.js';
+import { getTeamState } from '../content/shared/team-storage.js';
+import { pushEstimation } from '../lib/team-client.js';
 import { BridgeClient } from './native-messaging.js';
 import type {
   SobriaMessage,
@@ -30,7 +32,7 @@ import type {
 } from '../lib/messages.js';
 
 self.addEventListener('install', () => {
-  console.info('[sobria] service worker installé (v0.6.0)');
+  console.info('[sobria] service worker installé (v0.7.0)');
 });
 
 self.addEventListener('activate', () => {
@@ -93,25 +95,44 @@ async function handleMessage(message: SobriaMessage): Promise<AnyResponse> {
         ts
       });
 
-      // Forward au bridge si pairé. Best-effort : ne bloque pas la confirm
-      // au content script si le bridge tombe.
-      const pairing = await getPairingState();
-      if (pairing) {
-        tryConnectBridge()
-          .then(async (bridge) => {
-            if (!bridge) return;
-            try {
-              await bridge.sendEstimate(pairing.secret, {
-                estimate: message.estimate,
-                host: message.host,
-                modelDisplayName: message.modelDisplayName,
-                ts
-              });
-            } finally {
-              bridge.disconnect();
-            }
-          })
-          .catch((err) => console.warn('[sobria] forward bridge échec:', err));
+      // Dispatch des estimations selon le Mode Équipe (C28.6) :
+      // - 'local' (défaut) → bridge natif uniquement (pairing perso C27).
+      // - 'team'           → serveur équipe HTTPS uniquement.
+      // - 'both'           → les deux (transition / coexistence).
+      // Best-effort sur chaque destination : un échec ne bloque pas l'autre.
+      const teamState = await getTeamState();
+      const dispatchLocal = teamState.mode === 'local' || teamState.mode === 'both';
+      const dispatchTeam =
+        (teamState.mode === 'team' || teamState.mode === 'both') && teamState.enrolled;
+
+      if (dispatchLocal) {
+        const pairing = await getPairingState();
+        if (pairing) {
+          tryConnectBridge()
+            .then(async (bridge) => {
+              if (!bridge) return;
+              try {
+                await bridge.sendEstimate(pairing.secret, {
+                  estimate: message.estimate,
+                  host: message.host,
+                  modelDisplayName: message.modelDisplayName,
+                  ts
+                });
+              } finally {
+                bridge.disconnect();
+              }
+            })
+            .catch((err) => console.warn('[sobria] forward bridge échec:', err));
+        }
+      }
+
+      if (dispatchTeam) {
+        pushEstimation({
+          estimate: message.estimate,
+          host: message.host,
+          modelDisplayName: message.modelDisplayName,
+          ts
+        }).catch((err) => console.warn('[sobria] forward team échec:', err));
       }
       return { ok: true };
     }

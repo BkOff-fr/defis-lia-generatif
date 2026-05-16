@@ -72,13 +72,8 @@ fn linux_firefox_install_uses_dot_mozilla_native_messaging_hosts() {
 #[test]
 fn install_then_uninstall_is_idempotent() {
     let tmp = TempDir::new().unwrap();
-    let path = manifest_install_path_for(
-        HostOs::Linux,
-        BrowserKind::Chromium,
-        tmp.path(),
-        None,
-    )
-    .unwrap();
+    let path =
+        manifest_install_path_for(HostOs::Linux, BrowserKind::Chromium, tmp.path(), None).unwrap();
     install_native_manifest_at(
         BrowserKind::Chromium,
         Path::new("/bin/sobria-bridge"),

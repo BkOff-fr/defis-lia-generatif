@@ -48,6 +48,9 @@ sha2 = { workspace = true }
 # C27 patch v0.6.0 — Argon2id remplace SHA-256+sel pour le hash du secret
 # pairing (cf. brief Patch 3).
 argon2 = { workspace = true }
+# C28.6 — Mode Équipe : client REST HTTPS vers sobria-team-aggregator.
+# rustls + accept-invalid-cert (opt-in) pour les certs auto-signés.
+reqwest = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

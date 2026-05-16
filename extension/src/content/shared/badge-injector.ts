@@ -918,8 +918,8 @@ export function injectUnsupportedBadge(
   const shadow = host.attachShadow({ mode: 'open' });
   const fontFace = renderFontFace();
   const tooltipText = options.modelLabel
-    ? `Modèle « ${options.modelLabel} » pas encore dans le registry Sobr.ia v0.6.0`
-    : 'Ce modèle n’est pas encore dans le registry Sobr.ia v0.6.0';
+    ? `Modèle « ${options.modelLabel} » pas encore dans le registry Sobr.ia v0.7.0`
+    : 'Ce modèle n’est pas encore dans le registry Sobr.ia v0.7.0';
 
   shadow.innerHTML = `
 <style>

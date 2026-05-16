@@ -29,6 +29,8 @@ pub mod pairing;
 pub mod preferences_store;
 pub mod project_store;
 pub mod state;
+pub mod team_client;
+pub mod team_settings;
 
 pub use error::{IpcError, IpcResult};
 pub use state::AppState;

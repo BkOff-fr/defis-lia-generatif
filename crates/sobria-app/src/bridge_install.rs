@@ -157,7 +157,12 @@ pub fn detect_installed_browsers() -> Vec<BrowserKind> {
     };
     let appdata = dirs::config_dir();
     let local = dirs::data_local_dir();
-    detect_browsers_in(HostOs::current(), &home, appdata.as_deref(), local.as_deref())
+    detect_browsers_in(
+        HostOs::current(),
+        &home,
+        appdata.as_deref(),
+        local.as_deref(),
+    )
 }
 
 /// Variante testable : passe l'OS cible et les `home`/`appdata`/`localappdata`
@@ -404,11 +409,7 @@ pub fn bridge_status(bridge_path: Option<PathBuf>) -> BridgeStatus {
     let detected = detect_installed_browsers();
     let installed = BrowserKind::ALL
         .into_iter()
-        .filter(|b| {
-            manifest_install_path(*b)
-                .ok()
-                .is_some_and(|p| p.exists())
-        })
+        .filter(|b| manifest_install_path(*b).ok().is_some_and(|p| p.exists()))
         .collect();
     BridgeStatus {
         bridge_path,
@@ -584,7 +585,9 @@ mod tests {
     #[test]
     fn install_native_manifest_at_writes_valid_json() {
         let dir = TempDir::new().unwrap();
-        let path = dir.path().join("NativeMessagingHosts/com.sobria.bridge.json");
+        let path = dir
+            .path()
+            .join("NativeMessagingHosts/com.sobria.bridge.json");
         let bridge = Path::new("/usr/local/bin/sobria-bridge");
         install_native_manifest_at(BrowserKind::Chrome, bridge, "deadbeefdeadbeef", &path).unwrap();
         assert!(path.exists());
@@ -604,7 +607,10 @@ mod tests {
         let bridge = Path::new("/bin/sobria-bridge");
         let err = install_native_manifest_at(BrowserKind::Chrome, bridge, "", &path).unwrap_err();
         assert!(err.to_string().contains("extension_id requis"));
-        assert!(!path.exists(), "no file should be written on validation error");
+        assert!(
+            !path.exists(),
+            "no file should be written on validation error"
+        );
     }
 
     #[test]

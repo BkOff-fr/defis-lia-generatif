@@ -469,7 +469,14 @@ export type IpcErrorCode =
   | 'data_not_ingested'
   | 'not_found'
   | 'empty_period'
-  | 'export_error';
+  | 'export_error'
+  // ─── Mode Équipe (C28.6 + C29.1) ───────────────────────────────────────
+  | 'no_url'
+  | 'bad_request'
+  | 'unauthorized'
+  | 'http_error'
+  | 'transport'
+  | 'storage';
 
 export class SobriaIpcError extends Error {
   readonly code: IpcErrorCode;
@@ -890,10 +897,7 @@ export function getPairingCodeStatus(): Promise<PairingCodeDto | null> {
   return call<PairingCodeDto | null>('get_pairing_code_status');
 }
 
-export function verifyPairingCode(
-  code: string,
-  fingerprint: string
-): Promise<PairingSecretDto> {
+export function verifyPairingCode(code: string, fingerprint: string): Promise<PairingSecretDto> {
   return call<PairingSecretDto>('verify_pairing_code', { code, fingerprint });
 }
 
@@ -905,13 +909,99 @@ export async function revokePairing(id: string): Promise<void> {
   await call<null>('revoke_pairing', { id });
 }
 
-export function listExtensionEvents(
-  limit: number,
-  offset: number
-): Promise<ExtensionEventDto[]> {
+export function listExtensionEvents(limit: number, offset: number): Promise<ExtensionEventDto[]> {
   return call<ExtensionEventDto[]>('list_extension_events', { limit, offset });
 }
 
 export function drainExtensionSpool(): Promise<number> {
   return call<number>('drain_extension_spool');
+}
+
+// ─── Mode Équipe self-hosted (C28.6 + C29.1) ──────────────────────────────
+//
+// Wraps les 8 IPC `team_*` exposés par `crates/sobria-app/src/main.rs`.
+// `team_push_estimation` est déclenché par le dispatcher Rust côté app
+// — il n'est pas exposé ici. Voir ADR-0013 Phase 2 et le brief C29.
+
+/** Mode de dispatch des estimations (mirror de `team_settings::TeamMode`). */
+export type TeamMode = 'local' | 'team' | 'both';
+
+/** Snapshot complet du Mode Équipe (mirror de `team_settings::TeamStatus`). */
+export interface TeamStatusDto {
+  enrolled: boolean;
+  url: string | null;
+  user_id: string | null;
+  mode: TeamMode;
+  fingerprint: string | null;
+  enrolled_at: string | null;
+  accept_invalid_certs: boolean;
+  /** RFC 3339 du dernier ping/push réussi (C29.1). */
+  last_seen_at: string | null;
+  /** Compteur local d'estimations ACKées par le serveur (C29.1). */
+  estimations_sent: number;
+}
+
+/** Réponse de `/health` — émise par le binaire `sobria-team-aggregator`. */
+export interface TeamHealthResponseDto {
+  ok: boolean;
+  version: string;
+}
+
+/** Réponse de `/api/v1/enroll`. */
+export interface TeamEnrollResponseDto {
+  user_id: string;
+  access_token: string;
+  refresh_token: string;
+  access_expires_at: string;
+  refresh_expires_at: string;
+}
+
+export function getTeamStatus(): Promise<TeamStatusDto> {
+  return call<TeamStatusDto>('team_status');
+}
+
+export async function setTeamUrl(url: string): Promise<void> {
+  await call<null>('team_set_url', { url });
+}
+
+export async function setTeamMode(mode: TeamMode): Promise<void> {
+  await call<null>('team_set_mode', { mode });
+}
+
+export async function setTeamAcceptInvalidCerts(accept: boolean): Promise<void> {
+  await call<null>('team_set_accept_invalid_certs', { accept });
+}
+
+export function teamPing(): Promise<TeamHealthResponseDto> {
+  return call<TeamHealthResponseDto>('team_ping');
+}
+
+/**
+ * Enrôle ce device auprès du serveur équipe.
+ *
+ * - `code` : enrollment code 12 chiffres reçu de l'admin.
+ * - `password` : mot de passe choisi par l'utilisateur (Argon2id côté serveur).
+ * - `fingerprint` : identifiant déterministe par device (passé à `/enroll`).
+ * - `displayName` : optionnel, affiché dans le dashboard admin.
+ *
+ * En cas de succès, le store local persiste user_id + tokens + fingerprint
+ * et bascule automatiquement le mode à `'both'` si on était sur `'local'`.
+ */
+export function teamEnroll(
+  code: string,
+  password: string,
+  fingerprint: string,
+  displayName: string | null
+): Promise<TeamEnrollResponseDto> {
+  return call<TeamEnrollResponseDto>('team_enroll', {
+    code,
+    password,
+    fingerprint,
+    displayName
+  });
+}
+
+/** Purge la session locale (tokens, user_id, fingerprint) et remet `mode=local`. */
+export async function teamLogout(): Promise<void> {
+  await call<null>('team_logout');
 }

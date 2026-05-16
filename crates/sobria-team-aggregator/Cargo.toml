@@ -1,0 +1,94 @@
+# sobria-team-aggregator — binaire HTTPS self-hosted "mode Équipe" (C28, v0.7.0).
+#
+# Voir ADR-0013 Phase 2 et `briefs/chantiers/C28-mode-equipe-self-hosted.md`.
+# Pas d'OpenSSL : rustls + ring uniquement (sécurité + portabilité Windows
+# sans nasm/aws-lc-sys). Argon2id pour tous les hashs (passwords, codes,
+# refresh tokens), aligné sur la décision C27 v0.6.0 (cf. `crates/sobria-app/src/pairing.rs`).
+
+[package]
+name = "sobria-team-aggregator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Sobr.ia — agrégateur d'équipe self-hosted (HTTPS + JWT + Argon2id, ADR-0013 Phase 2)"
+
+[lib]
+name = "sobria_team_aggregator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sobria-team-aggregator"
+path = "src/main.rs"
+
+[dependencies]
+# HTTP / TLS — rustls + ring (pas d'aws-lc-sys → build Windows sans nasm)
+axum = "0.7"
+axum-server = { version = "0.7", default-features = false, features = ["tls-rustls-no-provider"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rustls-pemfile = "2"
+tower-http = { version = "0.5", features = ["trace"] }
+
+# TLS auto-cert (cert auto-signé via rcgen, backend ring)
+rcgen = { version = "0.13", default-features = false, features = ["crypto", "ring", "pem"] }
+hostname = "0.4"
+time = "0.3"
+
+# CLI / runtime
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Sérialisation
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Persistance
+rusqlite = { workspace = true }
+chrono = { workspace = true }
+ulid = "1"
+
+# Cryptographie (Argon2id pour les passwords admin/user)
+argon2 = { workspace = true }
+rand = { workspace = true }
+
+# Auth (C28.2 — JWT HS256 + refresh tokens UUID v4)
+jsonwebtoken = "9"
+uuid = { version = "1", features = ["v4"] }
+
+# UX
+rpassword = "7"
+
+# Exports CSRD PDF + PROV-O + CSV (C28.5) — réutilise la chaîne
+# sobria-export (printpdf) pour produire un PDF aligné sur le rapport CSRD
+# du desktop. On convertit les `estimations` team en AuditEntry shims pour
+# que la chaîne d'agrégation reste celle de l'app principale.
+sobria-export = { path = "../sobria-export" }
+sobria-core = { path = "../sobria-core" }
+sobria-audit = { path = "../sobria-audit" }
+csv = { workspace = true }
+sha2 = { workspace = true }
+
+# Dashboard embedded (C28.4) — bundle Svelte servi en statique par axum.
+# - include-exclude  : autorise les attributs `#[include = "*.ext"]`.
+# - debug-embed      : embarque toujours, même en debug build (sinon le
+#                     macro lit depuis le FS à runtime → casse les tests
+#                     qui changent de cwd via tempdir).
+rust-embed = { version = "8", features = ["include-exclude", "debug-embed"] }
+mime_guess = "2"
+
+# Erreurs
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Notifications C29.4 — webhook POST JSON (5s timeout) + email SMTP optionnel.
+# `lettre` est gardé optionnel : si l'admin ne configure pas smtp_url/smtp_from,
+# le code retombe sur `log_only` au lieu de planter.
+reqwest = { workspace = true }
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "rustls-tls", "builder", "hostname", "tokio1", "tokio1-rustls-tls"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+wiremock = { workspace = true }

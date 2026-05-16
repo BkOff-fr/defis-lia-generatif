@@ -25,6 +25,11 @@
     Landmark,
     Microscope,
     Puzzle,
+    Server,
+    Users,
+    LogOut,
+    ExternalLink,
+    KeyRound,
     X
   } from '@lucide/svelte';
   import {
@@ -38,14 +43,19 @@
     reloadReferentiel,
     revokePairing,
     SobriaIpcError,
+    teamEnroll,
+    teamLogout,
+    teamPing,
     type EmpreinteMethod,
     type IpcErrorCode,
     type MetaInfo,
     type MethodologyInfoDto,
     type PairingCodeDto,
     type PairingDto,
-    type ReferentielStatusDto
+    type ReferentielStatusDto,
+    type TeamHealthResponseDto
   } from '$lib/api';
+  import { loadTeam, saveTeamField, teamStore, type TeamMode } from '$lib/team-store';
   import {
     ALL_MODULES,
     ALL_PERSONAS,
@@ -94,6 +104,22 @@
   let pairingError = $state<string | null>(null);
   let pairingTicker: ReturnType<typeof setInterval> | null = null;
 
+  // C29.1 — Mode Équipe self-hosted (UI câblée aux 8 IPC team_*)
+  let teamUrlDraft = $state('');
+  let teamCode = $state('');
+  let teamPassword = $state('');
+  let teamPasswordConfirm = $state('');
+  let teamDisplayName = $state('');
+  let teamBusy = $state(false);
+  let teamError = $state<string | null>(null);
+  let teamPingResult = $state<TeamHealthResponseDto | null>(null);
+  let teamPingError = $state<string | null>(null);
+  let teamEnrollOk = $state<string | null>(null);
+  // Fingerprint éphémère par session : généré à chaque mount, persisté côté
+  // Rust après /enroll. Si l'utilisateur logout puis ré-enrôle, il aura un
+  // nouveau fingerprint — c'est intentionnel.
+  let teamFingerprint = $state('');
+
   const tauriAvailable = $derived(isTauriContext());
 
   $effect(() => {
@@ -113,13 +139,17 @@
           listMethodologies(),
           getReferentielStatus(),
           getPairingCodeStatus(),
-          listPairings()
+          listPairings(),
+          loadTeam().catch(() => {
+            /* échec silencieux : mode équipe optionnel */
+          })
         ]);
         meta = m;
         methodologies = list;
         referentiel = ref;
         pairingCode = code;
         pairings = pairs;
+        teamUrlDraft = $teamStore.url ?? '';
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           loadError = { code: err.code, message: err.message };
@@ -137,6 +167,12 @@
     pairingTicker = setInterval(() => {
       pairingCodeNow = Date.now();
     }, 1000);
+    // C29.1 — fingerprint éphémère pour l'enrollment équipe.
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      teamFingerprint = `app-desktop-${crypto.randomUUID()}`;
+    } else {
+      teamFingerprint = `app-desktop-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
     return () => {
       if (pairingTicker) clearInterval(pairingTicker);
     };
@@ -392,6 +428,128 @@
       }).format(d);
     } catch {
       return iso;
+    }
+  }
+
+  // ─── C29.1 — Mode Équipe self-hosted ─────────────────────────────────
+  // Tous les handlers passent par le store optimistic + l'IPC sous-jacent.
+  // Pas de fallback : si l'IPC échoue, l'erreur est affichée à l'utilisateur.
+
+  function teamErrorMessage(e: unknown): string {
+    if (e instanceof SobriaIpcError) return e.message;
+    return "Échec de l'opération Mode Équipe.";
+  }
+
+  const teamUrlIsValid = $derived.by(() => /^https?:\/\/.+/i.test(teamUrlDraft));
+  const teamUrlIsHttps = $derived(teamUrlDraft.startsWith('https://'));
+  const teamCodeIsValid = $derived(/^\d{12}$/.test(teamCode));
+  const teamPasswordStrong = $derived(teamPassword.length >= 8);
+  const teamPasswordsMatch = $derived(teamPassword === teamPasswordConfirm);
+  const teamEnrollReady = $derived(
+    teamCodeIsValid && teamPasswordStrong && teamPasswordsMatch && $teamStore.url !== null
+  );
+
+  async function handleSaveTeamUrl() {
+    teamError = null;
+    if (!teamUrlIsValid) {
+      teamError = 'URL invalide. Format attendu : https://<host>:<port>';
+      return;
+    }
+    teamBusy = true;
+    try {
+      await saveTeamField('url', teamUrlDraft.trim());
+      // Reset des résultats de ping/enroll précédents.
+      teamPingResult = null;
+      teamPingError = null;
+    } catch (e) {
+      teamError = teamErrorMessage(e);
+    } finally {
+      teamBusy = false;
+    }
+  }
+
+  async function handleTeamPing() {
+    teamPingResult = null;
+    teamPingError = null;
+    teamBusy = true;
+    try {
+      teamPingResult = await teamPing();
+      // Recharger le snapshot : last_seen_at vient d'être mis à jour.
+      await loadTeam();
+    } catch (e) {
+      teamPingError = teamErrorMessage(e);
+    } finally {
+      teamBusy = false;
+    }
+  }
+
+  async function handleTeamEnroll() {
+    teamError = null;
+    teamEnrollOk = null;
+    if (!teamEnrollReady) {
+      teamError =
+        "Vérifiez l'URL, le code (12 chiffres), et le mot de passe (≥ 8 caractères, confirmation identique).";
+      return;
+    }
+    teamBusy = true;
+    try {
+      const displayName = teamDisplayName.trim() || null;
+      const resp = await teamEnroll(teamCode, teamPassword, teamFingerprint, displayName);
+      teamEnrollOk = `Enrôlement réussi (user_id ${resp.user_id.slice(0, 12)}…).`;
+      // Purge des champs sensibles.
+      teamCode = '';
+      teamPassword = '';
+      teamPasswordConfirm = '';
+      teamDisplayName = '';
+      await loadTeam();
+    } catch (e) {
+      teamError = teamErrorMessage(e);
+    } finally {
+      teamBusy = false;
+    }
+  }
+
+  async function handleSetTeamMode(mode: TeamMode) {
+    teamError = null;
+    teamBusy = true;
+    try {
+      await saveTeamField('mode', mode);
+    } catch (e) {
+      teamError = teamErrorMessage(e);
+    } finally {
+      teamBusy = false;
+    }
+  }
+
+  async function handleToggleAcceptCert(e: Event) {
+    teamError = null;
+    const target = e.currentTarget as HTMLInputElement;
+    teamBusy = true;
+    try {
+      await saveTeamField('accept_invalid_certs', target.checked);
+    } catch (err) {
+      teamError = teamErrorMessage(err);
+    } finally {
+      teamBusy = false;
+    }
+  }
+
+  async function handleTeamLogout() {
+    // Confirm UX explicite — bouton destructif.
+    if (!window.confirm('Se déconnecter du serveur équipe ? Vos tokens locaux seront supprimés.')) {
+      return;
+    }
+    teamError = null;
+    teamBusy = true;
+    try {
+      await teamLogout();
+      teamPingResult = null;
+      teamEnrollOk = null;
+      await loadTeam();
+    } catch (e) {
+      teamError = teamErrorMessage(e);
+    } finally {
+      teamBusy = false;
     }
   }
 
@@ -859,10 +1017,10 @@
       <div class="runtime-skel">Chargement…</div>
     {:else}
       <p class="ext-intro">
-        Appairez l'extension navigateur Sobr.ia à votre instance locale. L'extension
-        observe vos prompts dans Chat&nbsp;LLM (ChatGPT, Claude, Mistral, etc.), calcule
-        l'estimation, et la transmet à cette app via le <em>native messaging bridge</em>.
-        Aucune donnée n'est envoyée à un serveur distant — tout reste sur votre machine.
+        Appairez l'extension navigateur Sobr.ia à votre instance locale. L'extension observe vos
+        prompts dans Chat&nbsp;LLM (ChatGPT, Claude, Mistral, etc.), calcule l'estimation, et la
+        transmet à cette app via le <em>native messaging bridge</em>. Aucune donnée n'est envoyée à
+        un serveur distant — tout reste sur votre machine.
       </p>
 
       <div class="dual ext-grid">
@@ -879,14 +1037,12 @@
               Expire dans <strong>{formatPairingTimer(pairingSecondsLeft)}</strong>
             </p>
             <p class="ext-hint">
-              Ouvrez la page <code>Options</code> de l'extension Sobr.ia dans votre
-              navigateur et saisissez ce code dans la section « Pairing avec l'app
-              desktop ».
+              Ouvrez la page <code>Options</code> de l'extension Sobr.ia dans votre navigateur et saisissez
+              ce code dans la section « Pairing avec l'app desktop ».
             </p>
           {:else}
             <p class="ext-hint">
-              Aucun code en attente. Cliquez sur « Générer un code » pour démarrer
-              l'appairage.
+              Aucun code en attente. Cliquez sur « Générer un code » pour démarrer l'appairage.
             </p>
           {/if}
           <div class="reload-row">
@@ -911,7 +1067,9 @@
         <!-- Bloc droit : appariements actifs ──────────────────── -->
         <div class="ext-pane">
           <h3 class="ext-pane-title">
-            Appariements <span class="ext-count">({pairingActiveCount} actif{pairingActiveCount > 1 ? 's' : ''})</span>
+            Appariements <span class="ext-count"
+              >({pairingActiveCount} actif{pairingActiveCount > 1 ? 's' : ''})</span
+            >
           </h3>
           {#if pairings.length === 0}
             <p class="ext-hint">Aucune extension appariée pour le moment.</p>
@@ -955,6 +1113,302 @@
       <Hammer size={11} strokeWidth={1.8} />
       Binaire local <code>sobria-bridge</code> + extension WebExtension MV3. Voir
       <code>crates/sobria-bridge/README.md</code> et
+      <a href="/methodo">ADR-0013</a>.
+    </p>
+  </section>
+
+  <!-- ╭─── Mode Équipe self-hosted (C28.6 + C29.1) ────────────╮ -->
+  <section class="section" data-testid="team-section">
+    <header class="section-head">
+      <Server size={16} strokeWidth={1.8} />
+      <h2>Mode Équipe self-hosted</h2>
+      <span class="section-hint mono">8 IPC <code>team_*</code> · ADR-0013 Phase 2</span>
+    </header>
+
+    {#if bootstrapping}
+      <div class="runtime-skel">Chargement…</div>
+    {:else}
+      <p class="ext-intro">
+        Si votre organisation déploie le binaire <code>sobria-team-aggregator</code>
+        (souverain, auto-hébergé, aucun cloud Sobr.ia), vous pouvez y rattacher cette app pour que vos
+        estimations remontent dans le dashboard de l'équipe pour le reporting CSRD ou FinOps. L'opt-in
+        est explicite : si vous restez en mode <em>Local</em>, rien ne sort de votre machine.
+      </p>
+
+      <!-- Bloc Statut ─────────────────────────────────────────────── -->
+      <div class="team-status" aria-live="polite">
+        <div class="team-status-row">
+          <span class="team-status-label">Statut</span>
+          {#if !$teamStore.url}
+            <span class="team-pill team-pill-mute" data-testid="team-status-pill"
+              >Non configuré</span
+            >
+          {:else if !$teamStore.enrolled}
+            <span class="team-pill team-pill-warn" data-testid="team-status-pill"
+              >URL OK · non enrôlé</span
+            >
+          {:else}
+            <span class="team-pill team-pill-ok" data-testid="team-status-pill">Connecté</span>
+          {/if}
+        </div>
+        {#if $teamStore.url}
+          <div class="team-status-row">
+            <span class="team-status-label">Serveur</span>
+            <code class="team-mono">{$teamStore.url}</code>
+          </div>
+        {/if}
+        {#if $teamStore.enrolled}
+          <div class="team-status-row">
+            <span class="team-status-label">User ID</span>
+            <code class="team-mono">{$teamStore.user_id}</code>
+          </div>
+          <div class="team-status-row">
+            <span class="team-status-label">Fingerprint</span>
+            <code class="team-mono team-truncate" title={$teamStore.fingerprint ?? ''}
+              >{$teamStore.fingerprint}</code
+            >
+          </div>
+          <div class="team-status-row">
+            <span class="team-status-label">Estimations envoyées</span>
+            <code class="team-mono">{$teamStore.estimations_sent}</code>
+          </div>
+          <div class="team-status-row">
+            <span class="team-status-label">Dernière synchro</span>
+            <code class="team-mono"
+              >{$teamStore.last_seen_at ? formatDate($teamStore.last_seen_at) : 'jamais'}</code
+            >
+          </div>
+        {/if}
+      </div>
+
+      <!-- Bloc Configuration ─────────────────────────────────────── -->
+      <div class="team-block">
+        <h3 class="ext-pane-title">Configuration</h3>
+        <div class="team-form-row">
+          <label for="team-url-input">URL serveur</label>
+          <input
+            id="team-url-input"
+            type="text"
+            class="team-input"
+            placeholder="https://votre-serveur:8443"
+            bind:value={teamUrlDraft}
+            disabled={!tauriAvailable || teamBusy}
+            data-testid="team-url-input"
+          />
+        </div>
+        {#if teamUrlDraft && !teamUrlIsValid}
+          <p class="team-hint warn">
+            L'URL doit commencer par <code>https://</code> ou <code>http://</code>.
+          </p>
+        {:else if teamUrlDraft && !teamUrlIsHttps}
+          <p class="team-hint warn">
+            <AlertTriangle size={12} strokeWidth={1.8} />
+            <span>URL non chiffrée (<code>http://</code>) — à éviter sauf usage local.</span>
+          </p>
+        {/if}
+        <label class="team-toggle">
+          <input
+            type="checkbox"
+            checked={$teamStore.accept_invalid_certs}
+            disabled={!tauriAvailable || teamBusy}
+            onchange={handleToggleAcceptCert}
+            data-testid="team-accept-cert"
+          />
+          <span>Accepter les certificats auto-signés</span>
+        </label>
+        {#if $teamStore.accept_invalid_certs}
+          <p class="team-hint warn">
+            <AlertTriangle size={12} strokeWidth={1.8} />
+            <span
+              >Cette option désactive la validation TLS. À n'utiliser que pour un serveur de
+              confiance sur LAN.</span
+            >
+          </p>
+        {/if}
+        <div class="team-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick={handleSaveTeamUrl}
+            disabled={!tauriAvailable || teamBusy || !teamUrlIsValid}
+            data-testid="team-save-url"
+          >
+            <Check size={14} strokeWidth={1.8} />
+            Enregistrer l'URL
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick={handleTeamPing}
+            disabled={!tauriAvailable || teamBusy || !$teamStore.url}
+            data-testid="team-ping"
+          >
+            <PlugZap size={14} strokeWidth={1.8} />
+            Vérifier la connexion
+          </button>
+        </div>
+        {#if teamPingResult}
+          <p class="team-hint ok" data-testid="team-ping-ok">
+            <Check size={12} strokeWidth={1.8} />
+            <span>Serveur joignable — version {teamPingResult.version}.</span>
+          </p>
+        {/if}
+        {#if teamPingError}
+          <p class="team-hint err" data-testid="team-ping-err">
+            <AlertTriangle size={12} strokeWidth={1.8} />
+            <span>{teamPingError}</span>
+          </p>
+        {/if}
+      </div>
+
+      <!-- Bloc Enrôlement (visible si pas encore enrôlé) ──────────── -->
+      {#if !$teamStore.enrolled}
+        <div class="team-block" data-testid="team-enroll-block">
+          <h3 class="ext-pane-title">Enrôlement</h3>
+          <p class="ext-hint">
+            Saisissez le code à 12 chiffres reçu de votre administrateur (valide 7 jours) et
+            choisissez votre mot de passe (≥ 8 caractères).
+          </p>
+          <div class="team-form-row">
+            <label for="team-code-input">Enrollment code</label>
+            <input
+              id="team-code-input"
+              type="text"
+              class="team-input mono"
+              inputmode="numeric"
+              maxlength="12"
+              placeholder="123456789012"
+              bind:value={teamCode}
+              disabled={!tauriAvailable || teamBusy}
+              data-testid="team-code-input"
+            />
+          </div>
+          <div class="team-form-row">
+            <label for="team-password-input">Mot de passe</label>
+            <input
+              id="team-password-input"
+              type="password"
+              class="team-input"
+              bind:value={teamPassword}
+              disabled={!tauriAvailable || teamBusy}
+              data-testid="team-password-input"
+            />
+          </div>
+          <div class="team-form-row">
+            <label for="team-password-confirm-input">Confirmer le mot de passe</label>
+            <input
+              id="team-password-confirm-input"
+              type="password"
+              class="team-input"
+              bind:value={teamPasswordConfirm}
+              disabled={!tauriAvailable || teamBusy}
+              data-testid="team-password-confirm-input"
+            />
+          </div>
+          {#if teamPassword && !teamPasswordStrong}
+            <p class="team-hint warn">Au moins 8 caractères.</p>
+          {/if}
+          {#if teamPasswordConfirm && !teamPasswordsMatch}
+            <p class="team-hint warn">Les deux mots de passe ne correspondent pas.</p>
+          {/if}
+          <div class="team-form-row">
+            <label for="team-display-name-input">Nom affiché (optionnel)</label>
+            <input
+              id="team-display-name-input"
+              type="text"
+              class="team-input"
+              placeholder="ex. Marie Dupont"
+              bind:value={teamDisplayName}
+              disabled={!tauriAvailable || teamBusy}
+              data-testid="team-display-name-input"
+            />
+          </div>
+          <div class="team-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick={handleTeamEnroll}
+              disabled={!tauriAvailable || teamBusy || !teamEnrollReady}
+              data-testid="team-enroll-btn"
+            >
+              <KeyRound size={14} strokeWidth={1.8} />
+              M'enrôler sur ce serveur
+            </button>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Bloc Enrôlé ─────────────────────────────────────────────── -->
+      {#if $teamStore.enrolled && $teamStore.url}
+        <div class="team-block" data-testid="team-enrolled-block">
+          <div class="team-actions">
+            <a
+              class="btn-secondary"
+              href={`${$teamStore.url}/user/dashboard`}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="team-open-dashboard"
+            >
+              <ExternalLink size={14} strokeWidth={1.8} />
+              Ouvrir mon dashboard équipe
+            </a>
+            <button
+              type="button"
+              class="btn-secondary btn-destructive"
+              onclick={handleTeamLogout}
+              disabled={!tauriAvailable || teamBusy}
+              data-testid="team-logout-btn"
+            >
+              <LogOut size={14} strokeWidth={1.8} />
+              Se déconnecter
+            </button>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Bloc Dispatcher ────────────────────────────────────────── -->
+      <div class="team-block">
+        <h3 class="ext-pane-title">Dispatcher des estimations</h3>
+        <p class="ext-hint">Où envoyer chaque estimation calculée par l'app ?</p>
+        <div class="team-radio-grid" role="radiogroup" aria-label="Mode de dispatch">
+          {#each [{ id: 'local', label: 'Local seul', desc: "Aucun envoi externe. Tout reste dans le ledger d'audit local." }, { id: 'team', label: 'Mode Équipe', desc: 'Envoi vers votre serveur self-hosted uniquement (pas de ledger local).' }, { id: 'both', label: 'Les deux', desc: 'Journalise localement ET pousse vers le serveur équipe.' }] as opt (opt.id)}
+            <label class="team-radio" title={opt.desc}>
+              <input
+                type="radio"
+                name="team-mode"
+                value={opt.id}
+                checked={$teamStore.mode === opt.id}
+                disabled={!tauriAvailable || teamBusy}
+                onchange={() => handleSetTeamMode(opt.id as TeamMode)}
+                data-testid={`team-mode-${opt.id}`}
+              />
+              <span class="team-radio-content">
+                <strong>{opt.label}</strong>
+                <span class="team-radio-desc">{opt.desc}</span>
+              </span>
+            </label>
+          {/each}
+        </div>
+      </div>
+
+      {#if teamEnrollOk}
+        <p class="team-hint ok" data-testid="team-enroll-ok">
+          <Check size={12} strokeWidth={1.8} />
+          <span>{teamEnrollOk}</span>
+        </p>
+      {/if}
+      {#if teamError}
+        <p class="team-hint err" data-testid="team-error">
+          <AlertTriangle size={12} strokeWidth={1.8} />
+          <span>{teamError}</span>
+        </p>
+      {/if}
+    {/if}
+
+    <p class="section-foot">
+      <Users size={11} strokeWidth={1.8} />
+      Serveur déployé par votre organisation (aucun cloud Sobr.ia). Voir
+      <code>docs/operations/team-aggregator.md</code> et
       <a href="/methodo">ADR-0013</a>.
     </p>
   </section>
@@ -1990,6 +2444,192 @@
     border-radius: var(--radius-sm, 6px);
   }
 
+  /* C29.1 — Mode Équipe self-hosted ────────────────────────────────── */
+  .team-status {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 10px);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .team-status-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px;
+    align-items: center;
+    font: 400 12.5px/1.4 var(--font-ui);
+  }
+  .team-status-label {
+    color: var(--ivory-3, rgba(244, 240, 232, 0.55));
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+  }
+  .team-mono {
+    font: 500 12.5px/1.3 var(--font-mono);
+    color: var(--ivory, #f4f0e8);
+    overflow-wrap: anywhere;
+  }
+  .team-truncate {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .team-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font: 500 11px/1.4 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border: 1px solid transparent;
+  }
+  .team-pill-mute {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ivory-3, rgba(244, 240, 232, 0.6));
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .team-pill-warn {
+    background: rgba(255, 178, 92, 0.08);
+    color: var(--amber, #ffb25c);
+    border-color: rgba(255, 178, 92, 0.32);
+  }
+  .team-pill-ok {
+    background: rgba(197, 240, 74, 0.08);
+    color: var(--lime, #c5f04a);
+    border-color: rgba(197, 240, 74, 0.32);
+  }
+  .team-block {
+    margin: 0 0 18px;
+    padding: 16px 18px 14px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 10px);
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .team-form-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 12px;
+    align-items: center;
+    margin: 0 0 10px;
+  }
+  .team-form-row label {
+    font: 400 12.5px/1.4 var(--font-ui);
+    color: var(--ivory-2, rgba(244, 240, 232, 0.78));
+  }
+  .team-input {
+    font: 400 13px/1.4 var(--font-ui);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm, 6px);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ivory, #f4f0e8);
+  }
+  .team-input.mono {
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+  }
+  .team-input:focus {
+    outline: 1px solid var(--lime, #c5f04a);
+    outline-offset: 1px;
+  }
+  .team-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .team-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 10px;
+    font: 400 12.5px/1.4 var(--font-ui);
+    color: var(--ivory-2, rgba(244, 240, 232, 0.78));
+    cursor: pointer;
+  }
+  .team-toggle input[type='checkbox']:disabled {
+    cursor: not-allowed;
+  }
+  .team-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 0 6px;
+  }
+  .team-actions .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+  .btn-destructive {
+    color: var(--coral, #ff8090) !important;
+    border-color: rgba(255, 128, 144, 0.32) !important;
+  }
+  .btn-destructive:hover:not(:disabled) {
+    background: rgba(255, 128, 144, 0.08) !important;
+  }
+  .team-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 0;
+    font: 400 12px/1.4 var(--font-ui);
+    color: var(--ivory-3, rgba(244, 240, 232, 0.6));
+  }
+  .team-hint.warn {
+    color: var(--amber, #ffb25c);
+  }
+  .team-hint.err {
+    color: var(--coral, #ff8090);
+  }
+  .team-hint.ok {
+    color: var(--lime, #c5f04a);
+  }
+  .team-radio-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .team-radio {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: start;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-sm, 6px);
+    background: rgba(255, 255, 255, 0.015);
+    cursor: pointer;
+  }
+  .team-radio:has(input:checked) {
+    border-color: var(--lime, #c5f04a);
+    background: rgba(197, 240, 74, 0.04);
+  }
+  .team-radio:has(input:disabled) {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .team-radio-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .team-radio-content strong {
+    font: 500 13px/1.3 var(--font-ui);
+    color: var(--ivory, #f4f0e8);
+  }
+  .team-radio-desc {
+    font: 400 11.5px/1.45 var(--font-ui);
+    color: var(--ivory-3, rgba(244, 240, 232, 0.6));
+  }
+
   @media (max-width: 720px) {
     .canvas-inner {
       padding: 24px 16px 60px;
@@ -2014,6 +2654,11 @@
       width: 36px;
       height: 48px;
       font-size: 24px;
+    }
+    .team-status-row,
+    .team-form-row {
+      grid-template-columns: 1fr;
+      gap: 4px;
     }
   }
 </style>

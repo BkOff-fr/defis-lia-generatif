@@ -595,7 +595,10 @@ mod tests {
             .unwrap()
             .filter_map(rusqlite::Result::ok)
             .collect();
-        assert!(!cols.iter().any(|c| c == "salt_hex"), "salt_hex must be dropped");
+        assert!(
+            !cols.iter().any(|c| c == "salt_hex"),
+            "salt_hex must be dropped"
+        );
 
         // Le legacy est révoqué, le PHC reste actif.
         let revoked_legacy: Option<String> = conn

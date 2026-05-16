@@ -15,10 +15,11 @@ members = [
     "crates/sobria-audit",
     "crates/sobria-app",
     "crates/sobria-bridge",
+    "crates/sobria-team-aggregator",
 ]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.1"
 edition = "2021"
 authors = ["Sobr.ia contributors"]
 license = "MIT"

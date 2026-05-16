@@ -333,7 +333,10 @@ mod tests {
     fn verify_against_rejects_malformed_phc() {
         // Un hash legacy SHA-256+sel n'est pas une PHC string Argon2 → false.
         let s = PairingSecret::new();
-        assert!(!PairingSecret::verify_against("not-a-phc-string", &s.secret_hex));
+        assert!(!PairingSecret::verify_against(
+            "not-a-phc-string",
+            &s.secret_hex
+        ));
         assert!(!PairingSecret::verify_against(
             "0123456789abcdef".repeat(4).as_str(),
             &s.secret_hex
