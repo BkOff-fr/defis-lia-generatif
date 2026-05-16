@@ -16,7 +16,7 @@ import { expect, test } from '@playwright/test';
  */
 
 // ─── Test 1 — Splash → persona picker → bundle Étudiant pré-coché ──────
-test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à 8 modules', async ({
+test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à 5 modules', async ({
   page
 }) => {
   await page.goto('/onboarding');
@@ -37,12 +37,12 @@ test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à
   // Sélectionner Étudiant·e
   await page.locator('[data-persona="student"]').click();
 
-  // Étape 3 — Bundle pré-coché : 8 modules pour le persona Student
+  // Étape 3 — Bundle pré-coché : 5 modules pour le persona Student
   // (mirror sobria_core::Persona::Student::default_modules — voir
-  // crates/sobria-core/src/preferences.rs).
+  // crates/sobria-core/src/preferences.rs ; C32.1 retrait M14).
   await expect(page.getByRole('heading', { name: /Voici votre première sélection/ })).toBeVisible();
 
-  const expectedStudent = ['m1', 'm8', 'm11', 'm13', 'm14', 'm15', 'm24', 'm25'];
+  const expectedStudent = ['m1', 'm8', 'm13', 'm15', 'm25'];
   // On vérifie que chaque module du bundle est représenté ET coché.
   for (const m of expectedStudent) {
     const row = page
@@ -50,7 +50,7 @@ test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à
       .filter({ has: page.locator(`input[data-module="${m}"]`) });
     await expect(row).toHaveAttribute('data-checked', 'true');
   }
-  await expect(page.getByText(/^8 modules sélectionnés/)).toBeVisible();
+  await expect(page.getByText(/^5 modules sélectionnés/)).toBeVisible();
 });
 
 // ─── Test 2 — Étape 3 « + Plus de modules » révèle les autres ────────
@@ -73,18 +73,19 @@ test('Onboarding : « + Plus de modules » dévoile les modules hors bundle', as
   await page.getByRole('button', { name: /^Précédent$/ }).click();
   await page.locator('[data-persona="enterprise"]').click();
 
-  // Bundle Entreprise (11 modules — cf. ADR-0010 §"Personas v2").
-  await expect(page.getByText(/^11 modules sélectionnés/)).toBeVisible();
+  // Bundle Entreprise (8 modules — C32.1 retrait M14, aligné sur Rust).
+  await expect(page.getByText(/^8 modules sélectionnés/)).toBeVisible();
   // M22 (CSRD) est dans le bundle Entreprise — coché.
   await expect(
     page.locator('label[data-checked="true"]', { has: page.locator('input[data-module="m22"]') })
   ).toHaveCount(1);
 
-  // « + Plus de modules disponibles » présent (24 - 11 = 13 restants).
+  // « + Plus de modules disponibles » présent (24 - 8 = 16 restants).
   const moreToggle = page.getByRole('button', { name: /Plus de modules/i });
   await expect(moreToggle).toBeVisible();
   await moreToggle.click();
-  // Après dépliage, M14 (À propos, hors bundle Enterprise) est visible non coché.
+  // Après dépliage, M14 (À propos, retiré de TOUS les bundles en C32.1) est
+  // visible non coché.
   await expect(
     page.locator('label[data-checked="false"]', { has: page.locator('input[data-module="m14"]') })
   ).toHaveCount(1);

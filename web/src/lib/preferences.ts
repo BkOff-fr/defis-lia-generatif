@@ -106,19 +106,22 @@ export const ALL_MODULES: readonly ModuleId[] = [
  * Bundle pré-coché par persona. Mirror exact de
  * `sobria_core::Persona::default_modules` — tout drift fait tomber les
  * tests Rust + le test e2e Playwright qui valide la cohérence.
+ *
+ * **C32.1** : alignement strict sur le canon Rust + retrait de M14 (page
+ * « À propos » accessible via menu, pas un module fonctionnel à pré-cocher).
  */
 export function defaultModulesFor(persona: Persona | null): ModuleId[] {
   switch (persona) {
     case 'student':
-      return ['m1', 'm8', 'm11', 'm13', 'm14', 'm15', 'm24', 'm25'];
+      return ['m1', 'm8', 'm13', 'm15', 'm25'];
     case 'pro_tech':
-      return ['m1', 'm2', 'm3', 'm5', 'm7', 'm9', 'm11', 'm18', 'm21'];
+      return ['m1', 'm3', 'm7', 'm8', 'm9', 'm13'];
     case 'enterprise':
-      return ['m1', 'm2', 'm5', 'm6', 'm7', 'm10', 'm12', 'm16', 'm19', 'm21', 'm22'];
+      return ['m1', 'm7', 'm12', 'm15', 'm17', 'm20', 'm22', 'm25'];
     case 'public_sector':
-      return ['m1', 'm5', 'm6', 'm7', 'm8', 'm12', 'm16', 'm20', 'm22', 'm23'];
+      return ['m1', 'm8', 'm12', 'm17', 'm20', 'm22'];
     case 'researcher':
-      return ['m1', 'm3', 'm5', 'm8', 'm14', 'm17', 'm18'];
+      return ['m1', 'm3', 'm7', 'm8', 'm9', 'm17'];
     case null:
       return [];
   }

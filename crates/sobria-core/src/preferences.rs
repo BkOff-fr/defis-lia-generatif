@@ -54,28 +54,34 @@ impl Persona {
     /// dans l'enum (forward compat, activables manuellement) mais ne
     /// figurent dans aucun bundle par défaut.
     ///
+    /// **Retrait M14 des bundles (C32.1)** : M14 « À propos » est une
+    /// page documentaire, pas un module fonctionnel. Il reste accessible
+    /// via le menu footer / paramètres mais ne pollue plus les bundles
+    /// pré-cochés des personas. Cf. `briefs/chantiers/C32-clarte-produit.md`.
+    ///
     /// **Invariants garantis par les tests** :
     /// - le bundle est non vide,
     /// - `ModuleId::M1` (Estimer) est présent dans tous les bundles,
     /// - aucun doublon,
     /// - aucune référence à un identifiant `M4` (réservé en v1.3),
+    /// - aucune référence à `ModuleId::M14` (retiré des bundles en C32.1),
     /// - tous les modules d'un bundle sont dans le set v1.0 (13 IDs).
     #[must_use]
     pub fn default_modules(self) -> Vec<ModuleId> {
-        use ModuleId::{M1, M12, M13, M14, M15, M17, M20, M22, M25, M3, M7, M8, M9};
+        use ModuleId::{M1, M12, M13, M15, M17, M20, M22, M25, M3, M7, M8, M9};
         match self {
             // Étudiant / Curieux : apprendre, comprendre, suivre, fixer.
-            Persona::Student => vec![M1, M8, M13, M14, M15, M25],
+            Persona::Student => vec![M1, M8, M13, M15, M25],
             // Pro tech : estimer, comparer, journal, refs, méthodo.
-            Persona::ProTech => vec![M1, M3, M7, M8, M9, M13, M14],
+            Persona::ProTech => vec![M1, M3, M7, M8, M9, M13],
             // Entreprise : toute la chaîne compliance + dashboard + budget.
             Persona::Enterprise => {
-                vec![M1, M7, M12, M14, M15, M17, M20, M22, M25]
+                vec![M1, M7, M12, M15, M17, M20, M22, M25]
             },
             // Collectivité : focus territoire FR + reporting.
-            Persona::PublicSector => vec![M1, M8, M12, M14, M17, M20, M22],
+            Persona::PublicSector => vec![M1, M8, M12, M17, M20, M22],
             // Chercheur / Journaliste : méthodologie + reproductibilité.
-            Persona::Researcher => vec![M1, M3, M7, M8, M9, M14, M17],
+            Persona::Researcher => vec![M1, M3, M7, M8, M9, M17],
         }
     }
 
@@ -327,6 +333,19 @@ mod tests {
             assert!(
                 !v1.contains(&deferred),
                 "module {deferred:?} ne doit pas être dans le périmètre v1.0"
+            );
+        }
+    }
+
+    #[test]
+    fn no_persona_bundle_contains_m14() {
+        // C32.1 : M14 « À propos » est une page documentaire, pas un module
+        // fonctionnel. Il reste accessible via menu footer mais doit être
+        // retiré des bundles pré-cochés de chaque persona.
+        for p in Persona::all() {
+            assert!(
+                !p.default_modules().contains(&ModuleId::M14),
+                "persona {p:?} ne doit plus contenir M14 dans son bundle par défaut"
             );
         }
     }
