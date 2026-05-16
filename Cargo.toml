@@ -15,6 +15,7 @@ members = [
     "crates/sobria-audit",
     "crates/sobria-app",
     "crates/sobria-bridge",
+    "crates/sobria-team-aggregator",
 ]
 
 [workspace.package]
