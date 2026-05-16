@@ -61,6 +61,14 @@ uuid = { version = "1", features = ["v4"] }
 # UX
 rpassword = "7"
 
+# Dashboard embedded (C28.4) — bundle Svelte servi en statique par axum.
+# - include-exclude  : autorise les attributs `#[include = "*.ext"]`.
+# - debug-embed      : embarque toujours, même en debug build (sinon le
+#                     macro lit depuis le FS à runtime → casse les tests
+#                     qui changent de cwd via tempdir).
+rust-embed = { version = "8", features = ["include-exclude", "debug-embed"] }
+mime_guess = "2"
+
 # Erreurs
 thiserror = { workspace = true }
 anyhow = { workspace = true }

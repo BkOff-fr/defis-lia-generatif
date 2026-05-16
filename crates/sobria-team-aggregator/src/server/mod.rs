@@ -6,6 +6,7 @@
 
 pub mod api;
 pub mod auth;
+pub mod embedded_web;
 pub mod error;
 pub mod routes;
 pub mod tls;
@@ -38,10 +39,19 @@ impl ServerState {
 }
 
 /// Construit l'application axum (routes + middleware tracing).
+///
+/// Ordre de matching axum :
+/// 1. `/health` (routes statiques)
+/// 2. `/api/v1/*` (API REST)
+/// 3. `/` → index.html
+/// 4. catch-all → static asset OU SPA fallback vers index.html
 pub fn build_router(state: ServerState) -> Router {
+    use axum::routing::get;
     Router::new()
         .merge(routes::router())
         .nest("/api/v1", api::router())
+        .route("/", get(embedded_web::index))
+        .fallback(get(embedded_web::handler))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }

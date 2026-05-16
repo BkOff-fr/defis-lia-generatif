@@ -1,0 +1,313 @@
+/* ============================================================================
+ * Sobr.ia — Design tokens dashboard équipe (C28.4)
+ * Sous-ensemble du design system principal `web/src/app.css`. Pas de woff2
+ * embarqué : on s'appuie sur les fonts système pour minimiser le bundle
+ * embedded dans le binaire (cf. CLAUDE.md §8 frugalité).
+ * ============================================================================ */
+
+:root {
+  /* Ink (fonds profonds) */
+  --ink: #0a0d0b;
+  --ink-2: #0e1310;
+  --ink-3: #131815;
+
+  /* Surfaces translucides */
+  --surface: rgba(255, 255, 255, 0.025);
+  --surface-hi: rgba(255, 255, 255, 0.045);
+  --surface-2: rgba(255, 255, 255, 0.07);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-hi: rgba(255, 255, 255, 0.14);
+
+  /* Ivory (texte) */
+  --ivory: #f0ece3;
+  --ivory-2: #b8b4ac;
+  --ivory-3: #72706a;
+  --ivory-4: #46443f;
+
+  /* Lime — accent signature Sobr.ia */
+  --lime: #c5f04a;
+  --lime-deep: #88a83a;
+  --lime-soft: rgba(197, 240, 74, 0.14);
+
+  /* Sémantiques */
+  --amber: #f5b769;
+  --coral: #f06c5a;
+  --blue: #7eb6ff;
+  --violet: #b794f4;
+
+  /* Dataviz */
+  --plot-grid: rgba(255, 255, 255, 0.06);
+  --plot-axis: rgba(184, 180, 172, 0.55);
+
+  /* Typo (system stack — pas de woff2 embarqué) */
+  --font-ui:
+    system-ui, -apple-system, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --font-display: Georgia, 'Cormorant Garamond', serif;
+
+  /* Tailles */
+  --fs-display: 40px;
+  --fs-h1: 24px;
+  --fs-h2: 18px;
+  --fs-body: 14px;
+  --fs-caption: 12px;
+  --fs-eyebrow: 11px;
+
+  /* Espacements (grille 4px) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* Rayons */
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-pill: 9999px;
+
+  /* Élévation */
+  --shadow-soft: 0 8px 32px -12px rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 12px 40px -8px rgba(0, 0, 0, 0.55);
+
+  /* Animations */
+  --dur: 200ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 70% -10%, rgba(197, 240, 74, 0.05), transparent 60%),
+    radial-gradient(800px 500px at 0% 110%, rgba(245, 183, 105, 0.04), transparent 70%), var(--ink);
+}
+
+a {
+  color: var(--lime);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-display);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: var(--fs-h1);
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: var(--fs-h2);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border-hi);
+  background: var(--surface);
+  color: var(--ivory);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-sm);
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+button:hover {
+  background: var(--surface-hi);
+  border-color: var(--lime);
+}
+
+button.primary {
+  background: var(--lime);
+  color: var(--ink);
+  border-color: var(--lime);
+  font-weight: 600;
+}
+
+button.primary:hover {
+  background: var(--lime-deep);
+}
+
+button.ghost {
+  border-color: transparent;
+}
+
+button.danger {
+  border-color: var(--coral);
+  color: var(--coral);
+}
+
+button.danger:hover {
+  background: rgba(240, 108, 90, 0.1);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  background: var(--surface);
+  color: var(--ivory);
+  border: 1px solid var(--border-hi);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  width: 100%;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--lime);
+  box-shadow: 0 0 0 3px var(--lime-soft);
+}
+
+label {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--ivory-2);
+  margin-bottom: var(--sp-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body);
+}
+
+th,
+td {
+  text-align: left;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--ivory-2);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-soft);
+}
+
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-5);
+}
+
+.metric-card .eyebrow {
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ivory-3);
+  margin-bottom: var(--sp-2);
+}
+
+.metric-card .value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--ivory);
+  line-height: 1.1;
+}
+
+.metric-card .unit {
+  font-family: var(--font-ui);
+  font-size: var(--fs-caption);
+  color: var(--ivory-3);
+  margin-left: var(--sp-2);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--surface-2);
+  color: var(--ivory-2);
+}
+
+.badge.lime {
+  background: var(--lime-soft);
+  color: var(--lime);
+}
+
+.badge.coral {
+  background: rgba(240, 108, 90, 0.14);
+  color: var(--coral);
+}
+
+.badge.amber {
+  background: rgba(245, 183, 105, 0.14);
+  color: var(--amber);
+}
+
+.error {
+  color: var(--coral);
+  font-size: var(--fs-body);
+}
+
+.muted {
+  color: var(--ivory-3);
+}
