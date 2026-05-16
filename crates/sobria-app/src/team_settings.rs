@@ -14,10 +14,14 @@
 //! - `enrolled_at`   : ISO timestamp.
 //! - `accept_invalid_certs` : `'1'` si l'utilisateur a accepté un cert
 //!   auto-signé. Le client reqwest lira cette clé au démarrage.
+//! - `last_seen_at`  : C29.1 — ISO timestamp du dernier ping / push réussi.
+//! - `estimations_sent` : C29.1 — compteur (string décimal) incrémenté à
+//!   chaque `team_push_estimation` ACKé par le serveur.
 
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +40,8 @@ pub const KEY_REFRESH_TOKEN: &str = "refresh_token";
 pub const KEY_FINGERPRINT: &str = "fingerprint";
 pub const KEY_ENROLLED_AT: &str = "enrolled_at";
 pub const KEY_ACCEPT_INVALID_CERTS: &str = "accept_invalid_certs";
+pub const KEY_LAST_SEEN_AT: &str = "last_seen_at";
+pub const KEY_ESTIMATIONS_SENT: &str = "estimations_sent";
 
 /// Mode de dispatch des estimations.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,6 +86,10 @@ pub struct TeamStatus {
     pub fingerprint: Option<String>,
     pub enrolled_at: Option<String>,
     pub accept_invalid_certs: bool,
+    /// RFC 3339 du dernier ping/push réussi (C29.1).
+    pub last_seen_at: Option<String>,
+    /// Nombre d'estimations ACKées par le serveur depuis l'enrôlement (C29.1).
+    pub estimations_sent: u32,
 }
 
 pub struct TeamSettingsStore {
@@ -138,6 +148,12 @@ impl TeamSettingsStore {
             .get(KEY_ACCEPT_INVALID_CERTS)?
             .as_deref()
             .is_some_and(|v| v == "1");
+        let last_seen_at = self.get(KEY_LAST_SEEN_AT)?;
+        let estimations_sent = self
+            .get(KEY_ESTIMATIONS_SENT)?
+            .as_deref()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
         Ok(TeamStatus {
             enrolled: access.is_some(),
             url,
@@ -146,10 +162,31 @@ impl TeamSettingsStore {
             fingerprint,
             enrolled_at,
             accept_invalid_certs,
+            last_seen_at,
+            estimations_sent,
         })
     }
 
-    /// Efface tokens + user_id + fingerprint + enrolled_at (garde url + mode + cert).
+    /// Met à jour `last_seen_at` à l'instant courant (UTC RFC 3339).
+    pub fn mark_seen_now(&self) -> Result<()> {
+        self.set(KEY_LAST_SEEN_AT, &Utc::now().to_rfc3339())
+    }
+
+    /// Incrémente `estimations_sent` (compteur stocké en string décimal).
+    /// Réinitialise à `1` si la valeur est absente ou non parsable.
+    pub fn increment_estimations_sent(&self) -> Result<u32> {
+        let current = self
+            .get(KEY_ESTIMATIONS_SENT)?
+            .as_deref()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let next = current.saturating_add(1);
+        self.set(KEY_ESTIMATIONS_SENT, &next.to_string())?;
+        Ok(next)
+    }
+
+    /// Efface tokens + user_id + fingerprint + enrolled_at + telemetry locale
+    /// (last_seen_at, estimations_sent). Garde url + mode + cert.
     pub fn clear_session(&self) -> Result<()> {
         for k in [
             KEY_ACCESS_TOKEN,
@@ -157,6 +194,8 @@ impl TeamSettingsStore {
             KEY_USER_ID,
             KEY_FINGERPRINT,
             KEY_ENROLLED_AT,
+            KEY_LAST_SEEN_AT,
+            KEY_ESTIMATIONS_SENT,
         ] {
             self.delete(k)?;
         }
@@ -192,6 +231,36 @@ mod tests {
         assert_eq!(snap.mode, TeamMode::Local);
         assert!(snap.url.is_none());
         assert!(!snap.accept_invalid_certs);
+        assert!(snap.last_seen_at.is_none());
+        assert_eq!(snap.estimations_sent, 0);
+    }
+
+    #[test]
+    fn mark_seen_now_sets_iso_timestamp() {
+        let s = TeamSettingsStore::open_in_memory().unwrap();
+        s.mark_seen_now().unwrap();
+        let snap = s.snapshot().unwrap();
+        let ts = snap.last_seen_at.expect("last_seen_at posé");
+        // Format RFC 3339 minimal — doit contenir un T et un fuseau.
+        assert!(ts.contains('T'), "format RFC 3339 attendu: {ts}");
+    }
+
+    #[test]
+    fn increment_estimations_sent_starts_at_one_then_monotone() {
+        let s = TeamSettingsStore::open_in_memory().unwrap();
+        assert_eq!(s.increment_estimations_sent().unwrap(), 1);
+        assert_eq!(s.increment_estimations_sent().unwrap(), 2);
+        assert_eq!(s.increment_estimations_sent().unwrap(), 3);
+        let snap = s.snapshot().unwrap();
+        assert_eq!(snap.estimations_sent, 3);
+    }
+
+    #[test]
+    fn increment_recovers_from_corrupt_value() {
+        let s = TeamSettingsStore::open_in_memory().unwrap();
+        s.set(KEY_ESTIMATIONS_SENT, "garbage").unwrap();
+        // Reprise depuis 0 si la valeur est invalide.
+        assert_eq!(s.increment_estimations_sent().unwrap(), 1);
     }
 
     #[test]
@@ -205,27 +274,35 @@ mod tests {
         s.set(KEY_ENROLLED_AT, "2026-05-16T12:00:00Z").unwrap();
         s.set(KEY_MODE, "both").unwrap();
         s.set(KEY_ACCEPT_INVALID_CERTS, "1").unwrap();
+        s.set(KEY_LAST_SEEN_AT, "2026-05-17T08:30:00Z").unwrap();
+        s.set(KEY_ESTIMATIONS_SENT, "42").unwrap();
 
         let snap = s.snapshot().unwrap();
         assert!(snap.enrolled);
         assert_eq!(snap.mode, TeamMode::Both);
         assert_eq!(snap.fingerprint.as_deref(), Some("app-mac-abc"));
         assert!(snap.accept_invalid_certs);
+        assert_eq!(snap.last_seen_at.as_deref(), Some("2026-05-17T08:30:00Z"));
+        assert_eq!(snap.estimations_sent, 42);
     }
 
     #[test]
-    fn clear_session_keeps_url_and_mode() {
+    fn clear_session_keeps_url_and_mode_but_clears_telemetry() {
         let s = TeamSettingsStore::open_in_memory().unwrap();
         s.set(KEY_URL, "https://team.fr:8443").unwrap();
         s.set(KEY_ACCESS_TOKEN, "jwt").unwrap();
         s.set(KEY_REFRESH_TOKEN, "rt").unwrap();
         s.set(KEY_MODE, "team").unwrap();
+        s.set(KEY_LAST_SEEN_AT, "2026-05-17T08:30:00Z").unwrap();
+        s.set(KEY_ESTIMATIONS_SENT, "42").unwrap();
         s.clear_session().unwrap();
 
         let snap = s.snapshot().unwrap();
         assert!(!snap.enrolled);
         assert_eq!(snap.url.as_deref(), Some("https://team.fr:8443"));
         assert_eq!(snap.mode, TeamMode::Team);
+        assert!(snap.last_seen_at.is_none());
+        assert_eq!(snap.estimations_sent, 0);
     }
 
     #[test]

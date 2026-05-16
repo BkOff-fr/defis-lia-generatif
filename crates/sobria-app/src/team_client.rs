@@ -415,6 +415,8 @@ mod tests {
             fingerprint: None,
             enrolled_at: None,
             accept_invalid_certs: false,
+            last_seen_at: None,
+            estimations_sent: 0,
         };
         assert!(!should_dispatch_team(&snap));
         snap.mode = TeamMode::Team;

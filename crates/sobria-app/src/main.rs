@@ -434,7 +434,12 @@ async fn team_ping(state: tauri::State<'_, AppState>) -> IpcResult<team_client::
         team_client::ClientConfig::read(&store).map_err(team_client::map_team_err)?
     };
     let client = TeamClient::new(cfg).map_err(team_client::map_team_err)?;
-    client.ping().await.map_err(team_client::map_team_err)
+    let resp = client.ping().await.map_err(team_client::map_team_err)?;
+    // C29.1 — toute connexion réussie met à jour `last_seen_at`.
+    if let Ok(store) = state.team_settings.lock() {
+        let _ = store.mark_seen_now();
+    }
+    Ok(resp)
 }
 
 #[tauri::command]
@@ -525,6 +530,13 @@ async fn team_push_estimation(
             .map_err(|_| IpcError::new("internal", "team_settings mutex poisoned"))?;
         team_client::persist::save_tokens(&store, &access, &refresh)
             .map_err(team_client::map_team_err)?;
+    }
+    // C29.1 — push réussi : compteur + timestamp.
+    if outcome.data.ack {
+        if let Ok(store) = state.team_settings.lock() {
+            let _ = store.increment_estimations_sent();
+            let _ = store.mark_seen_now();
+        }
     }
     Ok(outcome.data.ack)
 }
