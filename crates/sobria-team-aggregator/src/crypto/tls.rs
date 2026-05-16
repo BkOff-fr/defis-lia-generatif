@@ -86,6 +86,72 @@ pub fn write_cert_files(
     Ok(())
 }
 
+/// Empreinte SHA-256 hex du certificat PEM (à des fins d'affichage / pinning).
+/// Calculé sur le PEM tel quel — c'est l'empreinte "transport" usuelle.
+#[must_use]
+pub fn cert_fingerprint_sha256(pem: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(pem.as_bytes());
+    format!("{:x}", h.finalize())
+}
+
+/// Résultat d'une rotation TLS (C29.3).
+#[derive(Debug)]
+pub struct RegenOutcome {
+    /// Chemin du backup de l'ancien cert (`cert.pem.bak.<unix_ts>`).
+    pub cert_backup_path: std::path::PathBuf,
+    /// Chemin du backup de l'ancienne clé (`key.pem.bak.<unix_ts>`).
+    pub key_backup_path: std::path::PathBuf,
+    /// Empreinte SHA-256 hex du nouveau cert PEM.
+    pub new_fingerprint: String,
+}
+
+/// Régénère `cert.pem` + `key.pem` à partir du data dir actuel.
+///
+/// 1. Sauvegarde l'ancien cert et l'ancienne clé sous `*.bak.<unix_ts>`.
+/// 2. Génère un nouveau cert auto-signé (mêmes SANs `localhost`/`127.0.0.1`/
+///    `::1` + hostname OS), CN identique (`hostname` ou `localhost`).
+/// 3. Écrit les nouveaux fichiers via [`write_cert_files`].
+/// 4. Retourne l'empreinte SHA-256 du nouveau cert (à communiquer aux clients).
+pub fn regen_self_signed(cert_path: &Path, key_path: &Path) -> AggregatorResult<RegenOutcome> {
+    if !cert_path.exists() || !key_path.exists() {
+        return Err(AggregatorError::Tls(format!(
+            "cert ou clé absents — exécuter `init` d'abord ({} / {})",
+            cert_path.display(),
+            key_path.display(),
+        )));
+    }
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let cert_backup = cert_path.with_extension(format!("pem.bak.{ts}"));
+    let key_backup = key_path.with_extension(format!("pem.bak.{ts}"));
+    fs::rename(cert_path, &cert_backup)?;
+    fs::rename(key_path, &key_backup)?;
+
+    let hostname = hostname::get()
+        .ok()
+        .and_then(|os| os.into_string().ok())
+        .filter(|s| !s.is_empty());
+    let sans = vec![
+        "localhost".to_string(),
+        "127.0.0.1".to_string(),
+        "::1".to_string(),
+    ];
+    let bundle = generate_self_signed(&sans, hostname.as_deref())?;
+    write_cert_files(cert_path, key_path, &bundle)?;
+    let fp = cert_fingerprint_sha256(&bundle.cert_pem);
+
+    Ok(RegenOutcome {
+        cert_backup_path: cert_backup,
+        key_backup_path: key_backup,
+        new_fingerprint: fp,
+    })
+}
+
 #[cfg(unix)]
 fn restrict_key_permissions(key_path: &Path) -> AggregatorResult<()> {
     use std::os::unix::fs::PermissionsExt;
@@ -141,5 +207,46 @@ mod tests {
         assert!(key.exists());
         let cert_text = std::fs::read_to_string(&cert).unwrap();
         assert!(cert_text.contains("BEGIN CERTIFICATE"));
+    }
+
+    #[test]
+    fn fingerprint_is_64_hex() {
+        let pem = "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n";
+        let fp = cert_fingerprint_sha256(pem);
+        assert_eq!(fp.len(), 64);
+        assert!(fp.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn regen_self_signed_backs_up_and_replaces() {
+        let dir = tempdir().unwrap();
+        let cert = dir.path().join("cert.pem");
+        let key = dir.path().join("key.pem");
+        let bundle1 =
+            generate_self_signed(&["localhost".into(), "127.0.0.1".into()], Some("localhost"))
+                .unwrap();
+        write_cert_files(&cert, &key, &bundle1).unwrap();
+        let cert_v1 = std::fs::read_to_string(&cert).unwrap();
+
+        let out = regen_self_signed(&cert, &key).unwrap();
+        assert!(out.cert_backup_path.exists(), "backup cert manquant");
+        assert!(out.key_backup_path.exists(), "backup key manquant");
+        // Backups contiennent l'ancien contenu
+        let cert_bak = std::fs::read_to_string(&out.cert_backup_path).unwrap();
+        assert_eq!(cert_bak, cert_v1);
+        // Le nouveau cert est différent et a une empreinte unique
+        let cert_v2 = std::fs::read_to_string(&cert).unwrap();
+        assert_ne!(cert_v1, cert_v2);
+        assert_eq!(out.new_fingerprint.len(), 64);
+        assert_eq!(out.new_fingerprint, cert_fingerprint_sha256(&cert_v2));
+    }
+
+    #[test]
+    fn regen_self_signed_fails_when_files_absent() {
+        let dir = tempdir().unwrap();
+        let cert = dir.path().join("cert.pem");
+        let key = dir.path().join("key.pem");
+        let err = regen_self_signed(&cert, &key);
+        assert!(err.is_err());
     }
 }

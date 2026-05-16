@@ -2,11 +2,11 @@
 //!
 //! Sous-commandes :
 //!
-//! - `init`    (C28.1) — prépare un data dir.
-//! - `serve`   (C28.1) — lance le serveur HTTPS.
-//! - `code`    (C28.2) — crée / liste / révoque des enrollment codes.
-//!
-//! `user`, `admin reset-password` etc. viendront avec C28.3.
+//! - `init`              (C28.1) — prépare un data dir.
+//! - `serve [--regen-cert]` (C28.1 + C29.3) — lance le serveur HTTPS,
+//!   avec option de rotation du cert auto-signé avant bind.
+//! - `code`              (C28.2) — crée / liste / révoque des enrollment codes.
+//! - `admin {list, reset-password}` (C29.2) — gestion des comptes admin.
 
 use std::path::PathBuf;
 
@@ -54,12 +54,40 @@ pub enum Command {
         /// Port HTTPS.
         #[arg(long, default_value_t = DEFAULT_PORT)]
         port: u16,
+
+        /// Régénère le certificat TLS auto-signé avant de démarrer (C29.3).
+        ///
+        /// L'ancien cert/key est sauvegardé en `*.pem.bak.<unix_ts>`. Les
+        /// clients qui avaient accepté l'ancien fingerprint devront accepter
+        /// le nouveau.
+        #[arg(long)]
+        regen_cert: bool,
     },
 
     /// Gère les enrollment codes distribués aux employés.
     Code {
         #[command(subcommand)]
         action: CodeAction,
+    },
+
+    /// Gère les comptes administrateurs (reset-password / list).
+    Admin {
+        #[command(subcommand)]
+        action: AdminAction,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AdminAction {
+    /// Liste tous les admins du data dir.
+    List,
+    /// Réinitialise le mot de passe d'un admin (Argon2id + révocation tokens).
+    ResetPassword {
+        /// Username de l'admin à modifier.
+        username: String,
+        /// Nouveau mot de passe. Si absent : prompt interactif.
+        #[arg(long, env = "SOBRIA_TEAM_NEW_PASSWORD")]
+        password: Option<String>,
     },
 }
 
@@ -98,8 +126,55 @@ pub fn run() -> Result<()> {
             admin_password,
             force,
         } => run_init(&paths, &admin_username, admin_password, force),
-        Command::Serve { bind, port } => run_serve(&paths, &bind, port),
+        Command::Serve {
+            bind,
+            port,
+            regen_cert,
+        } => run_serve(&paths, &bind, port, regen_cert),
         Command::Code { action } => run_code(&paths, action),
+        Command::Admin { action } => run_admin(&paths, action),
+    }
+}
+
+fn run_admin(paths: &DataPaths, action: AdminAction) -> Result<()> {
+    match action {
+        AdminAction::List => {
+            let admins = commands::admin::list_admins(paths)?;
+            if admins.is_empty() {
+                println!("Aucun admin en base.");
+                return Ok(());
+            }
+            println!(
+                "{:<28} {:<22} {:<22} last_login_at",
+                "id", "username", "created_at"
+            );
+            for a in admins {
+                let last = a
+                    .last_login_at
+                    .map(|d| d.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_else(|| "—".into());
+                println!(
+                    "{:<28} {:<22} {:<22} {}",
+                    a.id,
+                    a.username,
+                    a.created_at.format("%Y-%m-%d %H:%M"),
+                    last,
+                );
+            }
+            Ok(())
+        },
+        AdminAction::ResetPassword { username, password } => {
+            let new_pw = match password {
+                Some(p) => p,
+                None => prompt_password().context("lire le nouveau password")?,
+            };
+            let out = commands::admin::reset_password(paths, &username, &new_pw)?;
+            println!(
+                "Mot de passe de {} réinitialisé. {} token(s) révoqué(s).",
+                out.username, out.revoked_tokens
+            );
+            Ok(())
+        },
     }
 }
 
@@ -189,7 +264,17 @@ fn run_init(
     Ok(())
 }
 
-fn run_serve(paths: &DataPaths, bind: &str, port: u16) -> Result<()> {
+fn run_serve(paths: &DataPaths, bind: &str, port: u16, regen_cert: bool) -> Result<()> {
+    if regen_cert {
+        let out = crate::crypto::tls::regen_self_signed(&paths.cert(), &paths.key())
+            .context("régénérer le certificat TLS")?;
+        println!(
+            "Nouveau certificat TLS généré.\n  ancien cert -> {}\n  ancienne clé -> {}\n  empreinte SHA-256 : {}\n",
+            out.cert_backup_path.display(),
+            out.key_backup_path.display(),
+            out.new_fingerprint
+        );
+    }
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

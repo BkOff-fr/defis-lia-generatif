@@ -90,6 +90,23 @@ pub fn revoke(conn: &Connection, id: &str, now: DateTime<Utc>) -> AggregatorResu
     Ok(n == 1)
 }
 
+/// Révoque TOUS les tokens actifs d'un admin (utilisé par `admin
+/// reset-password` C29.2). Retourne le nombre de tokens effectivement
+/// révoqués (les déjà-révoqués/expirés sont laissés).
+pub fn revoke_all_for_admin(
+    conn: &Connection,
+    admin_id: &str,
+    now: DateTime<Utc>,
+) -> AggregatorResult<usize> {
+    let n = conn.execute(
+        "UPDATE tokens
+         SET revoked_at = ?1
+         WHERE admin_id = ?2 AND revoked_at IS NULL",
+        params![now.to_rfc3339(), admin_id],
+    )?;
+    Ok(n)
+}
+
 /// Vérifie un refresh token au format `<id>.<secret>`. Retourne le row si OK
 /// (encore actif + verif Argon2id OK), `None` sinon.
 ///

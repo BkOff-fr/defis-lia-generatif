@@ -72,6 +72,34 @@ pub fn touch_last_login(conn: &Connection, id: &str, now: DateTime<Utc>) -> Aggr
     Ok(())
 }
 
+/// Liste tous les admins (utilisée par `admin list` CLI C29.2).
+pub fn list_all(conn: &Connection) -> AggregatorResult<Vec<AdminRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, username, password_hash, created_at, last_login_at
+         FROM admins
+         ORDER BY created_at ASC",
+    )?;
+    let rows = stmt.query_map([], map_row)?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+/// Réécrit le hash de password d'un admin (`admin reset-password` C29.2).
+/// Pose aussi `last_login_at = NULL` pour invalider l'idée d'une session
+/// en cours. Retourne le nombre de lignes affectées (0 si username inconnu).
+pub fn set_password_hash(
+    conn: &Connection,
+    username: &str,
+    new_hash: &str,
+) -> AggregatorResult<usize> {
+    let n = conn.execute(
+        "UPDATE admins
+         SET password_hash = ?2, last_login_at = NULL
+         WHERE username = ?1",
+        params![username, new_hash],
+    )?;
+    Ok(n)
+}
+
 fn map_row(row: &rusqlite::Row) -> rusqlite::Result<AdminRow> {
     let created_at_s: String = row.get(3)?;
     let last_login_s: Option<String> = row.get(4)?;
