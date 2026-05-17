@@ -5,6 +5,19 @@
 > **Aucun cloud Sobr.ia n'est impliqué.** Voir ADR-0013 Phase 2 et
 > `briefs/chantiers/C28-mode-equipe-self-hosted.md`.
 
+## TL;DR — En 5 minutes (C32.3)
+
+**Pour un dirigeant TPE/PME, un gestionnaire bureau, un freelance** :
+vous lancez UN exécutable, vous obtenez une URL `https://...:8443`,
+vous distribuez 1 code à 12 chiffres par employé. Aucune Kubernetes,
+aucune autorité de certification, aucune base de données externe.
+
+**Pour un DSI** : binaire Rust standalone (~15 MB, sans dépendance
+runtime), TLS auto-signé via rcgen + ring (pas d'OpenSSL),
+SQLite WAL, JWT HS256 24h + refresh 7j Argon2id. Reverse proxy
+Caddy / nginx + Let's Encrypt optionnel pour expo Internet. Hardening
+systemd fourni. Voir `## Pour les DSI` ci-dessous.
+
 Le binaire `sobria-team-aggregator` est un serveur HTTPS standalone
 (~15 MB) qui :
 
@@ -20,7 +33,7 @@ Le binaire `sobria-team-aggregator` est un serveur HTTPS standalone
 ## Table des matières
 
 1. [Quickstart (5 min)](#quickstart-5-min)
-2. [Pour les TPE/PME](#pour-les-tpepme)
+2. [Pour les non-IT (TPE/PME, freelances)](#pour-les-non-it-tpepme-freelances)
 3. [Pour les DSI](#pour-les-dsi)
 4. [Sécurité](#sécurité)
 5. [Sauvegardes](#sauvegardes)
@@ -99,7 +112,7 @@ réversible.
 Chaque employé installe l'extension Sobr.ia (Chrome / Firefox /
 Edge), va dans **Options → Mode Équipe**, colle l'URL du serveur,
 clique « Vérifier », puis « S'enrôler » avec son code à 12 chiffres
-+ un mot de passe personnel.
+et un mot de passe personnel.
 
 Les estimations remontent automatiquement (mode `both` activé par
 défaut au premier enrollment : continue de remonter aussi à l'app
@@ -107,7 +120,16 @@ desktop perso si pairée).
 
 ---
 
-## Pour les TPE/PME
+## Pour les non-IT (TPE/PME, freelances)
+
+> Si vous n'avez pas d'équipe IT en interne : le binaire fait _tout_
+> tout seul. Suivez juste le Quickstart ci-dessus, vous n'aurez pas
+> besoin de toucher au reste de ce document.
+>
+> Les sections ci-dessous montrent un déploiement type pour 10-100
+> employés (auto-start systemd, hardening Linux). Elles sont
+> facultatives — pour un usage perso ou TPE, lancer
+> `sobria-team-aggregator serve` à la main suffit.
 
 ### Architecture conseillée (10 à 100 employés)
 
@@ -253,16 +275,16 @@ HA différée à v1.x.
 
 Tous stockés dans `team-data/` :
 
-| Élément                  | Format                     | Rotation         |
-|---------------------------|----------------------------|------------------|
-| Mot de passe admin        | Argon2id PHC en SQLite     | manuelle         |
-| Mot de passe user         | Argon2id PHC en SQLite     | manuelle         |
-| Enrollment codes          | Argon2id PHC en SQLite     | TTL 7j par défaut|
-| JWT signing key           | 32 octets hex en SQLite    | `--regen-key`*   |
-| Refresh tokens            | Argon2id PHC en SQLite     | rotation à chaque /refresh |
-| Clé privée TLS            | PEM ECDSA-P256 dans data dir | `--regen-cert`*|
+| Élément            | Format                       | Rotation                   |
+| ------------------ | ---------------------------- | -------------------------- |
+| Mot de passe admin | Argon2id PHC en SQLite       | manuelle                   |
+| Mot de passe user  | Argon2id PHC en SQLite       | manuelle                   |
+| Enrollment codes   | Argon2id PHC en SQLite       | TTL 7j par défaut          |
+| JWT signing key    | 32 octets hex en SQLite      | `--regen-key`\*            |
+| Refresh tokens     | Argon2id PHC en SQLite       | rotation à chaque /refresh |
+| Clé privée TLS     | PEM ECDSA-P256 dans data dir | `--regen-cert`\*           |
 
-*Commandes prévues v0.7.1.
+\*Commandes prévues v0.7.1.
 
 ### Permissions filesystem
 
@@ -375,7 +397,7 @@ Format du POST JSON (timeout 5 s) :
   "gco2eq_max": 100.0,
   "observed_gco2eq": 127.3,
   "period_start": "2026-05-16T00:00:00+00:00",
-  "period_end":   "2026-05-16T23:59:59+00:00",
+  "period_end": "2026-05-16T23:59:59+00:00",
   "triggered_at": "2026-05-16T14:32:01+00:00"
 }
 ```

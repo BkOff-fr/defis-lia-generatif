@@ -30,7 +30,10 @@
     LogOut,
     ExternalLink,
     KeyRound,
-    X
+    X,
+    Sparkles,
+    Download,
+    Terminal
   } from '@lucide/svelte';
   import {
     getPairingCodeStatus,
@@ -106,6 +109,8 @@
   let pairingTicker: ReturnType<typeof setInterval> | null = null;
 
   // C29.1 — Mode Équipe self-hosted (UI câblée aux 8 IPC team_*)
+  // C32.3 — Dialog « Activer Mode Équipe » (3 étapes guidées pour DSI).
+  let teamActivateDialogOpen = $state(false);
   let teamUrlDraft = $state('');
   let teamCode = $state('');
   let teamPassword = $state('');
@@ -1183,6 +1188,43 @@
         {/if}
       </div>
 
+      <!-- C32.3 — Panneau « Activer Mode Équipe » : guide 5-min pour
+           les DSI qui n'ont pas encore déployé le binaire serveur. Visible
+           uniquement quand non configuré (URL vide). -->
+      {#if !$teamStore.url}
+        <div class="team-activate" data-testid="team-activate-panel">
+          <div class="team-activate-head">
+            <span class="team-activate-ico" aria-hidden="true">
+              <Sparkles size={16} strokeWidth={1.7} />
+            </span>
+            <div>
+              <h3 class="team-activate-title">Pas encore de serveur d'équipe ?</h3>
+              <p class="team-activate-sub">
+                Sobr.ia fournit un binaire Rust standalone que vous déployez vous-même (poste admin,
+                NAS, VPS). Aucun cloud Sobr.ia impliqué. Comptez 5 minutes pour démarrer.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="team-activate-btn"
+            onclick={() => (teamActivateDialogOpen = true)}
+            data-testid="team-activate-btn"
+          >
+            <Server size={14} strokeWidth={1.8} />
+            Activer Mode Équipe (mon entreprise)
+          </button>
+          <a
+            href="https://github.com/BkOff-fr/defis-lia-generatif/blob/main/docs/operations/team-aggregator.md"
+            class="team-activate-link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Voir le guide complet (5 minutes) →
+          </a>
+        </div>
+      {/if}
+
       <!-- Bloc Configuration ─────────────────────────────────────── -->
       <div class="team-block">
         <h3 class="ext-pane-title">Configuration</h3>
@@ -1498,6 +1540,127 @@
           data-action="confirm-persona"
         >
           Remplacer
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- C32.3 — Dialog « Activer Mode Équipe » (3 étapes guidées). ─────── -->
+{#if teamActivateDialogOpen}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-overlay"
+    onclick={() => (teamActivateDialogOpen = false)}
+    onkeydown={(e) => {
+      if (e.key === 'Escape') teamActivateDialogOpen = false;
+    }}
+  >
+    <div
+      class="modal team-activate-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="team-activate-title"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+      tabindex="-1"
+    >
+      <header class="ta-modal-head">
+        <h3 id="team-activate-title">Activer Mode Équipe — 3 étapes</h3>
+        <button
+          type="button"
+          class="ta-close"
+          onclick={() => (teamActivateDialogOpen = false)}
+          aria-label="Fermer la fenêtre"
+        >
+          <X size={14} strokeWidth={2} />
+        </button>
+      </header>
+
+      <p class="ta-intro">
+        Vous allez déployer un binaire Rust standalone sur votre infrastructure (poste admin, NAS,
+        VPS interne). Aucun cloud Sobr.ia n'est impliqué — vos données restent chez vous.
+      </p>
+
+      <ol class="ta-steps">
+        <li class="ta-step">
+          <span class="ta-step-num">1</span>
+          <div class="ta-step-body">
+            <h4 class="ta-step-title">
+              <Download size={14} strokeWidth={1.8} />
+              Télécharger le binaire
+            </h4>
+            <p class="ta-step-text">
+              Récupérez <code>sobria-team-aggregator</code> pour votre OS (Linux / macOS / Windows) depuis
+              les Releases GitHub. ~15 MB.
+            </p>
+            <a
+              href="https://github.com/BkOff-fr/defis-lia-generatif/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="ta-step-link"
+            >
+              Releases GitHub →
+            </a>
+          </div>
+        </li>
+
+        <li class="ta-step">
+          <span class="ta-step-num">2</span>
+          <div class="ta-step-body">
+            <h4 class="ta-step-title">
+              <Terminal size={14} strokeWidth={1.8} />
+              Initialiser le serveur
+            </h4>
+            <p class="ta-step-text">
+              Sur le poste qui hébergera l'agrégateur, lancez ces commandes une seule fois :
+            </p>
+            <pre class="ta-cmd"><code
+                >chmod +x sobria-team-aggregator-linux-x86_64
+./sobria-team-aggregator --data-dir ./team-data init \
+    --admin-username admin --admin-password 'CHANGE-ME'
+./sobria-team-aggregator --data-dir ./team-data serve --port 8443</code
+              ></pre>
+            <p class="ta-step-hint">
+              Le serveur écoute en HTTPS sur le port 8443 avec un certificat auto-signé (rotation
+              possible plus tard via
+              <code>serve --regen-cert</code>).
+            </p>
+          </div>
+        </li>
+
+        <li class="ta-step">
+          <span class="ta-step-num">3</span>
+          <div class="ta-step-body">
+            <h4 class="ta-step-title">
+              <Users size={14} strokeWidth={1.8} />
+              Distribuer les codes aux employés
+            </h4>
+            <p class="ta-step-text">
+              Ouvrez <code>https://votre-serveur:8443/admin</code> avec les identifiants admin. Créez
+              un code d'enrôlement à 12 chiffres par employé, distribuez-les. Chaque employé colle son
+              code dans le bloc « Enrôlement » ci-dessous.
+            </p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="ta-modal-foot">
+        <a
+          href="https://github.com/BkOff-fr/defis-lia-generatif/blob/main/docs/operations/team-aggregator.md"
+          class="ta-doc-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Voir le guide complet (5 minutes) →
+        </a>
+        <button
+          type="button"
+          class="btn-primary"
+          onclick={() => (teamActivateDialogOpen = false)}
+          data-action="team-activate-close"
+        >
+          J'ai compris
         </button>
       </div>
     </div>
@@ -2270,6 +2433,196 @@
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+  }
+
+  /* ─── C32.3 — Panneau « Activer Mode Équipe » + dialog 3 étapes ────── */
+  .team-activate {
+    margin-top: 12px;
+    padding: 16px 18px;
+    background: linear-gradient(155deg, rgba(197, 240, 74, 0.05), rgba(197, 240, 74, 0.01));
+    border: 1px dashed rgba(197, 240, 74, 0.3);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .team-activate-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .team-activate-ico {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.3);
+    color: var(--lime);
+    flex-shrink: 0;
+  }
+  .team-activate-head > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .team-activate-title {
+    font: 500 14px/1.25 var(--font-ui);
+    color: var(--ivory);
+    margin: 0 0 4px;
+  }
+  .team-activate-sub {
+    font: 400 12.5px/1.55 var(--font-ui);
+    color: var(--ivory-3);
+    margin: 0;
+  }
+  .team-activate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    padding: 10px 18px;
+    background: var(--lime);
+    color: var(--ink);
+    border: none;
+    border-radius: var(--radius-pill);
+    font: 600 12.5px/1 var(--font-ui);
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .team-activate-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--glow-lime);
+  }
+  .team-activate-link {
+    font: 400 11.5px/1 var(--font-ui);
+    color: var(--ivory-3);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--border-hi);
+    align-self: flex-start;
+  }
+  .team-activate-link:hover {
+    color: var(--lime);
+    border-bottom-color: var(--lime);
+  }
+
+  /* Dialog modal version élargie pour les 3 étapes. */
+  .team-activate-modal {
+    max-width: 620px;
+  }
+  .ta-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .ta-modal-head h3 {
+    margin: 0;
+  }
+  .ta-close {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ivory-3);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .ta-close:hover {
+    color: var(--ivory);
+    border-color: var(--border-hi);
+  }
+  .ta-intro {
+    font: 400 13px/1.55 var(--font-ui);
+    color: var(--ivory-3);
+    margin: 0 0 18px;
+  }
+  .ta-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .ta-step {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 12px;
+  }
+  .ta-step-num {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--lime-soft);
+    color: var(--lime);
+    font: 700 14px/1 var(--font-mono);
+    border: 1px solid rgba(197, 240, 74, 0.4);
+  }
+  .ta-step-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 13px/1.2 var(--font-ui);
+    color: var(--ivory);
+    margin: 4px 0 6px;
+  }
+  .ta-step-title :global(svg) {
+    color: var(--lime);
+  }
+  .ta-step-text {
+    font: 400 12.5px/1.55 var(--font-ui);
+    color: var(--ivory-2);
+    margin: 0 0 8px;
+  }
+  .ta-step-link {
+    display: inline-block;
+    font: 500 12px/1 var(--font-ui);
+    color: var(--lime);
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(197, 240, 74, 0.5);
+  }
+  .ta-step-link:hover {
+    color: var(--ivory);
+  }
+  .ta-cmd {
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    background: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: 400 11px/1.55 var(--font-mono);
+    color: var(--ivory-2);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .ta-step-hint {
+    font: 400 11px/1.5 var(--font-ui);
+    color: var(--ivory-4);
+    margin: 0;
+    font-style: italic;
+  }
+  .ta-modal-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .ta-doc-link {
+    font: 500 12px/1 var(--font-ui);
+    color: var(--ivory-3);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--border-hi);
+  }
+  .ta-doc-link:hover {
+    color: var(--lime);
+    border-bottom-color: var(--lime);
   }
 
   /* C26.5 — Référentiel Gold (callout warn + bouton recharger) ─────── */
