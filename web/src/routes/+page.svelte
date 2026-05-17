@@ -14,7 +14,12 @@
     PlugZap,
     Scale,
     Settings2,
-    Layers
+    Layers,
+    BarChart3,
+    Target,
+    Sparkles,
+    X,
+    ArrowRight
   } from '@lucide/svelte';
   import {
     estimateForComparison,
@@ -137,6 +142,30 @@
   let resultAnchor: HTMLDivElement | undefined = $state();
 
   const tauriAvailable = $derived(isTauriContext());
+
+  // ─── C32.2 — Bannière « Et après ? » post-premier-prompt ─────────────
+  // Affichée après le 1er résultat valide, ferme-able définitivement via
+  // localStorage. Répond au finding #8 de l'audit produit C32.0 :
+  // « Pas de fil narratif post-premier-prompt ».
+  const NARRATIVE_BANNER_KEY = 'sobria_narrative_banner_dismissed';
+  let narrativeBannerDismissed = $state(false);
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      narrativeBannerDismissed = window.localStorage.getItem(NARRATIVE_BANNER_KEY) === 'true';
+    } catch {
+      // localStorage indisponible : on garde la bannière visible (mode dégradé).
+      narrativeBannerDismissed = false;
+    }
+  });
+  function dismissNarrativeBanner() {
+    narrativeBannerDismissed = true;
+    try {
+      window.localStorage.setItem(NARRATIVE_BANNER_KEY, 'true');
+    } catch {
+      // ignore
+    }
+  }
 
   // ─── Bootstrap : on charge les modèles via IPC réel ──────────────────
   $effect(() => {
@@ -474,6 +503,76 @@
       </section>
     {/if}
 
+    <!-- C32.2 — Bannière "Et après ?" : suggestions contextuelles après
+         le 1er prompt. Dismissible définitivement via localStorage. -->
+    {#if !narrativeBannerDismissed}
+      <section
+        class="narrative-banner"
+        aria-label="Suggestions de modules à explorer ensuite"
+        data-testid="narrative-banner"
+      >
+        <header class="nb-head">
+          <span class="nb-ico" aria-hidden="true">
+            <Sparkles size={16} strokeWidth={1.7} />
+          </span>
+          <div>
+            <h2 class="nb-title">Et après ?</h2>
+            <p class="nb-sub">
+              Maintenant que vous avez votre première mesure, voici 3 pistes pour creuser votre
+              usage.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="nb-dismiss"
+            onclick={dismissNarrativeBanner}
+            aria-label="Fermer cette bannière"
+            data-action="dismiss-narrative"
+          >
+            <X size={14} strokeWidth={2} />
+          </button>
+        </header>
+        <div class="nb-grid">
+          <a class="nb-card" href="/comparer">
+            <span class="nb-card-ico" aria-hidden="true">
+              <Scale size={18} strokeWidth={1.6} />
+            </span>
+            <span class="nb-card-title">Comparer ce modèle à d'autres</span>
+            <span class="nb-card-sub">
+              Benchmark côte-à-côte sur le même prompt — CO₂, énergie, eau.
+            </span>
+            <span class="nb-card-arrow" aria-hidden="true">
+              <ArrowRight size={12} strokeWidth={2} />
+            </span>
+          </a>
+          <a class="nb-card" href="/m15">
+            <span class="nb-card-ico" aria-hidden="true">
+              <BarChart3 size={18} strokeWidth={1.6} />
+            </span>
+            <span class="nb-card-title">Voir votre usage cumulé</span>
+            <span class="nb-card-sub">
+              Tableau de bord jour/semaine/mois + équivalences humaines.
+            </span>
+            <span class="nb-card-arrow" aria-hidden="true">
+              <ArrowRight size={12} strokeWidth={2} />
+            </span>
+          </a>
+          <a class="nb-card" href="/m25">
+            <span class="nb-card-ico" aria-hidden="true">
+              <Target size={18} strokeWidth={1.6} />
+            </span>
+            <span class="nb-card-title">Fixer un budget mensuel</span>
+            <span class="nb-card-sub">
+              Eco-budget personnel avec alerte quand vous le dépassez.
+            </span>
+            <span class="nb-card-arrow" aria-hidden="true">
+              <ArrowRight size={12} strokeWidth={2} />
+            </span>
+          </a>
+        </div>
+      </section>
+    {/if}
+
     <!-- C24 — Panneau "Voir aussi" (méthodologies additionnelles activées
          dans /methodologies). Visible uniquement si l'utilisateur a coché
          au moins une méthodo en référence. -->
@@ -611,6 +710,119 @@
     max-width: 1240px;
     margin: 0 auto;
     padding: 40px 56px 80px;
+  }
+
+  /* ─── C32.2 — Bannière « Et après ? » post-prompt ─────────────────── */
+  .narrative-banner {
+    margin-top: 8px;
+    padding: 18px 22px;
+    background: linear-gradient(155deg, rgba(197, 240, 74, 0.05), rgba(197, 240, 74, 0.01));
+    border: 1px solid rgba(197, 240, 74, 0.25);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .nb-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .nb-ico {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.3);
+    color: var(--lime);
+    flex-shrink: 0;
+  }
+  .nb-head > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .nb-title {
+    font: 400 20px/1.15 var(--font-display);
+    font-style: italic;
+    color: var(--ivory);
+    margin: 0 0 4px;
+  }
+  .nb-sub {
+    font: 400 13px/1.5 var(--font-ui);
+    color: var(--ivory-3);
+    margin: 0;
+  }
+  .nb-dismiss {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ivory-3);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .nb-dismiss:hover {
+    border-color: var(--border-hi);
+    color: var(--ivory);
+    background: var(--surface);
+  }
+  .nb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .nb-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 4px 12px;
+    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .nb-card:hover {
+    border-color: rgba(197, 240, 74, 0.4);
+    transform: translateY(-1px);
+  }
+  .nb-card-ico {
+    grid-row: 1 / 3;
+    grid-column: 1;
+    align-self: center;
+    color: var(--lime);
+  }
+  .nb-card-title {
+    grid-row: 1;
+    grid-column: 2;
+    font: 500 13px/1.25 var(--font-ui);
+    color: var(--ivory);
+  }
+  .nb-card-sub {
+    grid-row: 2;
+    grid-column: 2;
+    font: 400 11px/1.45 var(--font-ui);
+    color: var(--ivory-3);
+  }
+  .nb-card-arrow {
+    grid-row: 1 / 3;
+    grid-column: 3;
+    align-self: center;
+    color: var(--ivory-4);
+    transition: all var(--dur-base) var(--ease);
+  }
+  .nb-card:hover .nb-card-arrow {
+    color: var(--lime);
+    transform: translateX(3px);
   }
 
   /* ─── C24 — Panneau "Voir aussi" (méthodologies additionnelles) ─── */

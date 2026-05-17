@@ -65,6 +65,7 @@
     moduleDescription,
     moduleHref,
     moduleLabel,
+    moduleReason,
     personaLabel,
     personaTagline,
     preferences,
@@ -716,7 +717,11 @@
             <ul class="modules-list">
               {#each ids as m (m)}
                 <li>
-                  <label class="module-line" data-checked="true">
+                  <label
+                    class="module-line"
+                    data-checked="true"
+                    title={moduleReason(currentPersona, m) ?? ''}
+                  >
                     <input
                       type="checkbox"
                       checked

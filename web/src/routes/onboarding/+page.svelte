@@ -26,6 +26,7 @@
     defaultModulesFor,
     moduleDescription,
     moduleLabel,
+    moduleReason,
     personaLabel,
     personaTagline,
     savePreferences,
@@ -509,7 +510,12 @@
         <ul class="modules-grid">
           {#each inBundle as m, i (m)}
             <li>
-              <label class="module-row" data-checked={chosen.has(m)} style="--i:{i}">
+              <label
+                class="module-row"
+                data-checked={chosen.has(m)}
+                style="--i:{i}"
+                title={moduleReason(persona, m) ?? ''}
+              >
                 <input
                   type="checkbox"
                   checked={chosen.has(m)}
@@ -556,7 +562,12 @@
             <ul class="modules-grid">
               {#each moreModules as m, i (m)}
                 <li>
-                  <label class="module-row" data-checked={chosen.has(m)} style="--i:{i}">
+                  <label
+                    class="module-row"
+                    data-checked={chosen.has(m)}
+                    style="--i:{i}"
+                    title={moduleReason(persona, m) ?? ''}
+                  >
                     <input
                       type="checkbox"
                       checked={chosen.has(m)}

@@ -381,6 +381,69 @@ export function moduleInfo(id: ModuleId): ModuleInfo {
   return MODULES[id];
 }
 
+// ─── C32.2 — Pourquoi ce module est dans le bundle de ce persona ? ──────
+// Tooltip pédagogique affiché au survol des modules pré-cochés dans
+// l'onboarding (étape 4 Bundle) et dans /parametres. Le texte est
+// persona-spécifique : un même module M1 sera justifié différemment pour
+// un étudiant (« mesurer ton premier prompt en grammes ») et pour une
+// entreprise (« référence auditable pour ton scope 3 IA »).
+
+const MODULE_PERSONA_REASON: Record<Persona, Partial<Record<ModuleId, string>>> = {
+  student: {
+    m1: "Mesurer chaque prompt pour comprendre l'ordre de grandeur (CO₂, eau).",
+    m8: 'Voir la méthodologie de mesure expliquée simplement.',
+    m13: "Explorer 'et si je raccourcis mes prompts ?' ou 'et si je change de modèle ?'.",
+    m15: 'Suivre ton usage semaine par semaine, équivalences humaines incluses.',
+    m25: 'Fixer un objectif mensuel + alerte quand tu le dépasses.'
+  },
+  pro_tech: {
+    m1: 'Mesurer chaque appel API individuellement (ton terrain de jeu).',
+    m3: 'Comparer 3 modèles côte-à-côte pour choisir le plus frugal.',
+    m7: 'Ledger SHA-256 chaîné pour le reporting interne / audit.',
+    m8: 'Voir les formules par méthodologie (AFNOR + EcoLogits).',
+    m9: 'Catalogue 25+ modèles avec P5/P50/P95 + vendor disclosure (Mistral × ADEME, Google, Meta).',
+    m13: "Explorer les leviers d'optimisation avant de modifier ton intégration."
+  },
+  enterprise: {
+    m1: "Référence d'estimation auditable pour ton scope 3 IA.",
+    m7: 'Ledger chaîné = preuve non-altération pour audits CSRD.',
+    m12: 'Comprendre où tournent vos LLM en Europe (PUE + mix élec).',
+    m15: 'Vue agrégée de votre usage (admin / RSE).',
+    m17: 'Datasheet Gebru pour reproductibilité scientifique.',
+    m20: 'Empreinte territoriale FR par IRIS (RTE × ComparIA).',
+    m22: 'Rapport CSRD/AGEC trimestriel signé + PROV-O.',
+    m25: 'Définir un plafond carbone mensuel avec alerte webhook ou email.'
+  },
+  public_sector: {
+    m1: 'Mesurer chaque prompt avec rigueur méthodologique sourcée Etalab 2.0.',
+    m8: 'Méthodologie AFNOR SPEC 2314 + sources officielles FR (ADEME, RTE).',
+    m12: 'Cartographier les datacenters européens (carte Leaflet + drill-down).',
+    m17: 'Datasheet scientifique réutilisable comme template marchés publics.',
+    m20: 'Empreinte par IRIS RTE : différenciateur FR unique de Sobr.ia.',
+    m22: 'Rapport réglementaire AGEC PDF + JSON-LD PROV-O.'
+  },
+  researcher: {
+    m1: 'Atelier reproductible (seed SOBRIA_SEED=42).',
+    m3: 'Benchmark inter-modèles multi-méthodologie (AFNOR + EcoLogits).',
+    m7: 'Ledger chaîné SHA-256 = preuve non-altération pour reviewers.',
+    m8: 'Méthodologie complète + sources DOI (EcoLogits, AFNOR SPEC 2314).',
+    m9: 'Catalogue P5/P50/P95 + vendor disclosure (transparence multi-méthodo).',
+    m17: 'Datasheet Gebru 2018 auto-générée + JSON-LD PROV-O.'
+  }
+};
+
+/**
+ * Renvoie l'explication « pourquoi ce module est dans ton bundle persona »
+ * ou `undefined` si pas de raison spécifique (module hors bundle par
+ * défaut ou persona null).
+ *
+ * Utilisé comme attribut `title` natif sur les module-rows.
+ */
+export function moduleReason(persona: Persona | null, id: ModuleId): string | undefined {
+  if (persona === null) return undefined;
+  return MODULE_PERSONA_REASON[persona][id];
+}
+
 export const CATEGORY_LABELS: Record<ModuleCategory, string> = {
   estimation: 'Estimation',
   visualisation: 'Visualisation',
