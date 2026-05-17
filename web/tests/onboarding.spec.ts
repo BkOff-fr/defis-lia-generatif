@@ -15,8 +15,8 @@ import { expect, test } from '@playwright/test';
  * cf. C09.5 / C10.5).
  */
 
-// ─── Test 1 — Splash → persona picker → bundle Étudiant pré-coché ──────
-test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à 5 modules', async ({
+// ─── Test 1 — Splash → intro → persona picker → bundle Étudiant pré-coché ──────
+test('Onboarding : splash → intro → persona picker → bundle Étudiant pré-coché à 5 modules', async ({
   page
 }) => {
   await page.goto('/onboarding');
@@ -28,7 +28,11 @@ test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à
   await expect(continueBtn).toBeVisible();
   await continueBtn.click();
 
-  // Étape 2 — Persona picker (5 cartes)
+  // C32.2 — Étape 2 « Sobr.ia en 30 secondes » avant le persona picker.
+  await expect(page.getByRole('heading', { name: /Sobr\.ia en 30 secondes/ })).toBeVisible();
+  await page.locator('[data-action="continue-intro"]').click();
+
+  // Étape 3 — Persona picker (5 cartes)
   await expect(page.getByRole('heading', { name: /Vous êtes/ })).toBeVisible();
   for (const p of ['student', 'pro_tech', 'enterprise', 'public_sector', 'researcher']) {
     await expect(page.locator(`[data-persona="${p}"]`)).toBeVisible();
@@ -37,7 +41,7 @@ test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à
   // Sélectionner Étudiant·e
   await page.locator('[data-persona="student"]').click();
 
-  // Étape 3 — Bundle pré-coché : 5 modules pour le persona Student
+  // Étape 4 — Bundle pré-coché : 5 modules pour le persona Student
   // (mirror sobria_core::Persona::Student::default_modules — voir
   // crates/sobria-core/src/preferences.rs ; C32.1 retrait M14).
   await expect(page.getByRole('heading', { name: /Voici votre première sélection/ })).toBeVisible();
@@ -53,12 +57,14 @@ test('Onboarding : splash → persona picker → bundle Étudiant pré-coché à
   await expect(page.getByText(/^5 modules sélectionnés/)).toBeVisible();
 });
 
-// ─── Test 2 — Étape 3 « + Plus de modules » révèle les autres ────────
+// ─── Test 2 — Étape Bundle « + Plus de modules » révèle les autres ────────
 test('Onboarding : « + Plus de modules » dévoile les modules hors bundle', async ({ page }) => {
   await page.goto('/onboarding');
 
-  // Skip splash
+  // Skip splash → intro (C32.2)
   await page.getByRole('button', { name: /^Continuer/ }).click();
+  // C32.2 — Passer l'étape « 30 secondes » via le bouton dédié.
+  await page.locator('[data-action="skip-intro"]').click();
   // Choix « à la carte »
   await page.getByRole('button', { name: /choisir à la carte/i }).click();
 
@@ -97,9 +103,11 @@ test("Onboarding : « Terminer » hors Tauri affiche l'erreur tauri_unavailable"
 }) => {
   await page.goto('/onboarding');
 
+  // Splash → Intro (C32.2) → Persona
   await page.getByRole('button', { name: /^Continuer/ }).click();
+  await page.locator('[data-action="continue-intro"]').click();
   await page.locator('[data-persona="student"]').click();
-  // Étape 3 → 4
+  // Étape Bundle → Ready
   await page.getByRole('button', { name: /^Continuer/ }).click();
   await expect(page.getByRole('heading', { name: /C'est parti/ })).toBeVisible();
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   // C10 — Onboarding wizard (ADR-0010 + brief C10 §3.3).
-  // 4 étapes : Splash → Persona → Bundle → Premier prompt.
+  // C32.2 : 5 étapes — Splash → « 30 secondes » → Persona → Bundle → Ready.
   // Persistance : `savePreferences` (optimistic + rollback IPC).
   import { onMount, onDestroy, tick } from 'svelte';
   import {
@@ -45,7 +45,9 @@
   };
 
   // ─── State (Svelte 5 runes) ──────────────────────────────────────────
-  let step = $state<1 | 2 | 3 | 4>(1);
+  // C32.2 — 5 étapes : Splash (1) → 30 sec (2) → Persona (3) → Bundle (4) → Ready (5).
+  type Step = 1 | 2 | 3 | 4 | 5;
+  let step = $state<Step>(1);
   let persona = $state<Persona | null>(null);
   let chosen = $state<Set<ModuleId>>(new Set());
   let showMore = $state(false);
@@ -76,16 +78,32 @@
     persona = p;
     chosen = new Set(defaultModulesFor(p));
     cancelSplashTimer();
-    step = 3;
-    void focusFirst('#step3');
+    step = 4;
+    void focusFirst('#step4');
   }
 
   function skipPersona() {
     // « Je préfère choisir à la carte » : pas de persona, bundle vide,
-    // l'utilisateur compose lui-même à l'étape 3.
+    // l'utilisateur compose lui-même à l'étape Bundle.
     persona = null;
     chosen = new Set();
     cancelSplashTimer();
+    step = 4;
+    void focusFirst('#step4');
+  }
+
+  // C32.2 — « Passer cette étape » dans le step 30 secondes.
+  // Persiste un flag localStorage pour mémoire (utile si l'utilisateur
+  // réinitialise et re-onboard) ; sans serveur, pas besoin d'un champ
+  // backend dédié pour v0.8.0.
+  function skipIntro() {
+    cancelSplashTimer();
+    try {
+      window.localStorage.setItem('sobria_welcome_skipped', 'true');
+    } catch {
+      // localStorage indisponible (private mode, opt-out) : on ignore,
+      // la session reste fonctionnelle.
+    }
     step = 3;
     void focusFirst('#step3');
   }
@@ -149,17 +167,17 @@
   function handleKey(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       // ESC ne ferme pas (onboarding non-bloquant via le lien explicite),
-      // mais permet de revenir d'une étape.
-      if (step === 3 || step === 4) {
+      // mais permet de revenir d'une étape (au-delà du splash).
+      if (step >= 3) {
         e.preventDefault();
-        step = (step - 1) as 1 | 2 | 3 | 4;
+        step = (step - 1) as Step;
       }
     }
   }
 
-  // Étape 2 → 1 navigation arrière.
+  // Navigation arrière.
   function back() {
-    if (step > 1) step = (step - 1) as 1 | 2 | 3 | 4;
+    if (step > 1) step = (step - 1) as Step;
   }
 </script>
 
@@ -180,12 +198,12 @@
   </g>
 </svg>
 
-<!-- Progression : 4 puces dans le coin haut-droit -->
+<!-- Progression : 5 puces dans le coin haut-droit (C32.2). -->
 <div class="progress" aria-label="Progression de l'onboarding">
-  {#each [1, 2, 3, 4] as n}
+  {#each [1, 2, 3, 4, 5] as n}
     <span class="dot" class:done={step > n} class:current={step === n} aria-hidden="true"></span>
   {/each}
-  <span class="visually-hidden">Étape {step} sur 4</span>
+  <span class="visually-hidden">Étape {step} sur 5</span>
 </div>
 
 <main class="wizard" aria-labelledby="wizard-title">
@@ -225,11 +243,207 @@
     </section>
   {/if}
 
-  <!-- ╭───── ÉTAPE 2 — PERSONA PICKER ─────────────────────────────╮ -->
+  <!-- ╭───── ÉTAPE 2 — SOBR.IA EN 30 SECONDES (C32.2) ─────────────╮ -->
   {#if step === 2}
-    <section class="persona-stage" id="step2">
+    <section class="intro-stage" id="step2">
       <header class="step-head">
-        <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 2 sur 4</span
+        <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 2 sur 5</span
+        >
+        <h2 class="display">Sobr.ia en 30 secondes</h2>
+        <p class="step-sub">
+          Chaque prompt envoyé à une IA consomme de l'<strong>électricité</strong>, émet du
+          <strong>CO₂</strong>
+          et utilise de l'<strong>eau</strong> pour refroidir les datacenters. Sobr.ia mesure tout ça
+          en local, à chaque prompt. Aucun envoi vers nos serveurs — tout reste sur votre ordinateur.
+        </p>
+      </header>
+
+      <!-- Schéma d'équivalence : 1 prompt typique = X gCO₂eq = Y douches.
+           Volontairement simple — un dessin parlant valide la promesse plus
+           qu'un long pavé d'explications. -->
+      <div class="intro-schema" aria-hidden="true">
+        <svg
+          viewBox="0 0 540 140"
+          role="img"
+          aria-label="Schéma d'équivalence 1 prompt = CO₂ = douches"
+        >
+          <!-- Bloc 1 : 1 prompt typique -->
+          <g transform="translate(20, 30)">
+            <rect
+              width="140"
+              height="80"
+              rx="12"
+              fill="rgba(197,240,74,0.08)"
+              stroke="rgba(197,240,74,0.35)"
+            />
+            <text
+              x="70"
+              y="30"
+              text-anchor="middle"
+              fill="rgb(197,240,74)"
+              font-family="var(--font-display)"
+              font-size="14"
+              font-style="italic">1 prompt typique</text
+            >
+            <text
+              x="70"
+              y="55"
+              text-anchor="middle"
+              fill="rgb(245,242,234)"
+              font-family="var(--font-mono)"
+              font-size="11">400 tokens</text
+            >
+            <text
+              x="70"
+              y="72"
+              text-anchor="middle"
+              fill="rgba(245,242,234,0.6)"
+              font-family="var(--font-ui)"
+              font-size="10">Mistral Large 2</text
+            >
+          </g>
+          <!-- Flèche -->
+          <g transform="translate(165, 65)">
+            <line x1="0" y1="5" x2="35" y2="5" stroke="rgba(245,242,234,0.4)" stroke-width="1.5" />
+            <polyline
+              points="30,0 35,5 30,10"
+              fill="none"
+              stroke="rgba(245,242,234,0.4)"
+              stroke-width="1.5"
+            />
+            <text
+              x="17"
+              y="-2"
+              text-anchor="middle"
+              fill="rgba(245,242,234,0.5)"
+              font-family="var(--font-mono)"
+              font-size="10">=</text
+            >
+          </g>
+          <!-- Bloc 2 : 1.14 g CO₂eq -->
+          <g transform="translate(210, 30)">
+            <rect
+              width="120"
+              height="80"
+              rx="12"
+              fill="rgba(255,255,255,0.04)"
+              stroke="rgba(255,255,255,0.15)"
+            />
+            <text
+              x="60"
+              y="32"
+              text-anchor="middle"
+              fill="rgb(245,242,234)"
+              font-family="var(--font-mono)"
+              font-size="22"
+              font-weight="600">1,14 g</text
+            >
+            <text
+              x="60"
+              y="50"
+              text-anchor="middle"
+              fill="rgba(245,242,234,0.6)"
+              font-family="var(--font-ui)"
+              font-size="11">CO₂eq</text
+            >
+            <text
+              x="60"
+              y="68"
+              text-anchor="middle"
+              fill="rgba(245,242,234,0.45)"
+              font-family="var(--font-ui)"
+              font-size="9">Source : Mistral × ADEME</text
+            >
+          </g>
+          <!-- Flèche -->
+          <g transform="translate(335, 65)">
+            <line x1="0" y1="5" x2="35" y2="5" stroke="rgba(245,242,234,0.4)" stroke-width="1.5" />
+            <polyline
+              points="30,0 35,5 30,10"
+              fill="none"
+              stroke="rgba(245,242,234,0.4)"
+              stroke-width="1.5"
+            />
+            <text
+              x="17"
+              y="-2"
+              text-anchor="middle"
+              fill="rgba(245,242,234,0.5)"
+              font-family="var(--font-mono)"
+              font-size="10">≈</text
+            >
+          </g>
+          <!-- Bloc 3 : équivalents humains -->
+          <g transform="translate(380, 30)">
+            <rect
+              width="140"
+              height="80"
+              rx="12"
+              fill="rgba(126,182,255,0.05)"
+              stroke="rgba(126,182,255,0.25)"
+            />
+            <text
+              x="70"
+              y="28"
+              text-anchor="middle"
+              fill="rgb(126,182,255)"
+              font-family="var(--font-display)"
+              font-size="14"
+              font-style="italic">≈ 5 m voiture</text
+            >
+            <text
+              x="70"
+              y="48"
+              text-anchor="middle"
+              fill="rgb(245,242,234)"
+              font-family="var(--font-display)"
+              font-size="14"
+              font-style="italic">≈ 5 min TV LED</text
+            >
+            <text
+              x="70"
+              y="68"
+              text-anchor="middle"
+              fill="rgba(245,242,234,0.6)"
+              font-family="var(--font-ui)"
+              font-size="10">Source : ADEME Base Empreinte</text
+            >
+          </g>
+        </svg>
+      </div>
+
+      <p class="intro-foot">
+        Multipliez par votre nombre de prompts par semaine, et vous obtenez votre empreinte
+        personnelle. C'est ce que Sobr.ia mesure et journalise.
+      </p>
+
+      <div class="actions">
+        <button type="button" class="link-discrete" onclick={skipIntro} data-action="skip-intro">
+          Passer cette étape
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          onclick={() => {
+            cancelSplashTimer();
+            step = 3;
+            void focusFirst('#step3');
+          }}
+          data-autofocus
+          data-action="continue-intro"
+        >
+          Continuer
+          <ArrowRight size={16} strokeWidth={2} />
+        </button>
+      </div>
+    </section>
+  {/if}
+
+  <!-- ╭───── ÉTAPE 3 — PERSONA PICKER ─────────────────────────────╮ -->
+  {#if step === 3}
+    <section class="persona-stage" id="step3">
+      <header class="step-head">
+        <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 3 sur 5</span
         >
         <h2 class="display">Vous êtes…</h2>
         <p class="step-sub">
@@ -270,11 +484,11 @@
     </section>
   {/if}
 
-  <!-- ╭───── ÉTAPE 3 — BUNDLE ─────────────────────────────────────╮ -->
-  {#if step === 3}
-    <section class="bundle-stage" id="step3">
+  <!-- ╭───── ÉTAPE 4 — BUNDLE ─────────────────────────────────────╮ -->
+  {#if step === 4}
+    <section class="bundle-stage" id="step4">
       <header class="step-head">
-        <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 3 sur 4</span
+        <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 4 sur 5</span
         >
         <h2 class="display">Voici votre première sélection</h2>
         <p class="step-sub">
@@ -372,8 +586,8 @@
           type="button"
           class="btn-primary"
           onclick={() => {
-            step = 4;
-            void focusFirst('#step4');
+            step = 5;
+            void focusFirst('#step5');
           }}
           disabled={chosenCount === 0}
         >
@@ -384,11 +598,11 @@
     </section>
   {/if}
 
-  <!-- ╭───── ÉTAPE 4 — READY ───────────────────────────────────────╮ -->
-  {#if step === 4}
-    <section class="ready-stage" id="step4">
+  <!-- ╭───── ÉTAPE 5 — READY ───────────────────────────────────────╮ -->
+  {#if step === 5}
+    <section class="ready-stage" id="step5">
       <header class="step-head">
-        <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 4 sur 4</span
+        <span class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> Étape 5 sur 5</span
         >
         <h2 class="display">C'est parti.</h2>
         <p class="step-sub">
@@ -747,7 +961,42 @@
     letter-spacing: 0.06em;
   }
 
-  /* ─── ÉTAPE 2 — Persona ─────────────────────────────────────────────── */
+  /* ─── ÉTAPE 2 — Intro « Sobr.ia en 30 secondes » (C32.2) ─────────────── */
+  .intro-stage {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    animation: rise 500ms var(--ease) backwards;
+  }
+  .intro-stage .step-sub strong {
+    color: var(--ivory);
+    font-weight: 500;
+  }
+  .intro-schema {
+    width: 100%;
+    max-width: 640px;
+    margin: 28px 0 20px;
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .intro-schema svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .intro-foot {
+    font: 400 13px/1.5 var(--font-ui);
+    color: var(--ivory-3);
+    margin: 0 0 12px;
+    max-width: 560px;
+  }
+
+  /* ─── ÉTAPE 3 — Persona ─────────────────────────────────────────────── */
   .persona-stage {
     width: 100%;
     max-width: 1080px;
@@ -856,7 +1105,7 @@
     align-items: center;
   }
 
-  /* ─── ÉTAPE 3 — Bundle ──────────────────────────────────────────────── */
+  /* ─── ÉTAPE 4 — Bundle ──────────────────────────────────────────────── */
   .bundle-stage {
     width: 100%;
     max-width: 880px;
@@ -989,7 +1238,7 @@
     justify-content: center;
   }
 
-  /* ─── ÉTAPE 4 — Ready ──────────────────────────────────────────────── */
+  /* ─── ÉTAPE 5 — Ready ──────────────────────────────────────────────── */
   .ready-stage {
     width: 100%;
     max-width: 820px;
