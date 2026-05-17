@@ -1,0 +1,53 @@
+{
+  "title": "Sobr.ia — Empreinte environnementale auditable des LLMs",
+  "description": "Application native multi-plateforme (Rust + Tauri 2 + SvelteKit) qui mesure et visualise l'impact environnemental de l'usage des LLMs. Embarque deux méthodologies scientifiques (AFNOR SPEC 2314 et EcoLogits 2026-01), agrège les disclosures officielles des fabricants (Mistral × ADEME, Google Gemini, Meta Llama), un ledger d'audit chaîné SHA-256, et un angle territorial français au niveau IRIS. Privacy by design : 100 % local, sans cloud Sobr.ia. Candidat au défi data.gouv.fr « L'impact environnemental de l'IA générative ».",
+  "creators": [
+    {
+      "name": "Thibault BRASSAERT",
+      "affiliation": "Sobr.ia",
+      "orcid": ""
+    },
+    {
+      "name": "Sobr.ia contributors",
+      "affiliation": "Sobr.ia"
+    }
+  ],
+  "license": "MIT",
+  "access_right": "open",
+  "upload_type": "software",
+  "keywords": [
+    "AI",
+    "LLM",
+    "carbon footprint",
+    "environmental impact",
+    "AFNOR SPEC 2314",
+    "EcoLogits",
+    "Monte Carlo",
+    "sustainability",
+    "open data",
+    "France",
+    "data.gouv.fr",
+    "ADEME",
+    "RTE",
+    "ComparIA"
+  ],
+  "language": "fra",
+  "communities": [
+    {
+      "identifier": "data-gouv-fr"
+    }
+  ],
+  "related_identifiers": [
+    {
+      "scheme": "url",
+      "identifier": "https://github.com/BkOff-fr/defis-lia-generatif",
+      "relation": "isSupplementTo"
+    },
+    {
+      "scheme": "doi",
+      "identifier": "10.21105/joss.07471",
+      "relation": "cites",
+      "resource_type": "publication-softwarepaper"
+    }
+  ]
+}

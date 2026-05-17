@@ -1,5 +1,9 @@
 # Sobr.ia
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-lime.svg)](LICENSE)
+[![DOI](https://img.shields.io/badge/DOI-pending--v0.8.0-lightgrey.svg)](https://github.com/BkOff-fr/defis-lia-generatif/releases)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](CHANGELOG.md)
+
 > **Sobr.ia mesure l'empreinte de vos prompts IA en local, agrège les
 > chiffres officiels des fabricants (Mistral × ADEME, Google, Meta) et
 > vous donne un journal scientifique reproductible — pour particulier,
@@ -298,19 +302,39 @@ modifier un bundle persona, ouvrir d'abord un mini-ADR dans `docs/adr/`.
 
 ## Citation
 
-Si vous utilisez Sobr.ia dans un travail académique :
+Si vous utilisez Sobr.ia dans un travail académique, merci de citer le
+logiciel via le DOI Zenodo de la version utilisée :
 
 ```bibtex
 @software{sobria_2026,
   title   = {Sobr.ia: Empreinte environnementale auditable des LLMs},
-  author  = {Thibault et contributeurs Sobr.ia},
+  author  = {Thibault BRASSAERT and Sobr.ia contributors},
   year    = {2026},
+  version = {0.8.0},
   url     = {https://github.com/BkOff-fr/defis-lia-generatif},
+  doi     = {10.5281/zenodo.PENDING-FIRST-RELEASE},
   license = {MIT}
 }
 ```
 
-*Un DOI Zenodo sera publié avec la release v0.8.0 (cf. C32.5).*
+**Comment obtenir un DOI Zenodo concret pour cette release ?**
+
+1. Activer l'intégration Zenodo↔GitHub sur ce repo via
+   <https://zenodo.org/account/settings/github/> (toggle on, une seule
+   fois — admin du repo).
+2. Publier la release `v0.8.0` sur GitHub (tag déjà créé localement,
+   `git push origin v0.8.0` suffit après pull request validé).
+3. Zenodo archive automatiquement le tarball et attribue un DOI
+   versionné (`10.5281/zenodo.<N>`) + un DOI concept stable qui pointe
+   toujours vers la dernière version.
+4. Mettre à jour le badge ci-dessus + la ligne `doi` de la BibTeX avec
+   le DOI concept Zenodo (commit `docs(release): DOI Zenodo {concept}`).
+
+Le fichier [`.zenodo.json`](.zenodo.json) à la racine fournit déjà les
+métadonnées (titre, créateurs, mots-clés, licence, communauté
+data-gouv-fr) que Zenodo lit au moment de l'archivage. Le workflow
+[`.github/workflows/zenodo.yml`](.github/workflows/zenodo.yml) valide
+ce fichier à chaque release et imprime un récapitulatif.
 
 ---
 

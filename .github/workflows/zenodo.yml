@@ -1,0 +1,54 @@
+name: zenodo
+
+# Sobr.ia Zenodo archive workflow (C32.5)
+#
+# Zenodo s'intègre nativement avec les releases GitHub : dès qu'une
+# release est publiée, Zenodo archive automatiquement le tarball et
+# attribue un DOI (concept + version). Voir https://zenodo.org/account/
+# settings/github/ — il suffit d'activer le toggle sur le repo
+# `BkOff-fr/defis-lia-generatif` une seule fois.
+#
+# Ce workflow complète l'intégration native :
+# 1. Valide le fichier `.zenodo.json` (metadata d'archive).
+# 2. Affiche un récapitulatif du DOI concept dans le résumé de release.
+# 3. (Optionnel — désactivé par défaut) Met à jour le badge DOI du README.
+#
+# Le workflow s'exécute uniquement quand une release tag `v*` est créée.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-zenodo:
+    name: Valider .zenodo.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier que .zenodo.json est présent et valide
+        run: |
+          if [ ! -f .zenodo.json ]; then
+            echo "::error::.zenodo.json manquant — Zenodo ne pourra pas
+              attribuer un DOI riche en métadonnées."
+            exit 1
+          fi
+          # JSON syntactic check.
+          python3 -c "import json; json.load(open('.zenodo.json'))"
+          echo "::notice::.zenodo.json valide. Zenodo archivera la
+            release automatiquement si le toggle est actif sur le
+            repo (Account → GitHub)."
+
+      - name: Récapitulatif Zenodo
+        run: |
+          echo "## Zenodo archive" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Release tag : \`${{ github.event.release.tag_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Zenodo va archiver le tarball et attribuer un DOI versionné." >> $GITHUB_STEP_SUMMARY
+          echo "- Le DOI concept (qui pointe vers la dernière release) est stable." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Vérifier sur <https://zenodo.org/account/settings/github/>" >> $GITHUB_STEP_SUMMARY
+          echo "que l'intégration GitHub est active pour ce repo." >> $GITHUB_STEP_SUMMARY
