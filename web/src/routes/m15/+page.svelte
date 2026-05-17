@@ -39,6 +39,7 @@
     type IpcErrorCode
   } from '$lib/api';
   import { preferences, type ModuleId } from '$lib/preferences';
+  import EquivalenceCarbon from '$lib/components/EquivalenceCarbon.svelte';
 
   const MODULE_ID: ModuleId = 'm15';
 
@@ -518,6 +519,18 @@
         {/if}
       </article>
     </section>
+
+    <!-- C32.3 — Équivalences humaines globales (ordres de grandeur). -->
+    {#if summary && summary.total_co2eq_g_p50 > 0}
+      <div class="m15-human-equiv">
+        <span class="m15-human-equiv-l">Cette période, vous avez consommé l'équivalent de :</span>
+        <EquivalenceCarbon
+          gco2eq={summary.total_co2eq_g_p50}
+          waterMl={summary.total_water_l_p50 * 1000}
+          energyWh={summary.total_energy_wh_p50}
+        />
+      </div>
+    {/if}
 
     <!-- ── Polish E (C24) — Breakdown méthodologie ─────────────────────
          Affiché seulement si la période contient ≥ 2 méthodos différentes.
@@ -1040,6 +1053,23 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
+  }
+
+  /* C32.3 — Ligne d'équivalence humaine sous les stat-cards. */
+  .m15-human-equiv {
+    margin-top: 6px;
+    padding: 10px 16px;
+    background: rgba(126, 182, 255, 0.04);
+    border: 1px dashed rgba(126, 182, 255, 0.2);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font: 400 12px/1.4 var(--font-ui);
+  }
+  .m15-human-equiv-l {
+    color: var(--ivory-3);
   }
   .stat-card {
     padding: 18px 20px;

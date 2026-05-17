@@ -38,6 +38,7 @@
     type IpcErrorCode
   } from '$lib/api';
   import { preferences, type ModuleId } from '$lib/preferences';
+  import EquivalenceCarbon from '$lib/components/EquivalenceCarbon.svelte';
 
   const MODULE_ID: ModuleId = 'm25';
 
@@ -524,6 +525,18 @@
                   style="width: {pct}%; background: {tone};"
                 ></span>
               </button>
+
+              <!-- C32.3 — Équivalence humaine de la valeur consommée. -->
+              {#if st.current_value > 0}
+                <div class="bi-human-equiv">
+                  <EquivalenceCarbon
+                    gco2eq={ind === 'co2eq' ? st.current_value : 0}
+                    waterMl={ind === 'water' ? st.current_value * 1000 : 0}
+                    energyWh={ind === 'energy' ? st.current_value : 0}
+                    compact
+                  />
+                </div>
+              {/if}
 
               {#if st.status === 'exceeded'}
                 <p class="bi-badge bi-badge-exceeded" aria-live="polite">
@@ -1072,6 +1085,12 @@
     height: 100%;
     border-radius: 999px;
     transition: width var(--dur-base) var(--ease);
+  }
+
+  /* C32.3 — Ligne équivalence humaine sous la barre de progression. */
+  .bi-human-equiv {
+    margin: 2px 0 0;
+    padding: 2px 0;
   }
 
   .bi-badge {

@@ -42,6 +42,7 @@
   import Composer from '$lib/components/Composer.svelte';
   import ResultBlock from '$lib/components/ResultBlock.svelte';
   import HypothesisBlock from '$lib/components/HypothesisBlock.svelte';
+  import EquivalenceCarbon from '$lib/components/EquivalenceCarbon.svelte';
   import { tick } from 'svelte';
 
   // ─── Garde de route M1 (C10 — ADR-0010) ──────────────────────────
@@ -480,6 +481,14 @@
     <div bind:this={resultAnchor} style="scroll-margin-top: 24px"></div>
     <ResultBlock {result} />
 
+    <!-- C32.3 — Équivalences humaines (1 ligne, ordres de grandeur). -->
+    {@const humanCo2g = result.indicators.find((i) => i.indicator === 'co2eq')?.p50 ?? 0}
+    {@const humanWaterL = result.indicators.find((i) => i.indicator === 'water')?.p50 ?? 0}
+    {@const humanEnergyWh = result.indicators.find((i) => i.indicator === 'energy')?.p50 ?? 0}
+    <div class="m1-human-equiv">
+      <EquivalenceCarbon gco2eq={humanCo2g} waterMl={humanWaterL * 1000} energyWh={humanEnergyWh} />
+    </div>
+
     <!-- Équivalents -->
     {#if result.equivalents.length > 0}
       <section class="equiv-strip" aria-label="Mises en perspective">
@@ -710,6 +719,14 @@
     max-width: 1240px;
     margin: 0 auto;
     padding: 40px 56px 80px;
+  }
+
+  /* ─── C32.3 — Équivalences humaines (1 ligne, sous ResultBlock) ───── */
+  .m1-human-equiv {
+    margin-top: -8px;
+    padding: 0 4px;
+    display: flex;
+    justify-content: flex-end;
   }
 
   /* ─── C32.2 — Bannière « Et après ? » post-prompt ─────────────────── */
