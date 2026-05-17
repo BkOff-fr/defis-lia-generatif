@@ -6,16 +6,20 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "predev": "node ../scripts/sync-docs.mjs",
     "dev": "astro dev --port 4321",
     "start": "astro dev --port 4321",
+    "prebuild": "node ../scripts/sync-docs.mjs",
     "build": "astro build",
+    "postbuild": "pagefind --site dist",
     "preview": "astro preview --port 4321",
     "check": "astro check",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
     "test:a11y": "playwright test tests/a11y.spec.ts --config=tests/playwright.config.ts",
     "test:lh": "playwright test tests/lighthouse.spec.ts --config=tests/playwright.config.ts",
-    "clean": "rimraf .astro dist node_modules/.vite"
+    "sync:docs": "node ../scripts/sync-docs.mjs",
+    "clean": "rimraf .astro dist node_modules/.vite src/content"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

@@ -1,0 +1,47 @@
+---
+import { getCollection, render } from 'astro:content';
+import DocLayout from '../../layouts/DocLayout.astro';
+import { buildTree, getEntryTitle } from '$lib/doc-tree';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const allEntries = await getCollection('docs');
+const tree = buildTree(
+  allEntries.map((e) => ({ id: e.id, data: e.data, body: e.body })),
+  '/docs',
+);
+
+const title = getEntryTitle({ id: entry.id, data: entry.data, body: entry.body });
+const currentHref = `/docs/${entry.id}/`;
+
+const segments = entry.id.split('/');
+const crumbs: { label: string; href?: string }[] = [{ label: 'Doc', href: '/docs/' }];
+if (segments.length > 1) {
+  crumbs.push({
+    label: segments[0].replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+  });
+}
+crumbs.push({ label: title });
+
+const { Content } = await render(entry);
+---
+
+<DocLayout
+  {title}
+  description={entry.data.description}
+  {tree}
+  {currentHref}
+  baseHref="/docs"
+  sidebarTitle="Documentation"
+  sourcePath={entry.data.sourcePath}
+  {crumbs}
+>
+  <Content />
+</DocLayout>

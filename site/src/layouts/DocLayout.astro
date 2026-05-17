@@ -1,0 +1,166 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import DocSidebar from '$components/docs/DocSidebar.astro';
+import Breadcrumb from '$components/docs/Breadcrumb.astro';
+import EditOnGitHub from '$components/docs/EditOnGitHub.astro';
+import type { TreeNode } from '$lib/doc-tree';
+
+interface Props {
+  title: string;
+  description?: string;
+  tree: TreeNode[];
+  currentHref: string;
+  baseHref: string;
+  sidebarTitle: string;
+  sourcePath?: string;
+  crumbs: { label: string; href?: string }[];
+}
+
+const { title, description, tree, currentHref, baseHref, sidebarTitle, sourcePath, crumbs } =
+  Astro.props;
+---
+
+<BaseLayout title={`${title} — Sobr.ia`} description={description}>
+  <div class="max-w-7xl mx-auto px-6 py-12 grid gap-10 lg:grid-cols-[240px_1fr]">
+    <div class="lg:sticky lg:top-20 lg:self-start">
+      <DocSidebar {tree} {currentHref} {baseHref} title={sidebarTitle} />
+    </div>
+
+    <article class="min-w-0">
+      <Breadcrumb {crumbs} />
+
+      <header class="mt-2 mb-8 pb-6 border-b border-ivory-4/30">
+        <h1 class="font-display text-4xl md:text-5xl text-ivory">{title}</h1>
+        {description && <p class="mt-3 text-ivory-2">{description}</p>}
+      </header>
+
+      <div class="prose-doc max-w-none">
+        <slot />
+      </div>
+
+      {
+        sourcePath && (
+          <footer class="mt-12 pt-6 border-t border-ivory-4/30">
+            <EditOnGitHub {sourcePath} />
+          </footer>
+        )
+      }
+    </article>
+  </div>
+</BaseLayout>
+
+<style is:global>
+  .prose-doc {
+    color: var(--color-ivory);
+    line-height: 1.7;
+  }
+  .prose-doc h1,
+  .prose-doc h2,
+  .prose-doc h3,
+  .prose-doc h4 {
+    font-family: var(--font-display);
+    color: var(--color-ivory);
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.2;
+  }
+  .prose-doc h2 {
+    font-size: 1.875rem;
+    border-bottom: 1px solid rgba(70, 68, 63, 0.3);
+    padding-bottom: 0.4rem;
+  }
+  .prose-doc h3 {
+    font-size: 1.4rem;
+  }
+  .prose-doc h4 {
+    font-size: 1.15rem;
+  }
+  .prose-doc p,
+  .prose-doc li {
+    color: var(--color-ivory-2);
+  }
+  .prose-doc p {
+    margin: 1rem 0;
+  }
+  .prose-doc a {
+    color: var(--color-lime-signature);
+    text-decoration: underline;
+    text-decoration-color: rgba(197, 240, 74, 0.3);
+    text-underline-offset: 3px;
+  }
+  .prose-doc a:hover {
+    text-decoration-color: var(--color-lime-signature);
+  }
+  .prose-doc ul,
+  .prose-doc ol {
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+  }
+  .prose-doc ul {
+    list-style: disc;
+  }
+  .prose-doc ol {
+    list-style: decimal;
+  }
+  .prose-doc li {
+    margin: 0.35rem 0;
+  }
+  .prose-doc strong {
+    color: var(--color-ivory);
+  }
+  .prose-doc code:not(pre code) {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    background: rgba(255, 255, 255, 0.07);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    color: var(--color-lime-signature);
+  }
+  .prose-doc pre {
+    background: var(--color-ink-3) !important;
+    border: 1px solid rgba(70, 68, 63, 0.3);
+    border-radius: 12px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    margin: 1.25rem 0;
+  }
+  .prose-doc pre code {
+    background: transparent;
+  }
+  .prose-doc blockquote {
+    border-left: 3px solid var(--color-lime-signature);
+    padding: 0.5rem 1rem;
+    margin: 1rem 0;
+    color: var(--color-ivory-2);
+    background: rgba(197, 240, 74, 0.05);
+    border-radius: 0 8px 8px 0;
+  }
+  .prose-doc table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    font-size: 0.9rem;
+  }
+  .prose-doc th,
+  .prose-doc td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid rgba(70, 68, 63, 0.3);
+  }
+  .prose-doc th {
+    color: var(--color-ivory);
+    font-weight: 500;
+  }
+  .prose-doc hr {
+    border: 0;
+    border-top: 1px solid rgba(70, 68, 63, 0.3);
+    margin: 2rem 0;
+  }
+  .prose-doc img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+</style>

@@ -7,6 +7,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — C33.4 Doc interactive + Pagefind (2026-05-17)
+
+- Astro 5 Content Layer : 2 collections `docs` (24 entries) + `adrs` (15 entries),
+  glob loader sur `src/content/{docs,adrs}/`, schemas Zod tous fields optionnels.
+- `scripts/sync-docs.mjs` : sync cross-platform Node (Windows + Linux),
+  exécuté en `prebuild` + `predev`. Injecte sourcePath front-matter sans
+  casser les MD existants (aucun n'avait de front-matter — fallback first H1).
+- DocLayout : sidebar tree groupée par dossier, breadcrumb, footer
+  « Éditer sur GitHub » avec URL `https://github.com/<repo>/edit/main/<path>`.
+- Routes générées : `/docs/`, `/docs/<slug>`, `/adrs/`, `/adrs/<slug>`
+  (42 pages totales avec landing).
+- CSS `prose-doc` global : h2 souligné, code blocks ink-3, blockquote
+  bordure lime, tables, listes, alignés design system v2.
+- Pagefind : `postbuild` indexe `dist/`, 7491 mots français.
+- SearchBar Svelte 5 : lazy-load Pagefind UI via script tag dynamique
+  (évite résolution Vite au build), raccourci clavier `/` ou `⌘K`,
+  traductions FR complètes, palette lime/ink intégrée via CSS variables.
+- Topbar : SearchBar injectée, GitHub button masqué sur mobile pour laisser
+  la place. URL GitHub corrigée (BkOff-fr).
+
 ### Added — C33.2 Hero 3D + sections statiques (2026-05-17)
 
 - HeroGlobe.svelte : globe Three.js procédural (wireframe lime/ink + 28

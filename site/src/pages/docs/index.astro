@@ -1,0 +1,65 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocSidebar from '$components/docs/DocSidebar.astro';
+import { buildTree } from '$lib/doc-tree';
+
+const entries = await getCollection('docs');
+const tree = buildTree(
+  entries.map((e) => ({ id: e.id, data: e.data, body: e.body })),
+  '/docs',
+);
+
+const currentHref = '/docs/';
+---
+
+<BaseLayout
+  title="Documentation — Sobr.ia"
+  description="Guide complet d'utilisation de Sobr.ia : méthodologies, personas, opérations, sources de données."
+>
+  <div class="max-w-7xl mx-auto px-6 py-12 grid gap-10 lg:grid-cols-[240px_1fr]">
+    <div class="lg:sticky lg:top-20 lg:self-start">
+      <DocSidebar {tree} {currentHref} baseHref="/docs" title="Documentation" />
+    </div>
+
+    <main class="min-w-0">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">Sobr.ia · documentation</p>
+      <h1 class="mt-2 font-display text-5xl text-ivory">Documentation</h1>
+      <p class="mt-4 text-ivory-2 max-w-2xl">
+        Documentation complète de Sobr.ia, sourcée directement du repo. Pour les décisions
+        d'architecture, voir les <a
+          href="/adrs/"
+          class="text-lime-signature underline underline-offset-4">ADRs</a
+        >.
+      </p>
+
+      <div class="mt-12 grid gap-6 sm:grid-cols-2">
+        {
+          tree.map((node) =>
+            node.type === 'folder' ? (
+              <section class="rounded-lg border border-ivory-4/40 bg-ink-2 p-6">
+                <h2 class="text-xl font-sans text-ivory">{node.title}</h2>
+                <ul class="mt-3 space-y-1.5 text-sm">
+                  {node.children!.map((leaf) => (
+                    <li>
+                      <a href={leaf.href} class="text-ivory-2 hover:text-lime-signature">
+                        → {leaf.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : (
+              <a
+                href={node.href}
+                class="block rounded-lg border border-ivory-4/40 bg-ink-2 p-6 hover:border-lime-signature/60 transition-colors"
+              >
+                <h2 class="text-xl font-sans text-ivory">{node.title}</h2>
+              </a>
+            ),
+          )
+        }
+      </div>
+    </main>
+  </div>
+</BaseLayout>

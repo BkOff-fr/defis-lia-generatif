@@ -1,16 +1,18 @@
 ---
+import SearchBar from '$components/docs/SearchBar.svelte';
+
 const navItems = [
   { href: '/#pour-qui', label: 'Pour qui' },
   { href: '/docs/', label: 'Doc' },
   { href: '/#download', label: 'Télécharger' },
   { href: '/candidature/', label: 'Candidature' },
 ];
-const githubUrl = 'https://github.com/anthropics/defis-lia-generatif';
+const githubUrl = 'https://github.com/BkOff-fr/defis-lia-generatif';
 ---
 
 <header class="sticky top-0 z-50 backdrop-blur-md bg-ink/80 border-b border-ivory-4/30">
   <nav
-    class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between"
+    class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4"
     aria-label="Navigation principale"
   >
     <a href="/" class="flex items-center gap-2 font-display text-xl">
@@ -30,12 +32,15 @@ const githubUrl = 'https://github.com/anthropics/defis-lia-generatif';
       }
     </ul>
 
-    <a
-      href={githubUrl}
-      rel="noopener external"
-      class="text-sm border border-ivory-4 hover:border-lime-signature hover:text-lime-signature rounded-md px-3 py-1.5 transition-colors"
-    >
-      GitHub ★
-    </a>
+    <div class="flex items-center gap-2">
+      <SearchBar client:load />
+      <a
+        href={githubUrl}
+        rel="noopener external"
+        class="text-sm border border-ivory-4 hover:border-lime-signature hover:text-lime-signature rounded-md px-3 py-1.5 transition-colors hidden sm:inline-flex"
+      >
+        GitHub ★
+      </a>
+    </div>
   </nav>
 </header>

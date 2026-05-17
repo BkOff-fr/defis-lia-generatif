@@ -1,0 +1,63 @@
+---
+import type { TreeNode } from '$lib/doc-tree';
+
+interface Props {
+  tree: TreeNode[];
+  currentHref: string;
+  baseHref: string;
+  title: string;
+}
+
+const { tree, currentHref, baseHref, title } = Astro.props;
+---
+
+<aside class="text-sm">
+  <p class="text-xs uppercase tracking-widest text-ivory-3 mb-3">{title}</p>
+  <a
+    href={baseHref + '/'}
+    class:list={[
+      'block py-1.5 text-ivory-2 hover:text-ivory transition-colors',
+      currentHref === baseHref + '/' && 'text-lime-signature',
+    ]}
+  >
+    Sommaire
+  </a>
+  <ul class="mt-2 space-y-1">
+    {
+      tree.map((node) =>
+        node.type === 'leaf' ? (
+          <li>
+            <a
+              href={node.href}
+              class:list={[
+                'block py-1 px-2 -mx-2 rounded hover:bg-ink-2 transition-colors',
+                node.href === currentHref ? 'text-lime-signature' : 'text-ivory-2',
+              ]}
+            >
+              {node.title}
+            </a>
+          </li>
+        ) : (
+          <li>
+            <p class="mt-4 mb-1 text-xs uppercase tracking-wider text-ivory-3">{node.title}</p>
+            <ul class="space-y-0.5 ml-1 border-l border-ivory-4/30 pl-3">
+              {node.children!.map((leaf) => (
+                <li>
+                  <a
+                    href={leaf.href}
+                    class:list={[
+                      'block py-1 px-2 -ml-2 rounded hover:bg-ink-2 transition-colors',
+                      leaf.href === currentHref ? 'text-lime-signature' : 'text-ivory-2',
+                    ]}
+                  >
+                    {leaf.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ),
+      )
+    }
+  </ul>
+</aside>

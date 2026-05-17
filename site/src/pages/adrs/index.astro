@@ -1,0 +1,50 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocSidebar from '$components/docs/DocSidebar.astro';
+import { buildTree } from '$lib/doc-tree';
+
+const entries = await getCollection('adrs');
+const tree = buildTree(
+  entries.map((e) => ({ id: e.id, data: e.data, body: e.body })),
+  '/adrs',
+);
+const currentHref = '/adrs/';
+---
+
+<BaseLayout
+  title="ADRs — Décisions architecture Sobr.ia"
+  description="Architecture Decision Records : décisions techniques et leur rationale."
+>
+  <div class="max-w-7xl mx-auto px-6 py-12 grid gap-10 lg:grid-cols-[240px_1fr]">
+    <div class="lg:sticky lg:top-20 lg:self-start">
+      <DocSidebar {tree} {currentHref} baseHref="/adrs" title="ADRs" />
+    </div>
+
+    <main class="min-w-0">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">Sobr.ia · architecture</p>
+      <h1 class="mt-2 font-display text-5xl text-ivory">Décisions architecture</h1>
+      <p class="mt-4 text-ivory-2 max-w-2xl">
+        Chaque décision technique structurante est versionnée comme un Architecture Decision Record
+        (ADR). Format Markdown, single source of truth pour le « pourquoi ».
+      </p>
+
+      <ul class="mt-12 space-y-3">
+        {
+          tree
+            .filter((n) => n.type === 'leaf')
+            .map((node) => (
+              <li>
+                <a
+                  href={node.href}
+                  class="block rounded-lg border border-ivory-4/40 bg-ink-2 p-5 hover:border-lime-signature/60 transition-colors"
+                >
+                  <h2 class="font-sans text-lg text-ivory">{node.title}</h2>
+                </a>
+              </li>
+            ))
+        }
+      </ul>
+    </main>
+  </div>
+</BaseLayout>
