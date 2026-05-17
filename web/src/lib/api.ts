@@ -69,6 +69,35 @@ export interface ModelDetailDto {
   baseline_co2eq_p95_g: number;
   baseline_energy_wh_p50: number;
   baseline_water_l_p50: number;
+  /** C32.4 — disclosures officielles publiées par le fabricant. */
+  vendor_disclosures: VendorDisclosureDto[];
+}
+
+/** C32.4 — Périmètre d'une disclosure vendor. */
+export type VendorScope = 'training' | 'inference_per_prompt';
+
+/** C32.4 — Unité d'une disclosure vendor. */
+export type VendorUnit = 't_co2eq' | 'g_co2eq' | 'wh' | 'ml_water' | 'm3_water';
+
+/** C32.4 — Chiffre officiel publié par un fabricant (Mistral × ADEME,
+ * Google Gemini, Meta Llama). */
+export interface VendorDisclosureDto {
+  vendor: string;
+  scope: VendorScope;
+  value: number;
+  unit: VendorUnit;
+  source_url: string;
+  /** RFC 3339 simplifié `YYYY-MM-DD`. */
+  published_at: string;
+  methodology_note: string;
+}
+
+/** C32.4 — Ligne de la table comparaison vendor disclosure (M9 page principale). */
+export interface VendorComparisonRowDto {
+  vendor: string;
+  has_prompt_level: boolean;
+  has_training: boolean;
+  primary_source_url: string | null;
 }
 
 /** Méthodologies d'empreinte LLM embarquées (C24). */
@@ -557,6 +586,11 @@ export function listModels(): Promise<ModelPresetDto[]> {
 
 export function getModelDetail(id: string): Promise<ModelDetailDto> {
   return call<ModelDetailDto>('get_model_detail', { id });
+}
+
+/** C32.4 — Liste agrégée des vendor disclosures par fabricant (5 vendors). */
+export function listVendorComparison(): Promise<VendorComparisonRowDto[]> {
+  return call<VendorComparisonRowDto[]>('list_vendor_comparison');
 }
 
 export function estimatePrompt(req: EstimationRequestDto): Promise<EstimationResultDto> {

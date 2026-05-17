@@ -10,14 +10,26 @@
   //   - docs/methodology/MODEL-PRESETS.md
   //   - docs/CAHIER-DES-CHARGES-v1.0.md §4 M9
 
-  import { AlertTriangle, Info, PlugZap, HelpCircle, Lock, BookOpen, Inbox } from '@lucide/svelte';
+  import {
+    AlertTriangle,
+    Info,
+    PlugZap,
+    HelpCircle,
+    Lock,
+    BookOpen,
+    Inbox,
+    Check,
+    X
+  } from '@lucide/svelte';
   import {
     isTauriContext,
     listModels,
     getModelDetail,
+    listVendorComparison,
     SobriaIpcError,
     type ModelPresetDto,
     type ModelDetailDto,
+    type VendorComparisonRowDto,
     type IpcErrorCode
   } from '$lib/api';
   import { preferences, type ModuleId } from '$lib/preferences';
@@ -48,6 +60,9 @@
   // valeur immédiate sans bloquer le rendu de la grille (cf. brief §B).
   let baselineCo2eq = $state<Record<string, number>>({});
 
+  // C32.4 — Table comparaison vendor disclosure (5 fabricants).
+  let vendorComparison = $state<VendorComparisonRowDto[]>([]);
+
   // Modèle sélectionné — id stocké pour pouvoir survivre à un re-tri.
   let selectedId = $state<string | null>(null);
   let detail = $state<ModelDetailDto | null>(null);
@@ -73,6 +88,12 @@
       try {
         const list = await listModels();
         models = list;
+        // C32.4 — charge la table comparaison en parallèle (IPC séparée).
+        try {
+          vendorComparison = await listVendorComparison();
+        } catch {
+          // Non-fatal — la table reste masquée.
+        }
         // Précharge les 8 premiers détails pour peupler les baselines sur les
         // cards visibles. On ignore les erreurs individuelles (les cards
         // afficheront simplement "—").
@@ -229,6 +250,67 @@
       reproduire les calculs jusqu'à la décimale.
     </p>
   </section>
+
+  <!-- C32.4 — Table comparaison vendor disclosure (5 fabricants) -->
+  {#if vendorComparison.length > 0}
+    <section class="vendor-table" data-testid="vendor-comparison">
+      <header class="vt-head">
+        <h2 class="vt-title">Données vendor disclosure officielles</h2>
+        <p class="vt-sub">
+          Tableau de transparence : quels fabricants publient des chiffres environnementaux
+          officiels, et à quel niveau de granularité. Sobr.ia agrège ces données quand elles
+          existent et l'affiche dans la fiche du modèle.
+        </p>
+      </header>
+      <div class="vt-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Fabricant</th>
+              <th scope="col">Prompt-level</th>
+              <th scope="col">Training</th>
+              <th scope="col">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each vendorComparison as row (row.vendor)}
+              <tr>
+                <th scope="row">{row.vendor}</th>
+                <td>
+                  {#if row.has_prompt_level}
+                    <span class="ok" aria-label="Oui"><Check size={14} strokeWidth={2.5} /></span>
+                  {:else}
+                    <span class="ko" aria-label="Non"><X size={14} strokeWidth={2.5} /></span>
+                  {/if}
+                </td>
+                <td>
+                  {#if row.has_training}
+                    <span class="ok" aria-label="Oui"><Check size={14} strokeWidth={2.5} /></span>
+                  {:else}
+                    <span class="ko" aria-label="Non"><X size={14} strokeWidth={2.5} /></span>
+                  {/if}
+                </td>
+                <td>
+                  {#if row.primary_source_url}
+                    <a
+                      href={row.primary_source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="src-link"
+                    >
+                      Voir
+                    </a>
+                  {:else}
+                    <span class="muted">Pas de disclosure officielle</span>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {/if}
 
   <!-- Bannière erreur -->
   {#if loadError}
@@ -468,6 +550,91 @@
   .row > :global(*) {
     flex: 1;
     min-width: 0;
+  }
+
+  /* C32.4 — Table comparaison vendor disclosure ─────────────────────── */
+  .vendor-table {
+    padding: 20px 24px;
+    background: rgba(197, 240, 74, 0.03);
+    border: 1px solid rgba(197, 240, 74, 0.18);
+    border-radius: var(--radius-lg);
+  }
+  .vt-head {
+    margin-bottom: 16px;
+  }
+  .vt-title {
+    margin: 0 0 6px;
+    font: 400 22px/1.15 var(--font-display);
+    font-style: italic;
+    color: var(--ivory);
+  }
+  .vt-sub {
+    margin: 0;
+    font: 400 13px/1.5 var(--font-ui);
+    color: var(--ivory-3);
+    max-width: 720px;
+  }
+  .vt-wrap {
+    overflow-x: auto;
+  }
+  .vendor-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font: 400 13px/1.4 var(--font-ui);
+  }
+  .vendor-table th,
+  .vendor-table td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .vendor-table thead th {
+    color: var(--ivory-3);
+    font: 500 11px/1 var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .vendor-table tbody th {
+    color: var(--ivory);
+    font-weight: 500;
+  }
+  .vendor-table tbody tr:last-child th,
+  .vendor-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .vendor-table .ok {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(197, 240, 74, 0.18);
+    color: var(--lime);
+  }
+  .vendor-table .ko {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(240, 108, 90, 0.15);
+    color: var(--coral, #f06c5a);
+  }
+  .vendor-table .src-link {
+    color: var(--lime);
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(197, 240, 74, 0.4);
+  }
+  .vendor-table .src-link:hover {
+    color: var(--ivory);
+    border-bottom-color: var(--ivory);
+  }
+  .vendor-table .muted {
+    color: var(--ivory-4);
+    font-style: italic;
+    font-size: 12px;
   }
 
   .empty-grid {

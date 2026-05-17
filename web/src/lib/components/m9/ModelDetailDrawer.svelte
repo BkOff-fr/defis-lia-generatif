@@ -14,7 +14,7 @@
     Key,
     Lock
   } from '@lucide/svelte';
-  import type { ModelDetailDto, TripletDto } from '$lib/api';
+  import type { ModelDetailDto, TripletDto, VendorDisclosureDto } from '$lib/api';
   import { CALIB_LABEL, CALIB_TONE, OPENNESS_LABEL } from './ModelCard.svelte';
 
   type Props = {
@@ -188,6 +188,42 @@
 
   function tickX(c: ChartSpec, v: number): number {
     return PAD + scale(c.triplet, v, c.log) * (CHART_W - 2 * PAD);
+  }
+
+  // ── C32.4 — Vendor disclosure formatting ───────────────────────────────
+  // Présentation soignée des chiffres officiels publiés par les fabricants
+  // (Mistral × ADEME, Google Gemini, Meta Llama). Cf. brief C32.4 + audit
+  // datasets §D.
+  const SCOPE_LABEL: Record<VendorDisclosureDto['scope'], string> = {
+    training: 'Training (one-shot, amorti)',
+    inference_per_prompt: "Par prompt d'inférence"
+  };
+  const UNIT_LABEL: Record<VendorDisclosureDto['unit'], string> = {
+    t_co2eq: 't CO₂eq',
+    g_co2eq: 'g CO₂eq',
+    wh: 'Wh',
+    ml_water: 'mL d’eau',
+    m3_water: 'm³ d’eau'
+  };
+  function fmtVendorValue(d: VendorDisclosureDto): string {
+    // Adapté à l'ordre de grandeur : t_co2eq peut être très grand (11390),
+    // g_co2eq très petit (0.03). Locale FR.
+    if (d.unit === 't_co2eq' && d.value >= 1000) {
+      return new Intl.NumberFormat('fr-FR', {
+        maximumFractionDigits: 0
+      }).format(d.value);
+    }
+    if (d.unit === 't_co2eq') {
+      return new Intl.NumberFormat('fr-FR', {
+        maximumFractionDigits: 1
+      }).format(d.value);
+    }
+    if (d.unit === 'g_co2eq' && d.value < 0.1) {
+      return new Intl.NumberFormat('fr-FR', {
+        maximumFractionDigits: 3
+      }).format(d.value);
+    }
+    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(d.value);
   }
 
   // ── Méthodologie : phrase selon calibration ─────────────────────────────
@@ -415,6 +451,46 @@
         </div>
       </div>
     </section>
+
+    <!-- C32.4 — Vendor disclosures (encadré ACV vendor officiel) -->
+    {#if detail.vendor_disclosures.length > 0}
+      <section class="block vendor-disclosures" data-testid="vendor-disclosures">
+        <div class="block-h">
+          <FileText size={11} strokeWidth={1.8} /> Données vendor disclosure
+          <span class="block-counter mono">{detail.vendor_disclosures.length}</span>
+        </div>
+        <p class="vendor-intro">
+          Chiffres officiels publiés par <strong>{detail.provider}</strong>. Présentés tels quels, à
+          côté de l'estimation Sobr.ia Monte-Carlo (multi-méthodologie).
+        </p>
+        <ul class="vendor-list">
+          {#each detail.vendor_disclosures as d, i (i)}
+            <li class="vendor-card" data-scope={d.scope}>
+              <div class="vendor-head">
+                <span class="vendor-scope">{SCOPE_LABEL[d.scope]}</span>
+                <span class="vendor-published mono">{d.published_at}</span>
+              </div>
+              <div class="vendor-value mono">
+                {fmtVendorValue(d)}
+                <span class="vendor-unit">{UNIT_LABEL[d.unit]}</span>
+              </div>
+              <p class="vendor-note">{d.methodology_note}</p>
+              {#if isUrl(d.source_url)}
+                <a
+                  class="vendor-source"
+                  href={d.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={d.source_url}
+                >
+                  Source officielle <ArrowUpRight size={11} strokeWidth={2} />
+                </a>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
 
     <!-- Sources -->
     <section class="block">
@@ -815,6 +891,89 @@
   }
   .src-text {
     overflow-wrap: anywhere;
+  }
+
+  /* C32.4 — vendor disclosures (encadré ACV vendor officiel) ─────── */
+  .vendor-disclosures {
+    background: rgba(197, 240, 74, 0.04);
+    border: 1px solid rgba(197, 240, 74, 0.2);
+    border-radius: var(--radius-md);
+    padding: 14px;
+  }
+  .vendor-intro {
+    margin: 0 0 12px;
+    font: 400 12px/1.5 var(--font-ui);
+    color: var(--ivory-2);
+  }
+  .vendor-intro strong {
+    color: var(--lime);
+    font-weight: 500;
+  }
+  .vendor-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .vendor-card {
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .vendor-card[data-scope='training'] {
+    border-left: 3px solid #b794f4;
+  }
+  .vendor-card[data-scope='inference_per_prompt'] {
+    border-left: 3px solid var(--lime);
+  }
+  .vendor-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .vendor-scope {
+    font: 500 11px/1 var(--font-ui);
+    color: var(--ivory-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .vendor-published {
+    font-size: 10px;
+    color: var(--ivory-4);
+  }
+  .vendor-value {
+    font: 600 18px/1.2 var(--font-mono);
+    color: var(--ivory);
+  }
+  .vendor-unit {
+    font-size: 12px;
+    color: var(--ivory-3);
+    margin-left: 4px;
+    font-weight: 400;
+  }
+  .vendor-note {
+    margin: 0;
+    font: 400 11px/1.5 var(--font-ui);
+    color: var(--ivory-3);
+  }
+  .vendor-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font: 500 11px/1 var(--font-ui);
+    color: var(--lime);
+    text-decoration: none;
+    align-self: flex-start;
+  }
+  .vendor-source:hover {
+    color: var(--ivory);
   }
 
   .method {
