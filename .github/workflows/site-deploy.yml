@@ -1,0 +1,74 @@
+name: site-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'scripts/sync-docs.mjs'
+      - '.github/workflows/site-deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: site-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: site/package-lock.json
+
+      - name: Sync docs into site/src/content/
+        run: bash -c "node scripts/sync-docs.mjs"
+
+      - name: Install site dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Lint + type check
+        working-directory: site
+        run: |
+          npm run check
+          npm run lint
+
+      - name: Build Astro
+        working-directory: site
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SOBRIA_DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SOBRIA_DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy via rsync
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" \
+            site/dist/ \
+            ${{ secrets.SOBRIA_DEPLOY_USER }}@${{ secrets.SOBRIA_DEPLOY_HOST }}:${{ secrets.SOBRIA_DEPLOY_PATH }}
+
+      - name: Post-deploy smoke test
+        run: |
+          sleep 3
+          curl -sfI https://sobria.brilliantstudio.co/ | head -1
+          echo "✓ Site répond en HTTPS"

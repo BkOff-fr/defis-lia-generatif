@@ -7,6 +7,38 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — C33.6 CI/CD self-hosted nginx (2026-05-17)
+
+- Serveur Thibault (80.11.20.55, Ubuntu 22.04, nginx 1.18) provisionné :
+  - User `deployer` créé (UID 1007, group www-data).
+  - Sudoers `/etc/sudoers.d/deployer` limité à `systemctl reload/restart/status
+nginx` + `nginx -t` (paths `/bin/systemctl` ET `/usr/bin/systemctl` pour
+    couvrir les deux binaires distincts sur Ubuntu 22).
+  - Site dir `/var/www/sobria-site` perms `deployer:www-data 750`.
+  - Clé SSH ed25519 dédiée `sobria_deploy` (générée localement, pub poussée
+    dans `/home/deployer/.ssh/authorized_keys`).
+  - Nginx server block `sobria.brilliantstudio.co` avec HTTP→HTTPS 301,
+    HTTP/2, security headers serveur-level (HSTS, X-Frame-Options DENY,
+    Referrer-Policy, Permissions-Policy, CSP self-only), gzip, cache
+    immutable `/_astro/` et fonts (1 an), images 30j, html 5min.
+  - Certbot Let's Encrypt OK (cert expire 2026-08-15), email
+    `thibault@brilliantstudio.co`, auto-renewal via `certbot.timer` (daily).
+- Workflow `.github/workflows/site-deploy.yml` : push main paths
+  `site/**` + `docs/**` + script sync → build Astro + sync docs + rsync SSH
+  vers `deployer@80.11.20.55:/var/www/sobria-site/` + smoke test curl HTTPS.
+- Premier deploy manuel via `scp -r site/dist/*` validé : site live sur
+  https://sobria.brilliantstudio.co/ avec headers sécurité, /docs/, /pagefind/,
+  /adrs/, /telecharger/, /cloud/, /candidature/ tous opérationnels.
+
+5 GitHub Secrets à configurer (UI repo → Settings → Secrets → Actions) avant
+que le workflow puisse rsync depuis CI :
+
+- `SOBRIA_DEPLOY_SSH_KEY` : contenu de `~/.ssh/sobria_deploy` (private ed25519)
+- `SOBRIA_DEPLOY_HOST` : `80.11.20.55`
+- `SOBRIA_DEPLOY_USER` : `deployer`
+- `SOBRIA_DEPLOY_PATH` : `/var/www/sobria-site/`
+- `SOBRIA_DEPLOY_KNOWN_HOSTS` : sortie `ssh-keyscan -t ed25519 80.11.20.55`
+
 ### Added — C33.5 Workflows release + #download + pages secondaires (2026-05-17)
 
 - `.github/workflows/app-release.yml` : trigger sur tag `v*.*.*` + workflow_dispatch.
