@@ -1,0 +1,160 @@
+---
+type Tone = 'lime' | 'amber' | 'coral';
+interface Vendor {
+  name: string;
+  flag?: string;
+  prompt: { label: string; tone: Tone };
+  training: { label: string; tone: Tone };
+  metric?: string;
+  metricSub?: string;
+  source: string;
+}
+
+const vendors: Vendor[] = [
+  {
+    name: 'Mistral × ADEME',
+    flag: '🇫🇷',
+    prompt: { label: '✓ Oui (2025)', tone: 'lime' },
+    training: { label: '✓ Oui — ACV complète', tone: 'lime' },
+    metric: '1,14 g',
+    metricSub: 'CO₂eq / 400 tokens',
+    source: 'Mistral AI · partenariat ADEME',
+  },
+  {
+    name: 'Google Gemini',
+    prompt: { label: '✓ Oui (2025)', tone: 'lime' },
+    training: { label: '~ Partiel', tone: 'amber' },
+    metric: '0,03 g',
+    metricSub: 'CO₂eq / prompt médian',
+    source: 'Google 2025 disclosure',
+  },
+  {
+    name: 'Meta Llama 3.x',
+    prompt: { label: '✕ Non', tone: 'coral' },
+    training: { label: '✓ Oui — model cards', tone: 'lime' },
+    metric: '11 390 t',
+    metricSub: 'CO₂eq training (location-based)',
+    source: 'Meta Llama 3.1 model card',
+  },
+  {
+    name: 'Anthropic Claude',
+    prompt: { label: '✕ Non', tone: 'coral' },
+    training: { label: '✕ Non', tone: 'coral' },
+    source: 'Estimations tierces uniquement',
+  },
+  {
+    name: 'OpenAI GPT-4o',
+    prompt: { label: '✕ Non', tone: 'coral' },
+    training: { label: '✕ Non', tone: 'coral' },
+    source: 'Estimations tierces uniquement',
+  },
+];
+
+const toneClasses: Record<Tone, string> = {
+  lime: 'text-lime-signature bg-lime-signature/10 border-lime-signature/30',
+  amber: 'text-amber bg-amber/10 border-amber/30',
+  coral: 'text-coral bg-coral/10 border-coral/30',
+};
+---
+
+<section id="vendors" class="border-b border-ivory-4/20">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">6 — Vendors disclosure</p>
+    <h2 class="mt-2 text-4xl md:text-5xl font-display text-ivory">
+      Qui dit la vérité sur <span class="italic text-lime-signature">son empreinte</span> ?
+    </h2>
+    <p class="mt-6 text-ivory-2 max-w-2xl">
+      Sobr.ia agrège les chiffres publiés <em>officiellement</em> par les fabricants. Quand un vendeur
+      ne publie pas, on le dit — et on utilise les estimations tierces les plus solides disponibles.
+    </p>
+
+    <ol class="mt-12 space-y-3" data-vendor-list>
+      {
+        vendors.map((v) => (
+          <li
+            class="vendor-row rounded-lg border border-ivory-4/30 bg-ink-2 p-5 grid items-center gap-4 sm:grid-cols-[1.4fr_1fr_1fr_1.2fr]"
+            data-vendor-row
+          >
+            <div>
+              <p class="font-sans text-lg text-ivory">
+                {v.flag && <span class="mr-1">{v.flag}</span>}
+                {v.name}
+              </p>
+              <p class="mt-1 text-xs text-ivory-3">{v.source}</p>
+            </div>
+            <div>
+              <p class="text-[10px] uppercase tracking-wider text-ivory-3">Prompt-level</p>
+              <span
+                class={`mt-1 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs ${toneClasses[v.prompt.tone]}`}
+              >
+                {v.prompt.label}
+              </span>
+            </div>
+            <div>
+              <p class="text-[10px] uppercase tracking-wider text-ivory-3">Training</p>
+              <span
+                class={`mt-1 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs ${toneClasses[v.training.tone]}`}
+              >
+                {v.training.label}
+              </span>
+            </div>
+            {v.metric ? (
+              <div class="text-right">
+                <p class="font-display text-3xl text-lime-signature leading-none">{v.metric}</p>
+                <p class="mt-1 text-[10px] uppercase tracking-wider text-ivory-3">{v.metricSub}</p>
+              </div>
+            ) : (
+              <div class="text-right text-xs text-ivory-3 italic">
+                Pas de chiffre officiel disponible
+              </div>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+
+    <p class="mt-6 text-xs text-ivory-3 max-w-2xl">
+      Sources complètes :
+      <a class="underline underline-offset-4" href="/docs/sources/AUDIT-2026-Q3/"
+        >catalogue audit 2026-Q3</a
+      >
+      · 19 datasets référencés.
+    </p>
+  </div>
+</section>
+
+<style>
+  .vendor-row {
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 450ms ease-out,
+      transform 450ms ease-out;
+  }
+  .vendor-row[data-revealed='true'] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script>
+  const list = document.querySelector('[data-vendor-list]');
+  if (list) {
+    const rows = list.querySelectorAll<HTMLElement>('[data-vendor-row]');
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            rows.forEach((el, i) =>
+              setTimeout(() => el.setAttribute('data-revealed', 'true'), i * 110),
+            );
+            io.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.15 },
+    );
+    io.observe(list);
+  }
+</script>

@@ -7,6 +7,27 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — C33.3 4 sections 3D animées (2026-05-17)
+
+- MonteCarloViz.svelte : Three.js InstancedMesh 10 000 sphères, distribution
+  gaussienne autour d'axe X avec convergence animée au scroll-entry (IO),
+  toggle AFNOR/Sobr.ia vs EcoLogits (lerp positions cibles via `$effect`),
+  P5/P50/P95 stats live + bandes plan ambre P5/P95 dans la scène.
+  Reuses Three.js chunk lazy-loaded depuis HeroGlobe (~12 KB de code propre).
+- VendorDisclosure.astro : table 5 vendors (Mistral×ADEME 🇫🇷 / Google Gemini /
+  Meta Llama 3.x / Anthropic / OpenAI) avec chiffres clés (1,14 g · 0,03 g ·
+  11 390 t), badges ✓/~/✕ par disclosure prompt-level + training, révélation
+  séquentielle au scroll via IntersectionObserver.
+- TerritoireFR.astro : carte FR SVG outline stylisé + datacenters FR filtrés
+  depuis datacenters.json (projection lat/lon → viewBox), CSS perspective +
+  rotateX 28° pour effet 2.5D, hover → unfold partiel, prefers-reduced-motion
+  désactive le tilt.
+- Entreprises.astro : 2 cards (Mode Équipe self-hosted dispo / Cloud managé
+  v1.3 bientôt) avec SVG inline schéma serveur + 4 avatars employés
+  stylisés, CTAs vers /docs/operations/team-aggregator/ et /cloud/.
+- index.astro : sections 5/6/7/8 wirées ; seul `#download` (4) reste
+  placeholder pour C33.5.
+
 ### Added — C33.4 Doc interactive + Pagefind (2026-05-17)
 
 - Astro 5 Content Layer : 2 collections `docs` (24 entries) + `adrs` (15 entries),

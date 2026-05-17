@@ -1,0 +1,29 @@
+---
+import MonteCarloViz from '$components/three/MonteCarloViz.svelte';
+---
+
+<section id="methodologies" class="border-b border-ivory-4/20">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">5 — Méthodologies</p>
+    <h2 class="mt-2 text-4xl md:text-5xl font-display text-ivory">
+      Deux méthodes, <span class="italic text-lime-signature">une seule vérité</span>.
+    </h2>
+    <p class="mt-6 text-ivory-2 max-w-2xl">
+      Sobr.ia ne choisit pas pour vous : on tire 10 000 estimations selon AFNOR SPEC 2314 ou
+      EcoLogits, on affiche l'incertitude (P5–P95) et vous voyez l'ordre de grandeur réel.
+    </p>
+
+    <div class="mt-12">
+      <MonteCarloViz client:visible />
+    </div>
+
+    <p class="mt-6 text-xs text-ivory-3 max-w-2xl">
+      Distribution illustrative (ordres de grandeur cohérents avec Mistral Large 2 ~1,14 g / 400
+      tokens). Les paramètres réels sont calculés à partir du référentiel modèles multi-méthodologie
+      de Sobr.ia (cf.
+      <a class="underline underline-offset-4" href="/adrs/ADR-0012-multi-methodology-engine/"
+        >ADR-0012</a
+      >).
+    </p>
+  </div>
+</section>

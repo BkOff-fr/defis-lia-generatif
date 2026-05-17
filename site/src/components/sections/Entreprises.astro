@@ -1,0 +1,201 @@
+---
+// Astro+Svelte 5 type-integration gap : le generic `Component<IconProps>` n'est
+// pas propagé à travers les attributs JSX d'Astro. On caste à `any` pour cette
+// frontière connue ; le dispatch fonctionne correctement à l'exécution.
+import ServerIcon from '@lucide/svelte/icons/server';
+import UsersIcon from '@lucide/svelte/icons/users';
+import CloudIcon from '@lucide/svelte/icons/cloud';
+import MailIcon from '@lucide/svelte/icons/mail';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Server: any = ServerIcon;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Users: any = UsersIcon;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Cloud: any = CloudIcon;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Mail: any = MailIcon;
+---
+
+<section id="entreprises" class="border-b border-ivory-4/20">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">8 — Pour les entreprises</p>
+    <h2 class="mt-2 text-4xl md:text-5xl font-display text-ivory">
+      Mode Équipe <span class="italic text-lime-signature">aujourd'hui</span>. Cloud
+      <span class="italic text-lime-signature">bientôt</span>.
+    </h2>
+    <p class="mt-6 text-ivory-2 max-w-2xl">
+      Deux pistes, un seul produit. La piste self-hosted est disponible dès maintenant (cf.
+      <a class="underline underline-offset-4" href="/adrs/ADR-0014-dual-track-local-cloud/"
+        >ADR-0014</a
+      >). La piste managée arrivera en v1.3 — sans cloud central avant que la souveraineté ne soit
+      garantie.
+    </p>
+
+    <div class="mt-12 grid gap-6 md:grid-cols-2">
+      <article
+        class="rounded-lg border border-lime-signature/40 bg-lime-signature/5 p-8 flex flex-col"
+      >
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <Server size={28} class="text-lime-signature" />
+            <h3 class="font-sans text-xl text-ivory">Mode Équipe self-hosted</h3>
+          </div>
+          <span
+            class="inline-flex items-center rounded-full border border-lime-signature/40 bg-lime-signature/15 text-lime-signature px-2.5 py-0.5 text-xs"
+          >
+            Disponible
+          </span>
+        </div>
+
+        <p class="mt-4 text-sm text-ivory-2 leading-relaxed">
+          Un binaire serveur léger qui agrège les empreintes de chaque membre de l'équipe. 100 %
+          local, aucune donnée chez nous. Idéal DSI / RSE.
+        </p>
+
+        <div class="my-8 flex items-center justify-center">
+          <svg viewBox="0 0 320 160" class="w-full max-w-[280px] h-auto" aria-hidden="true">
+            <defs>
+              <radialGradient id="server-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#c5f04a" stop-opacity="0.35"></stop>
+                <stop offset="100%" stop-color="#c5f04a" stop-opacity="0"></stop>
+              </radialGradient>
+            </defs>
+            <circle cx="160" cy="80" r="56" fill="url(#server-glow)"></circle>
+            <rect
+              x="135"
+              y="55"
+              width="50"
+              height="50"
+              rx="6"
+              fill="#0e1310"
+              stroke="#c5f04a"
+              stroke-width="1.5"></rect>
+            <circle cx="146" cy="68" r="2" fill="#c5f04a"></circle>
+            <circle cx="146" cy="80" r="2" fill="#c5f04a"></circle>
+            <circle cx="146" cy="92" r="2" fill="#c5f04a"></circle>
+            <line
+              x1="160"
+              y1="55"
+              x2="160"
+              y2="20"
+              stroke="#c5f04a"
+              stroke-opacity="0.35"
+              stroke-dasharray="3 3"></line>
+            <line
+              x1="160"
+              y1="105"
+              x2="160"
+              y2="140"
+              stroke="#c5f04a"
+              stroke-opacity="0.35"
+              stroke-dasharray="3 3"></line>
+            <line
+              x1="135"
+              y1="80"
+              x2="80"
+              y2="80"
+              stroke="#c5f04a"
+              stroke-opacity="0.35"
+              stroke-dasharray="3 3"></line>
+            <line
+              x1="185"
+              y1="80"
+              x2="240"
+              y2="80"
+              stroke="#c5f04a"
+              stroke-opacity="0.35"
+              stroke-dasharray="3 3"></line>
+            <g>
+              <circle cx="160" cy="14" r="11" fill="#131815" stroke="#f0ece3" stroke-width="1"
+              ></circle>
+              <circle cx="160" cy="11" r="3.2" fill="#f0ece3"></circle>
+              <path d="M153 18 Q160 23 167 18 L167 22 L153 22 Z" fill="#f0ece3"></path>
+            </g>
+            <g>
+              <circle cx="160" cy="146" r="11" fill="#131815" stroke="#f0ece3" stroke-width="1"
+              ></circle>
+              <circle cx="160" cy="143" r="3.2" fill="#f0ece3"></circle>
+              <path d="M153 150 Q160 155 167 150 L167 154 L153 154 Z" fill="#f0ece3"></path>
+            </g>
+            <g>
+              <circle cx="74" cy="80" r="11" fill="#131815" stroke="#f0ece3" stroke-width="1"
+              ></circle>
+              <circle cx="74" cy="77" r="3.2" fill="#f0ece3"></circle>
+              <path d="M67 84 Q74 89 81 84 L81 88 L67 88 Z" fill="#f0ece3"></path>
+            </g>
+            <g>
+              <circle cx="246" cy="80" r="11" fill="#131815" stroke="#f0ece3" stroke-width="1"
+              ></circle>
+              <circle cx="246" cy="77" r="3.2" fill="#f0ece3"></circle>
+              <path d="M239 84 Q246 89 253 84 L253 88 L239 88 Z" fill="#f0ece3"></path>
+            </g>
+          </svg>
+        </div>
+
+        <ul class="mt-2 space-y-2 text-sm text-ivory-2">
+          <li class="flex items-start gap-2">
+            <span class="text-lime-signature mt-1">→</span> Binaire serveur léger (~10 MB)
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-lime-signature mt-1">→</span> Pairing chiffré via extension navigateur
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-lime-signature mt-1">→</span> Dashboard agrégé scope 3 IA, export CSRD
+          </li>
+        </ul>
+
+        <a
+          href="/docs/operations/team-aggregator/"
+          class="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-lime-signature text-ink px-4 py-2 text-sm font-sans font-medium hover:bg-lime-deep transition-colors"
+        >
+          <Users size={16} />
+          Voir le guide Mode Équipe
+        </a>
+      </article>
+
+      <article class="rounded-lg border border-ivory-4/40 bg-ink-2 p-8 flex flex-col">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <Cloud size={28} class="text-amber" />
+            <h3 class="font-sans text-xl text-ivory">Cloud managé</h3>
+          </div>
+          <span
+            class="inline-flex items-center rounded-full border border-amber/40 bg-amber/10 text-amber px-2.5 py-0.5 text-xs"
+          >
+            v1.3 — bientôt
+          </span>
+        </div>
+
+        <p class="mt-4 text-sm text-ivory-2 leading-relaxed">
+          Pour les organisations qui ne peuvent pas héberger, une offre Cloud arrivera avec
+          souveraineté garantie, chiffrement bout-en-bout et opt-in explicite RGPD. Pas de cloud
+          Sobr.ia avant que ces conditions soient remplies.
+        </p>
+
+        <div class="flex-1"></div>
+
+        <ul class="mt-6 space-y-2 text-sm text-ivory-2">
+          <li class="flex items-start gap-2">
+            <span class="text-amber mt-1">→</span> Datacenter EU, hébergeur certifié (HDS-SecNumCloud
+            à étudier)
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-amber mt-1">→</span> Onboarding équipes, SSO, RBAC
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-amber mt-1">→</span> Tarif beta — early access mailing list
+          </li>
+        </ul>
+
+        <a
+          href="/cloud/"
+          class="mt-6 inline-flex items-center justify-center gap-2 rounded-md border border-ivory-4 text-ivory hover:border-lime-signature hover:text-lime-signature px-4 py-2 text-sm font-sans font-medium transition-colors"
+        >
+          <Mail size={16} />
+          Être prévenu·e
+        </a>
+      </article>
+    </div>
+  </div>
+</section>

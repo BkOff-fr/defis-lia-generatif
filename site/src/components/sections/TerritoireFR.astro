@@ -1,0 +1,139 @@
+---
+import datacenters from '../../data/datacenters.json';
+
+const frDcs = datacenters.filter((d) => d.country === 'FR');
+
+const LAT_MIN = 42.3;
+const LAT_MAX = 51.5;
+const LON_MIN = -5.5;
+const LON_MAX = 9.5;
+
+function project(lat: number, lon: number) {
+  const x = ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * 600;
+  const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * 600;
+  return { x, y };
+}
+
+const outlineLonLat: [number, number][] = [
+  [2.0, 51.1],
+  [4.85, 50.85],
+  [6.15, 49.6],
+  [8.2, 48.95],
+  [7.55, 47.55],
+  [6.9, 45.95],
+  [7.45, 43.75],
+  [3.0, 42.5],
+  [-1.4, 43.05],
+  [-1.8, 46.45],
+  [-4.8, 48.4],
+  [-1.55, 49.7],
+  [1.6, 50.95],
+  [2.0, 51.1],
+];
+const outlinePoints = outlineLonLat
+  .map(([lon, lat]) => {
+    const p = project(lat, lon);
+    return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  })
+  .join(' ');
+---
+
+<section id="territoire-fr" class="border-b border-ivory-4/20">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">7 — Territoire français</p>
+    <h2 class="mt-2 text-4xl md:text-5xl font-display text-ivory">
+      L'IA générative <span class="italic text-lime-signature">a un territoire</span>.
+    </h2>
+    <p class="mt-6 text-ivory-2 max-w-2xl">
+      Sobr.ia croise les datacenters réels (lat/lon, PUE, intensité carbone par maille) avec
+      ComparIA et le dataset RTE IRIS — pour la première fois, l'empreinte est géographiquement
+      située à l'échelle française.
+    </p>
+
+    <div class="mt-12 grid gap-10 lg:grid-cols-[1fr_320px] items-center">
+      <div class="relative w-full max-w-xl mx-auto" style="perspective: 1200px;">
+        <div class="map-tilt">
+          <svg
+            viewBox="0 0 600 600"
+            class="w-full h-auto"
+            role="img"
+            aria-label="Carte de France avec datacenters référencés"
+          >
+            <defs>
+              <radialGradient id="fr-fill" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stop-color="#131815"></stop>
+                <stop offset="100%" stop-color="#0e1310"></stop>
+              </radialGradient>
+              <radialGradient id="dc-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#c5f04a" stop-opacity="0.8"></stop>
+                <stop offset="100%" stop-color="#c5f04a" stop-opacity="0"></stop>
+              </radialGradient>
+            </defs>
+            <polygon
+              points={outlinePoints}
+              fill="url(#fr-fill)"
+              stroke="#c5f04a"
+              stroke-opacity="0.35"
+              stroke-width="1.5"></polygon>
+            {
+              frDcs.map((d) => {
+                const p = project(d.lat, d.lon);
+                return (
+                  <g>
+                    <circle cx={p.x} cy={p.y} r="18" fill="url(#dc-glow)" />
+                    <circle cx={p.x} cy={p.y} r="4" fill="#c5f04a">
+                      <title>{d.name}</title>
+                    </circle>
+                  </g>
+                );
+              })
+            }
+          </svg>
+        </div>
+      </div>
+
+      <aside class="space-y-4">
+        <p class="text-xs uppercase tracking-widest text-ivory-3">Datacenters FR connus</p>
+        <p class="font-display text-6xl text-lime-signature leading-none">
+          {frDcs.length}
+        </p>
+        <p class="text-xs text-ivory-3">
+          sur 28 référencés Europe — données PUE / WUE / intensité carbone agrégées.
+        </p>
+        <ul class="mt-4 space-y-1 text-sm">
+          {
+            frDcs.map((d) => (
+              <li class="text-ivory-2">
+                <span class="font-mono text-xs text-ivory-3 mr-2">•</span>
+                {d.name}
+              </li>
+            ))
+          }
+        </ul>
+        <p class="text-xs text-ivory-3 mt-6">
+          Source :
+          <a class="underline underline-offset-4" href="/docs/sources/CATALOGUE-DATACENTERS/"
+            >catalogue datacenters</a
+          >
+          · 28 entries Europe.
+        </p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<style>
+  .map-tilt {
+    transform: rotateX(28deg) rotateZ(-2deg);
+    transform-origin: center;
+    transition: transform 600ms ease-out;
+  }
+  .map-tilt:hover {
+    transform: rotateX(14deg) rotateZ(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .map-tilt {
+      transform: none !important;
+    }
+  }
+</style>
