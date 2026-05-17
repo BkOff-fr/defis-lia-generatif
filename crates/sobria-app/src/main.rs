@@ -25,7 +25,8 @@ use sobria_app::{
         MetaInfo, MethodologyInfoDto, ModelDetailDto, ModelPresetDto, PairingCodeDto, PairingDto,
         PairingSecretDto, PersonalGoalDto, ProjectDto, ReferentielReloadResultDto,
         ReferentielStatusDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
-        SimulationResultDto, UpdateProjectDto, YearlyForecastRequestDto, YearlyForecastResultDto,
+        SimulationResultDto, UpdateProjectDto, VendorComparisonRowDto, YearlyForecastRequestDto,
+        YearlyForecastResultDto,
     },
     logic,
     team_client::{self, EnrollRequest, TeamClient},
@@ -72,6 +73,13 @@ fn list_methodologies() -> IpcResult<Vec<MethodologyInfoDto>> {
 #[tauri::command]
 fn get_model_detail(id: String, state: tauri::State<'_, AppState>) -> IpcResult<ModelDetailDto> {
     logic::get_model_detail(&id, state.inner())
+}
+
+/// **C32.4** — Liste agrégée des vendor disclosures par fabricant pour la
+/// table comparaison M9 (5 lignes, Mistral / Google / Meta / Anthropic / OpenAI).
+#[tauri::command]
+fn list_vendor_comparison() -> IpcResult<Vec<VendorComparisonRowDto>> {
+    logic::list_vendor_comparison()
 }
 
 #[tauri::command]
@@ -603,6 +611,7 @@ fn main() {
             list_models,
             list_methodologies,
             get_model_detail,
+            list_vendor_comparison,
             estimate_prompt,
             estimate_for_comparison,
             verify_audit,

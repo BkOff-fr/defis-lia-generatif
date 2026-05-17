@@ -58,7 +58,8 @@ pub use engine_trait::{
 pub use engines::{ecologits::EcoLogitsEngine, factory::engine_for};
 pub use error::{EstimatorError, EstimatorResult};
 pub use model_presets::{
-    available_models, find_preset, CalibrationStatus, ModelPreset, Openness, MODEL_REGISTRY,
+    available_models, find_preset, CalibrationStatus, ModelPreset, Openness, VendorDisclosure,
+    VendorScope, VendorUnit, MODEL_REGISTRY,
 };
 pub use params::EstimationParams;
 pub use scenarios::{

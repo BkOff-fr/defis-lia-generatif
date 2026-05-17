@@ -103,6 +103,49 @@ pub fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
     Ok(available_models().into_iter().map(Into::into).collect())
 }
 
+/// **C32.4** — Agrège les disclosures vendor par fabricant pour la table
+/// comparaison M9. Renvoie une ligne par fabricant présent dans
+/// `MODEL_REGISTRY`, avec deux booléens (training / prompt-level) qui
+/// permettent à l'UI d'afficher un ✅ ou un ❌ « Pas de disclosure ».
+///
+/// Source de vérité : `sobria_estimator::MODEL_REGISTRY[*].vendor_disclosures`.
+pub fn list_vendor_comparison() -> IpcResult<Vec<crate::dto::VendorComparisonRowDto>> {
+    use sobria_estimator::{VendorScope, MODEL_REGISTRY};
+    use std::collections::BTreeMap;
+
+    // BTreeMap : ordre alphabétique stable côté UI sans tri JS.
+    let mut by_vendor: BTreeMap<String, (bool, bool, Option<String>)> = BTreeMap::new();
+
+    for preset in MODEL_REGISTRY {
+        let entry = by_vendor
+            .entry(preset.provider.to_string())
+            .or_insert((false, false, None));
+        for d in preset.vendor_disclosures {
+            match d.scope {
+                VendorScope::Training => entry.1 = true,
+                VendorScope::InferencePerPrompt => entry.0 = true,
+            }
+            if entry.2.is_none() {
+                entry.2 = Some(d.source_url.to_string());
+            }
+        }
+    }
+
+    Ok(by_vendor
+        .into_iter()
+        .map(
+            |(vendor, (has_prompt_level, has_training, primary_source_url))| {
+                crate::dto::VendorComparisonRowDto {
+                    vendor,
+                    has_prompt_level,
+                    has_training,
+                    primary_source_url,
+                }
+            },
+        )
+        .collect())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Référentiel Gold (C26.5 — pipeline médaillon)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -296,6 +339,8 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         baseline_co2eq_p95_g: co2.interval.p95,
         baseline_energy_wh_p50: energy_p50,
         baseline_water_l_p50: water_p50,
+        // C32.4 — vendor disclosures officielles.
+        vendor_disclosures: preset.vendor_disclosures.iter().map(Into::into).collect(),
     })
 }
 
@@ -1894,6 +1939,50 @@ mod tests {
     }
 
     #[test]
+    fn list_vendor_comparison_has_5_vendors_with_correct_flags() {
+        // C32.4 — la table comparaison doit montrer les 5 fabricants
+        // présents dans MODEL_REGISTRY, avec leurs flags has_*.
+        let rows = list_vendor_comparison().unwrap();
+        let vendors: Vec<&str> = rows.iter().map(|r| r.vendor.as_str()).collect();
+        for expected in ["Mistral AI", "Google", "Meta", "Anthropic", "OpenAI"] {
+            assert!(
+                vendors.contains(&expected),
+                "vendor {expected} attendu dans la comparaison, vu : {vendors:?}"
+            );
+        }
+        // Mistral AI : training ✓ + prompt-level ✓.
+        let mistral = rows.iter().find(|r| r.vendor == "Mistral AI").unwrap();
+        assert!(mistral.has_training, "Mistral AI doit avoir training=true");
+        assert!(
+            mistral.has_prompt_level,
+            "Mistral AI doit avoir prompt-level=true"
+        );
+        // Google : prompt-level ✓ seulement.
+        let google = rows.iter().find(|r| r.vendor == "Google").unwrap();
+        assert!(google.has_prompt_level);
+        assert!(!google.has_training, "Google ne publie pas training");
+        // Meta : training ✓ seulement.
+        let meta = rows.iter().find(|r| r.vendor == "Meta").unwrap();
+        assert!(meta.has_training);
+        assert!(
+            !meta.has_prompt_level,
+            "Meta ne publie pas prompt-level (training only)"
+        );
+        // Anthropic + OpenAI : aucune disclosure.
+        for absent in ["Anthropic", "OpenAI"] {
+            let row = rows.iter().find(|r| r.vendor == absent).unwrap();
+            assert!(
+                !row.has_prompt_level && !row.has_training,
+                "{absent} ne doit avoir aucune disclosure ; vu : {row:?}"
+            );
+            assert!(
+                row.primary_source_url.is_none(),
+                "{absent} ne doit pas avoir de source_url"
+            );
+        }
+    }
+
+    #[test]
     fn estimate_unknown_model_returns_unknown_model_code() {
         let (tmp, state) = fresh_state();
         let req = EstimationRequestDto {
@@ -3137,6 +3226,43 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let (tmp, state) = fresh_state();
         let err = get_model_detail("ce-modele-existe-pas", &state).unwrap_err();
         assert_eq!(err.code, "not_found");
+    }
+
+    #[test]
+    fn get_model_detail_mistral_large_2_has_vendor_disclosures() {
+        // C32.4 — Mistral Large 2 doit retourner ses 3 disclosures vendor
+        // (training tCO2eq, training m3 water, inference gCO2eq).
+        let (tmp, state) = fresh_state();
+        let d = get_model_detail("mistral-large-2", &state).unwrap();
+        assert!(
+            d.vendor_disclosures.len() >= 3,
+            "Mistral Large 2 attendu ≥ 3 vendor_disclosures, vu : {}",
+            d.vendor_disclosures.len()
+        );
+        let has_training_co2 = d
+            .vendor_disclosures
+            .iter()
+            .any(|v| v.scope == "training" && v.unit == "t_co2eq");
+        let has_inference_co2 = d
+            .vendor_disclosures
+            .iter()
+            .any(|v| v.scope == "inference_per_prompt" && v.unit == "g_co2eq");
+        assert!(has_training_co2, "Mistral Large 2 manque training tCO2eq");
+        assert!(has_inference_co2, "Mistral Large 2 manque inference gCO2eq");
+        drop(tmp);
+    }
+
+    #[test]
+    fn get_model_detail_gpt_4o_has_no_vendor_disclosure() {
+        // C32.4 — OpenAI ne publie pas → vendor_disclosures vide.
+        let (tmp, state) = fresh_state();
+        let d = get_model_detail("gpt-4o", &state).unwrap();
+        assert!(
+            d.vendor_disclosures.is_empty(),
+            "GPT-4o ne doit avoir aucune vendor disclosure, vu : {:?}",
+            d.vendor_disclosures
+        );
+        drop(tmp);
     }
 
     #[test]

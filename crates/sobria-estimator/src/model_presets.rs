@@ -42,6 +42,66 @@ pub enum Openness {
     Closed,
 }
 
+/// Périmètre d'un chiffre publié par un fabricant.
+///
+/// **`Training`** : empreinte totale de l'entraînement du modèle (one-shot,
+/// amortie sur la durée de vie). Unité typique : `t_co2eq`, `m3_water`.
+///
+/// **`InferencePerPrompt`** : empreinte d'un prompt unitaire (estimation
+/// vendor selon sa propre méthodologie — médiane, percentile, etc.).
+/// Unité typique : `g_co2eq`, `wh`, `ml_water`.
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VendorScope {
+    /// Empreinte training (one-shot, amorti sur durée de vie).
+    Training,
+    /// Empreinte par prompt d'inférence (selon méthodologie vendor).
+    InferencePerPrompt,
+}
+
+/// Métrique exposée dans un vendor disclosure.
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VendorUnit {
+    /// Tonnes de CO₂eq (typiquement training).
+    TCo2Eq,
+    /// Grammes de CO₂eq (typiquement par prompt).
+    GCo2Eq,
+    /// Watt-heures (typiquement par prompt).
+    Wh,
+    /// Millilitres d'eau (typiquement par prompt).
+    MlWater,
+    /// Mètres cubes d'eau (typiquement training).
+    M3Water,
+}
+
+/// Chiffre officiel publié par un fabricant (Mistral, Google, Meta…).
+///
+/// **C32.4** — agrégation des vendor disclosures officielles (audit datasets
+/// Q3 2026 §D). Sobr.ia est le tiers de confiance qui les normalise et les
+/// présente avec leur lineage, **sans se substituer aux méthodologies
+/// indépendantes** (AFNOR/EcoLogits restent calculées en parallèle).
+///
+/// `Deserialize` n'est pas dérivé (cf. doc de [`ModelPreset`]).
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
+pub struct VendorDisclosure {
+    /// Fabricant (ex : `"Mistral AI"`, `"Google"`, `"Meta"`).
+    pub vendor: &'static str,
+    /// Périmètre du chiffre (training ou inference).
+    pub scope: VendorScope,
+    /// Valeur numérique.
+    pub value: f64,
+    /// Unité de la valeur.
+    pub unit: VendorUnit,
+    /// URL canonique de la source (citation directe).
+    pub source_url: &'static str,
+    /// Date de publication (RFC 3339 simplifié `YYYY-MM-DD`).
+    pub published_at: &'static str,
+    /// Note méthodologique courte (1-3 phrases) — explication du périmètre,
+    /// hypothèses du fabricant, caveats. Affichée dans l'encadré M9.
+    pub methodology_note: &'static str,
+}
+
 /// Preset distributionnel pour un modèle.
 ///
 /// `Deserialize` n'est pas dérivé : les presets sont des constantes statiques
@@ -72,6 +132,14 @@ pub struct ModelPreset {
     pub calibration: CalibrationStatus,
     /// Sources documentaires.
     pub sources: &'static [&'static str],
+    /// **C32.4** — Chiffres officiels publiés par le fabricant (training
+    /// et inference). Liste vide si le fabricant n'a pas de disclosure
+    /// publique (cas Anthropic, OpenAI au 2026-05).
+    ///
+    /// Quand non-vide, l'UI M9 affiche un encadré dédié « Données vendor
+    /// disclosure » qui présente la valeur officielle **à côté** de
+    /// l'estimation Sobr.ia Monte-Carlo (transparence multi-méthodologie).
+    pub vendor_disclosures: &'static [VendorDisclosure],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,6 +229,8 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "HF AI Energy Score 2026",
             "Estimation taille — analyse publique 2024",
         ],
+        // OpenAI ne publie pas de disclosure officielle au 2026-05.
+        vendor_disclosures: &[],
     },
     ModelPreset {
         id: "gpt-4o-mini",
@@ -178,6 +248,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "EcoLogits 2026-01",
             "Estimation taille — analyse publique 2024",
         ],
+        vendor_disclosures: &[],
     },
     ModelPreset {
         id: "claude-3-5-sonnet",
@@ -191,6 +262,8 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         embodied_g_per_req: (0.030, 0.050, 0.0825),
         calibration: CalibrationStatus::Extrapolated,
         sources: &["EcoLogits 2026-01 (analogie modèles dense ~200B)"],
+        // Anthropic ne publie pas de disclosure officielle au 2026-05.
+        vendor_disclosures: &[],
     },
     ModelPreset {
         id: "mistral-large-2",
@@ -208,6 +281,43 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "Mistral AI tech report 2024",
             "HF AI Energy Score 2026",
             "EcoLogits 2026-01",
+            "Mistral AI × ADEME × Carbone 4 (2025-08)",
+        ],
+        // C32.4 — Première ACV complète d'un LLM, publiée par un vendor
+        // mondial (Mistral AI) en partenariat avec ADEME + Carbone 4.
+        // Source : https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai
+        vendor_disclosures: &[
+            VendorDisclosure {
+                vendor: "Mistral AI",
+                scope: VendorScope::Training,
+                value: 20_400.0,
+                unit: VendorUnit::TCo2Eq,
+                source_url: "https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai",
+                published_at: "2025-08-01",
+                methodology_note: "ACV training Mistral Large 2 — 18 mois d'analyse \
+                                   par Carbone 4, vérifiée par l'ADEME. Inclut \
+                                   production matériel + énergie training (85.5 % des GES).",
+            },
+            VendorDisclosure {
+                vendor: "Mistral AI",
+                scope: VendorScope::Training,
+                value: 281_000.0,
+                unit: VendorUnit::M3Water,
+                source_url: "https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai",
+                published_at: "2025-08-01",
+                methodology_note: "Consommation d'eau totale du training (91 % du total eau ACV).",
+            },
+            VendorDisclosure {
+                vendor: "Mistral AI",
+                scope: VendorScope::InferencePerPrompt,
+                value: 1.14,
+                unit: VendorUnit::GCo2Eq,
+                source_url: "https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai",
+                published_at: "2025-08-01",
+                methodology_note: "Empreinte d'une requête type 400 tokens \
+                                   (équivalent ~10 secondes de streaming vidéo). \
+                                   Méthodologie alignée AFNOR SPEC 2314.",
+            },
         ],
     },
     ModelPreset {
@@ -223,6 +333,8 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         embodied_g_per_req: (0.00455, 0.0075, 0.01238),
         calibration: CalibrationStatus::Indicative,
         sources: &["Mistral AI 2024", "EcoLogits 2026-01"],
+        // Mistral n'a pas (encore) étendu sa disclosure ACV à Medium/Small.
+        vendor_disclosures: &[],
     },
     ModelPreset {
         id: "llama-3-1-70b",
@@ -239,6 +351,38 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         sources: &[
             "Meta Llama 3.1 paper (Touvron et al. 2024)",
             "HF AI Energy Score 2026",
+            "Meta Llama 3.1 model card (MODEL_CARD.md)",
+        ],
+        // C32.4 — Meta publie le training (mais pas l'inférence par prompt).
+        // Distinction location-based / market-based : transparence sur le
+        // greenwashing « 0 tCO2eq market-based » via REC, à comparer aux
+        // 11 390 tCO2eq réellement consommés localement (location-based).
+        // Source : https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md
+        vendor_disclosures: &[
+            VendorDisclosure {
+                vendor: "Meta",
+                scope: VendorScope::Training,
+                value: 11_390.0,
+                unit: VendorUnit::TCo2Eq,
+                source_url: "https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md",
+                published_at: "2024-07-23",
+                methodology_note: "Training location-based : émissions réelles \
+                                   du mix électrique local des datacenters Meta \
+                                   pendant 39.3M GPU-heures H100. C'est la \
+                                   valeur la plus honnête.",
+            },
+            VendorDisclosure {
+                vendor: "Meta",
+                scope: VendorScope::Training,
+                value: 0.0,
+                unit: VendorUnit::TCo2Eq,
+                source_url: "https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md",
+                published_at: "2024-07-23",
+                methodology_note: "Training market-based : 0 tCO₂eq car Meta \
+                                   achète des REC qui matchent sa conso annuelle \
+                                   totale. Comptable mais découplé de l'élec \
+                                   réellement consommée pendant le training.",
+            },
         ],
     },
     ModelPreset {
@@ -257,6 +401,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "Meta Llama 3.1 paper (Touvron et al. 2024)",
             "HF AI Energy Score 2026",
         ],
+        vendor_disclosures: &[],
     },
     ModelPreset {
         id: "gemini-2-0-flash",
@@ -273,6 +418,43 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         sources: &[
             "Google DeepMind 2025 (annonce publique)",
             "Analogie Mistral Medium",
+            "Google Environmental Impact paper (2025-08)",
+        ],
+        // C32.4 — Google publie un prompt médian (méthodologie Google,
+        // distincte de l'ACV). Valeurs sous-estimées vs prompts complexes /
+        // raisonnement — à présenter comme telles.
+        // Source : https://services.google.com/fh/files/misc/measuring_the_environmental_impact_of_delivering_ai_at_google_scale.pdf
+        vendor_disclosures: &[
+            VendorDisclosure {
+                vendor: "Google",
+                scope: VendorScope::InferencePerPrompt,
+                value: 0.03,
+                unit: VendorUnit::GCo2Eq,
+                source_url: "https://services.google.com/fh/files/misc/measuring_the_environmental_impact_of_delivering_ai_at_google_scale.pdf",
+                published_at: "2025-08-01",
+                methodology_note: "Prompt texte médian Gemini Apps. \
+                                   Méthodologie Google (médian, pas P95) — \
+                                   sous-estime les requêtes complexes ou agents.",
+            },
+            VendorDisclosure {
+                vendor: "Google",
+                scope: VendorScope::InferencePerPrompt,
+                value: 0.24,
+                unit: VendorUnit::Wh,
+                source_url: "https://services.google.com/fh/files/misc/measuring_the_environmental_impact_of_delivering_ai_at_google_scale.pdf",
+                published_at: "2025-08-01",
+                methodology_note: "Énergie médiane par prompt texte Gemini.",
+            },
+            VendorDisclosure {
+                vendor: "Google",
+                scope: VendorScope::InferencePerPrompt,
+                value: 0.26,
+                unit: VendorUnit::MlWater,
+                source_url: "https://services.google.com/fh/files/misc/measuring_the_environmental_impact_of_delivering_ai_at_google_scale.pdf",
+                published_at: "2025-08-01",
+                methodology_note: "Eau médiane par prompt texte Gemini \
+                                   (≈ 5 gouttes d'eau).",
+            },
         ],
     },
 ];
@@ -423,6 +605,103 @@ mod tests {
             co2eq.interval.p50 > 0.0 && co2eq.interval.p50 < 1.0,
             "P50 CO2eq attendu dans [0, 1] g, reçu {}",
             co2eq.interval.p50
+        );
+    }
+
+    #[test]
+    fn at_least_three_vendors_have_disclosures() {
+        // C32.4 — Mistral Large 2, Gemini, Llama 3.1 70B doivent avoir
+        // au moins une disclosure chacun (le scoop pitch v0.8.0).
+        let vendors_with_disclosure: std::collections::HashSet<&str> = MODEL_REGISTRY
+            .iter()
+            .flat_map(|p| p.vendor_disclosures.iter().map(|d| d.vendor))
+            .collect();
+        assert!(
+            vendors_with_disclosure.len() >= 3,
+            "C32.4 attend ≥ 3 vendors avec disclosure, vu : {vendors_with_disclosure:?}"
+        );
+        for expected in ["Mistral AI", "Google", "Meta"] {
+            assert!(
+                vendors_with_disclosure.contains(expected),
+                "vendor {expected} doit avoir au moins une disclosure"
+            );
+        }
+    }
+
+    #[test]
+    fn vendor_disclosure_source_urls_are_https() {
+        for preset in MODEL_REGISTRY {
+            for d in preset.vendor_disclosures {
+                assert!(
+                    d.source_url.starts_with("https://"),
+                    "preset {} : source_url non-HTTPS : {}",
+                    preset.id,
+                    d.source_url
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn vendor_disclosure_published_at_is_iso_date() {
+        // Format attendu YYYY-MM-DD (10 caractères).
+        for preset in MODEL_REGISTRY {
+            for d in preset.vendor_disclosures {
+                assert_eq!(
+                    d.published_at.len(),
+                    10,
+                    "preset {} : published_at doit être YYYY-MM-DD, reçu {}",
+                    preset.id,
+                    d.published_at
+                );
+                let parts: Vec<&str> = d.published_at.split('-').collect();
+                assert_eq!(
+                    parts.len(),
+                    3,
+                    "preset {} : format date invalide",
+                    preset.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn mistral_large_2_has_training_and_inference_disclosures() {
+        // Validation explicite du scoop pitch.
+        let mistral = find_preset("mistral-large-2").expect("mistral-large-2 doit exister");
+        let has_training = mistral.vendor_disclosures.iter().any(|d| {
+            matches!(d.scope, VendorScope::Training) && matches!(d.unit, VendorUnit::TCo2Eq)
+        });
+        let has_inference = mistral.vendor_disclosures.iter().any(|d| {
+            matches!(d.scope, VendorScope::InferencePerPrompt)
+                && matches!(d.unit, VendorUnit::GCo2Eq)
+        });
+        assert!(has_training, "Mistral Large 2 manque training tCO2eq");
+        assert!(has_inference, "Mistral Large 2 manque inference gCO2eq");
+    }
+
+    #[test]
+    fn meta_llama_3_1_70b_has_both_location_and_market_based() {
+        // C32.4 — encadré pédagogique location-based vs market-based.
+        let llama = find_preset("llama-3-1-70b").expect("llama-3-1-70b doit exister");
+        let trainings: Vec<f64> = llama
+            .vendor_disclosures
+            .iter()
+            .filter(|d| matches!(d.scope, VendorScope::Training))
+            .map(|d| d.value)
+            .collect();
+        assert_eq!(
+            trainings.len(),
+            2,
+            "Meta Llama 3.1 70B doit avoir 2 training entries (location + market-based)"
+        );
+        assert!(
+            trainings.contains(&0.0),
+            "Llama 3.1 70B manque market-based (0 tCO2eq)"
+        );
+        assert!(
+            trainings.iter().any(|&v| v > 10_000.0),
+            "Llama 3.1 70B manque location-based (~11 390 tCO2eq)"
         );
     }
 

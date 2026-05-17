@@ -266,6 +266,30 @@ async fn build_referentiel_sqlite(
             -- Index FTS5 sur model_overview pour la recherche full-text M9.
             CREATE VIRTUAL TABLE IF NOT EXISTS model_overview_fts
                 USING fts5(name, family, vendor);
+
+            -- ─── C32.4 — Vendor disclosures (migration v3) ──────────────
+            -- Chiffres officiels publiés par les fabricants (Mistral × ADEME,
+            -- Google Gemini, Meta Llama, etc.). Source de vérité runtime :
+            -- sobria_estimator::MODEL_REGISTRY[*].vendor_disclosures.
+            -- Cette table matérialise les disclosures dans le Gold pour
+            -- lineage + analytics DuckDB futurs. Schéma idempotent
+            -- (CREATE IF NOT EXISTS) — la migration v3 ne casse pas les
+            -- Gold v2 ré-assemblés.
+            CREATE TABLE IF NOT EXISTS vendor_disclosures (
+                id TEXT PRIMARY KEY,
+                model_id TEXT NOT NULL,
+                vendor TEXT NOT NULL,
+                scope TEXT NOT NULL CHECK (scope IN ('training', 'inference_per_prompt')),
+                value REAL NOT NULL,
+                unit TEXT NOT NULL,
+                source_url TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                methodology_note TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_vendor_disclosures_model
+                ON vendor_disclosures(model_id);
+            CREATE INDEX IF NOT EXISTS idx_vendor_disclosures_vendor
+                ON vendor_disclosures(vendor);
             ",
         )
         .map_err(|e| IngestError::Other(format!("schema: {e}")))?;

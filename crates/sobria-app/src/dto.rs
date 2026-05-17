@@ -15,8 +15,8 @@ use sobria_core::{
 };
 use sobria_estimator::{
     CalibrationStatus, ForecastConfig, ForecastResult, ModelPreset, Openness, ParamOverrides,
-    Scenario, ScenarioOutcome, SimulationRequest, SimulationResult, YearlyForecastRequest,
-    YearlyForecastResult, YearlyScenario, YearlyScenarioOutcome,
+    Scenario, ScenarioOutcome, SimulationRequest, SimulationResult, VendorDisclosure, VendorScope,
+    VendorUnit, YearlyForecastRequest, YearlyForecastResult, YearlyScenario, YearlyScenarioOutcome,
 };
 use sobria_geoloc::{
     CountryAggregate, DatacenterRecord, IndustrialSite, IndustrialSiteSummary, RegionFrAggregate,
@@ -803,6 +803,68 @@ pub struct ModelDetailDto {
     pub baseline_co2eq_p95_g: f64,
     pub baseline_energy_wh_p50: f64,
     pub baseline_water_l_p50: f64,
+    /// **C32.4** — Disclosures officielles publiées par le fabricant.
+    /// Vide pour les modèles dont le fabricant n'a pas publié (Anthropic,
+    /// OpenAI au 2026-05).
+    pub vendor_disclosures: Vec<VendorDisclosureDto>,
+}
+
+/// **C32.4** — Chiffre officiel publié par un fabricant (Mistral × ADEME,
+/// Google Gemini, Meta Llama). Voir `sobria_estimator::VendorDisclosure`.
+#[derive(Debug, Clone, Serialize)]
+pub struct VendorDisclosureDto {
+    pub vendor: String,
+    /// `"training"` | `"inference_per_prompt"`.
+    pub scope: String,
+    pub value: f64,
+    /// `"t_co2eq"` | `"g_co2eq"` | `"wh"` | `"ml_water"` | `"m3_water"`.
+    pub unit: String,
+    pub source_url: String,
+    pub published_at: String,
+    pub methodology_note: String,
+}
+
+/// **C32.4** — Ligne de la table comparaison vendor disclosure (M9 page
+/// principale). Agrège les disclosures de tous les modèles d'un fabricant
+/// donné.
+#[derive(Debug, Clone, Serialize)]
+pub struct VendorComparisonRowDto {
+    /// Nom du fabricant (ex : `"Mistral AI"`, `"OpenAI"`).
+    pub vendor: String,
+    /// `true` si au moins un modèle du vendor publie une disclosure
+    /// prompt-level (inference_per_prompt).
+    pub has_prompt_level: bool,
+    /// `true` si au moins un modèle du vendor publie une disclosure
+    /// training.
+    pub has_training: bool,
+    /// Première source URL trouvée (si au moins une disclosure existe).
+    /// `None` si aucun modèle du vendor n'a de disclosure.
+    pub primary_source_url: Option<String>,
+}
+
+impl From<&VendorDisclosure> for VendorDisclosureDto {
+    fn from(d: &VendorDisclosure) -> Self {
+        Self {
+            vendor: d.vendor.to_string(),
+            scope: match d.scope {
+                VendorScope::Training => "training",
+                VendorScope::InferencePerPrompt => "inference_per_prompt",
+            }
+            .into(),
+            value: d.value,
+            unit: match d.unit {
+                VendorUnit::TCo2Eq => "t_co2eq",
+                VendorUnit::GCo2Eq => "g_co2eq",
+                VendorUnit::Wh => "wh",
+                VendorUnit::MlWater => "ml_water",
+                VendorUnit::M3Water => "m3_water",
+            }
+            .into(),
+            source_url: d.source_url.to_string(),
+            published_at: d.published_at.to_string(),
+            methodology_note: d.methodology_note.to_string(),
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
