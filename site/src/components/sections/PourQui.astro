@@ -1,0 +1,63 @@
+---
+import PersonaCard from '$components/ui/PersonaCard.svelte';
+import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+import Code2 from '@lucide/svelte/icons/code-2';
+import Building2 from '@lucide/svelte/icons/building-2';
+import Landmark from '@lucide/svelte/icons/landmark';
+import Microscope from '@lucide/svelte/icons/microscope';
+
+const personas = [
+  {
+    icon: GraduationCap,
+    title: 'Étudiant·e / Curieux·se',
+    tagline:
+      'Comprendre l’empreinte de vos usages IA, apprendre les bons réflexes, suivre votre semaine.',
+    href: '/personas/student/',
+  },
+  {
+    icon: Code2,
+    title: 'Professionnel·le tech',
+    tagline:
+      'Estimer, comparer, journaliser pour vos intégrations API. Audit SHA-256, exports JSON-LD PROV-O.',
+    href: '/personas/pro-tech/',
+  },
+  {
+    icon: Building2,
+    title: 'Entreprise (DSI, RSE)',
+    tagline:
+      'Piloter votre scope 3 IA, sortir un rapport CSRD, forecast budget carbone, agrégation équipe self-hosted.',
+    href: '/personas/enterprise/',
+  },
+  {
+    icon: Landmark,
+    title: 'Collectivité / Service public',
+    tagline:
+      'Empreinte territoriale (IRIS RTE × ComparIA), critères de marchés publics frugaux, rapport AGEC.',
+    href: '/personas/public-sector/',
+  },
+  {
+    icon: Microscope,
+    title: 'Chercheur·se / Journaliste',
+    tagline:
+      'Datasheet Gebru, multi-méthodologie, datasets publiables, reproductibilité scientifique, citation DOI.',
+    href: '/personas/researcher/',
+  },
+];
+---
+
+<section id="pour-qui" class="border-b border-ivory-4/20">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">2 — Pour qui ?</p>
+    <h2 class="mt-2 text-4xl md:text-5xl font-display text-ivory">
+      Cinq publics, <span class="italic text-lime-signature">un seul outil</span>.
+    </h2>
+    <p class="mt-6 text-ivory-2 max-w-2xl">
+      Sobr.ia adapte son interface à votre profil au premier lancement. Vous gardez la main pour
+      personnaliser ensuite.
+    </p>
+
+    <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {personas.map((p) => <PersonaCard {...p} />)}
+    </div>
+  </div>
+</section>

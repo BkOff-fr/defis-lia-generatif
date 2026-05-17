@@ -1,0 +1,55 @@
+---
+const dots = [
+  [240, 130],
+  [310, 140],
+  [380, 145],
+  [220, 200],
+  [300, 205],
+  [375, 200],
+  [205, 260],
+  [290, 270],
+  [370, 265],
+  [195, 320],
+  [275, 330],
+  [360, 325],
+  [200, 380],
+  [280, 390],
+  [365, 380],
+  [225, 95],
+  [320, 100],
+  [400, 130],
+  [430, 200],
+  [180, 230],
+  [165, 295],
+  [415, 295],
+  [180, 370],
+  [420, 360],
+  [255, 60],
+  [340, 70],
+  [275, 440],
+  [355, 430],
+];
+---
+
+<svg
+  viewBox="0 0 600 500"
+  class="w-full h-full"
+  role="img"
+  aria-label="Globe terrestre avec 28 datacenters européens représentés"
+>
+  <defs>
+    <radialGradient id="globe-fallback-gradient" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#131815"></stop>
+      <stop offset="80%" stop-color="#0e1310"></stop>
+      <stop offset="100%" stop-color="#0a0d0b"></stop>
+    </radialGradient>
+  </defs>
+  <circle
+    cx="300"
+    cy="250"
+    r="180"
+    fill="url(#globe-fallback-gradient)"
+    stroke="#c5f04a"
+    stroke-opacity="0.18"></circle>
+  {dots.map(([cx, cy]) => <circle cx={cx} cy={cy} r="3.2" fill="#c5f04a" opacity="0.85" />)}
+</svg>

@@ -1,0 +1,53 @@
+---
+import HeroGlobe from '$components/three/HeroGlobe.svelte';
+import GlobeFallback from '$components/sections/GlobeFallback.astro';
+
+const githubUrl = 'https://github.com/BkOff-fr/defis-lia-generatif';
+---
+
+<section id="hero" class="relative min-h-[88vh] flex items-center justify-center overflow-hidden">
+  <div class="absolute inset-0">
+    <HeroGlobe client:visible>
+      <div class="w-full h-full flex items-center justify-center">
+        <GlobeFallback />
+      </div>
+    </HeroGlobe>
+  </div>
+
+  <div class="relative z-10 max-w-3xl mx-auto px-6 text-center">
+    <p class="text-xs uppercase tracking-widest text-lime-signature/80 mb-4">
+      Sobr.ia · open source · défi data.gouv.fr
+    </p>
+    <h1 class="font-display text-5xl md:text-7xl text-ivory leading-tight">
+      L'empreinte de vos prompts IA, <span class="italic text-lime-signature">mesurée</span>.
+    </h1>
+    <p class="mt-6 text-lg md:text-xl text-ivory-2 max-w-xl mx-auto">
+      En local. Sans inscription. Sans envoyer un mot à nos serveurs.
+    </p>
+
+    <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a
+        href="#download"
+        class="inline-flex items-center justify-center gap-2 rounded-md font-sans font-medium px-6 py-3 text-base bg-lime-signature text-ink hover:bg-lime-deep transition-colors"
+      >
+        Télécharger Sobr.ia
+      </a>
+      <a
+        href={githubUrl}
+        rel="noopener external"
+        class="inline-flex items-center justify-center gap-2 rounded-md font-sans font-medium px-6 py-3 text-base border border-ivory-4 text-ivory hover:border-lime-signature hover:text-lime-signature transition-colors"
+      >
+        Voir le code →
+      </a>
+    </div>
+
+    <p class="mt-6 text-xs text-ivory-3">
+      AFNOR SPEC 2314 + EcoLogits · Open source MIT · Candidat data.gouv.fr
+    </p>
+  </div>
+
+  <div
+    class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-ink pointer-events-none"
+  >
+  </div>
+</section>

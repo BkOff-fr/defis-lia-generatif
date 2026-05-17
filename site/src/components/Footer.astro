@@ -1,5 +1,20 @@
 ---
 const year = new Date().getFullYear();
+
+const adrs = [
+  { id: '0009', label: 'Architecture médaillon', href: '/adrs/adr-0009-medallion-architecture/' },
+  { id: '0012', label: 'Multi-méthodologie', href: '/adrs/adr-0012-multi-methodology-engine/' },
+  {
+    id: '0013',
+    label: 'Pairing équipe',
+    href: '/adrs/adr-0013-extension-pairing-team-mode/',
+  },
+  {
+    id: '0014',
+    label: 'Dual-track local + cloud',
+    href: '/adrs/adr-0014-dual-track-local-cloud/',
+  },
+];
 ---
 
 <footer class="border-t border-ivory-4/30 mt-24 text-sm text-ivory-3">
@@ -9,6 +24,14 @@ const year = new Date().getFullYear();
         <span class="text-lime-signature italic">s</span>obr.ia
       </p>
       <p class="mt-3">L'impact environnemental de l'IA générative, mesuré.</p>
+      <p class="mt-4">
+        <a
+          href="/candidature/"
+          class="inline-flex items-center gap-2 rounded-full border border-lime-signature/40 text-lime-signature px-3 py-1 text-xs font-sans hover:bg-lime-signature/10 transition-colors"
+        >
+          🏛 Candidat data.gouv.fr
+        </a>
+      </p>
     </div>
 
     <div>
@@ -24,7 +47,7 @@ const year = new Date().getFullYear();
       <h3 class="text-ivory text-base mb-3 font-sans">Documentation</h3>
       <ul class="space-y-1.5">
         <li><a href="/docs/" class="hover:text-ivory">Guide</a></li>
-        <li><a href="/adrs/" class="hover:text-ivory">ADRs</a></li>
+        <li><a href="/adrs/" class="hover:text-ivory">Tous les ADRs</a></li>
         <li>
           <a href="/candidature/" class="hover:text-ivory">Candidature data.gouv.fr</a>
         </li>
@@ -39,6 +62,25 @@ const year = new Date().getFullYear();
         <li>Etalab 2.0 (datasets)</li>
       </ul>
     </div>
+  </div>
+
+  <div class="border-t border-ivory-4/30 max-w-6xl mx-auto px-6 py-6">
+    <p class="text-xs text-ivory-3 mb-2">Décisions architecture (ADRs) :</p>
+    <ul class="flex flex-wrap gap-2">
+      {
+        adrs.map((a) => (
+          <li>
+            <a
+              href={a.href}
+              class="inline-flex items-center gap-1.5 rounded-full border border-ivory-4/40 px-2.5 py-0.5 text-xs hover:border-lime-signature/40 hover:text-ivory transition-colors"
+            >
+              <span class="font-mono text-ivory-3">ADR-{a.id}</span>
+              <span>{a.label}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
   </div>
 
   <div class="border-t border-ivory-4/30 text-xs text-center py-4">

@@ -1,0 +1,198 @@
+[
+  {
+    "id": "ovh-rbx-roubaix",
+    "name": "OVH Roubaix (RBX)",
+    "country": "FR",
+    "lat": 50.6927,
+    "lon": 3.1746
+  },
+  {
+    "id": "ovh-gra-gravelines",
+    "name": "OVH Gravelines (GRA)",
+    "country": "FR",
+    "lat": 50.9871,
+    "lon": 2.1281
+  },
+  {
+    "id": "scaleway-dc5-paris",
+    "name": "Scaleway DC5 (Paris)",
+    "country": "FR",
+    "lat": 49.0436,
+    "lon": 2.1006
+  },
+  {
+    "id": "aws-eu-west-3-paris",
+    "name": "AWS Europe (Paris) — eu-west-3",
+    "country": "FR",
+    "lat": 48.8566,
+    "lon": 2.3522
+  },
+  {
+    "id": "aws-eu-central-1-frankfurt",
+    "name": "AWS Europe (Frankfurt) — eu-central-1",
+    "country": "DE",
+    "lat": 50.1109,
+    "lon": 8.6821
+  },
+  {
+    "id": "gcp-europe-west3-frankfurt",
+    "name": "GCP Frankfurt (europe-west3)",
+    "country": "DE",
+    "lat": 50.1109,
+    "lon": 8.6821
+  },
+  {
+    "id": "azure-germany-west-central-frankfurt",
+    "name": "Azure Germany West Central (Frankfurt)",
+    "country": "DE",
+    "lat": 50.1109,
+    "lon": 8.6821
+  },
+  {
+    "id": "interxion-fra15-frankfurt",
+    "name": "Digital Realty / Interxion FRA15 (Frankfurt)",
+    "country": "DE",
+    "lat": 50.1336,
+    "lon": 8.575
+  },
+  {
+    "id": "aws-eu-west-1-dublin",
+    "name": "AWS Europe (Dublin) — eu-west-1",
+    "country": "IE",
+    "lat": 53.3498,
+    "lon": -6.2603
+  },
+  {
+    "id": "azure-north-europe-dublin",
+    "name": "Azure North Europe (Dublin)",
+    "country": "IE",
+    "lat": 53.3498,
+    "lon": -6.2603
+  },
+  {
+    "id": "equinix-db1-dublin",
+    "name": "Equinix DB1 (Dublin)",
+    "country": "IE",
+    "lat": 53.3498,
+    "lon": -6.2603
+  },
+  {
+    "id": "gcp-europe-west4-eemshaven",
+    "name": "GCP Eemshaven (europe-west4)",
+    "country": "NL",
+    "lat": 53.4421,
+    "lon": 6.8358
+  },
+  {
+    "id": "equinix-am3-amsterdam",
+    "name": "Equinix AM3 (Amsterdam)",
+    "country": "NL",
+    "lat": 52.3676,
+    "lon": 4.9041
+  },
+  {
+    "id": "azure-west-europe-amsterdam",
+    "name": "Azure West Europe (Amsterdam)",
+    "country": "NL",
+    "lat": 52.3676,
+    "lon": 4.9041
+  },
+  {
+    "id": "aws-eu-west-2-london",
+    "name": "AWS Europe (London) — eu-west-2",
+    "country": "GB",
+    "lat": 51.5074,
+    "lon": -0.1278
+  },
+  {
+    "id": "gcp-europe-west2-london",
+    "name": "GCP London (europe-west2)",
+    "country": "GB",
+    "lat": 51.5074,
+    "lon": -0.1278
+  },
+  {
+    "id": "azure-uk-south-london",
+    "name": "Azure UK South (London)",
+    "country": "GB",
+    "lat": 51.5074,
+    "lon": -0.1278
+  },
+  {
+    "id": "aws-eu-north-1-stockholm",
+    "name": "AWS Europe (Stockholm) — eu-north-1",
+    "country": "SE",
+    "lat": 59.3293,
+    "lon": 18.0686
+  },
+  {
+    "id": "bahnhof-pionen-stockholm",
+    "name": "Bahnhof Pionen (Stockholm)",
+    "country": "SE",
+    "lat": 59.3179,
+    "lon": 18.0686
+  },
+  {
+    "id": "gcp-europe-north1-hamina",
+    "name": "GCP Hamina (europe-north1)",
+    "country": "FI",
+    "lat": 60.5694,
+    "lon": 27.1969
+  },
+  {
+    "id": "telia-helsinki",
+    "name": "Telia Helsinki Data Center",
+    "country": "FI",
+    "lat": 60.1699,
+    "lon": 24.9384
+  },
+  {
+    "id": "aws-eu-south-2-madrid",
+    "name": "AWS Europe (Madrid) — eu-south-2",
+    "country": "ES",
+    "lat": 40.4168,
+    "lon": -3.7038
+  },
+  {
+    "id": "azure-spain-central-madrid",
+    "name": "Azure Spain Central (Madrid)",
+    "country": "ES",
+    "lat": 40.4168,
+    "lon": -3.7038
+  },
+  {
+    "id": "aws-eu-south-1-milan",
+    "name": "AWS Europe (Milan) — eu-south-1",
+    "country": "IT",
+    "lat": 45.4642,
+    "lon": 9.19
+  },
+  {
+    "id": "google-warsaw",
+    "name": "Google Warsaw (europe-central2)",
+    "country": "PL",
+    "lat": 52.2297,
+    "lon": 21.0122
+  },
+  {
+    "id": "equinix-zh4-zurich",
+    "name": "Equinix ZH4 (Zurich)",
+    "country": "CH",
+    "lat": 47.3769,
+    "lon": 8.5417
+  },
+  {
+    "id": "interxion-vie2-vienna",
+    "name": "Digital Realty / Interxion VIE2 (Vienna)",
+    "country": "AT",
+    "lat": 48.2082,
+    "lon": 16.3738
+  },
+  {
+    "id": "interxion-cph2-copenhagen",
+    "name": "Digital Realty / Interxion CPH2 (Copenhagen)",
+    "country": "DK",
+    "lat": 55.6761,
+    "lon": 12.5683
+  }
+]

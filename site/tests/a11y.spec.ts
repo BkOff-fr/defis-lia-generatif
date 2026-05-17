@@ -12,4 +12,5 @@ test('homepage has no critical a11y violations', async ({ page }) => {
     },
   });
   await expect(page).toHaveTitle(/Sobr\.ia/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/empreinte/i);
 });

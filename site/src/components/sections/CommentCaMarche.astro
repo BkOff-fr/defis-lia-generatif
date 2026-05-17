@@ -1,0 +1,105 @@
+---
+import Download from '@lucide/svelte/icons/download';
+import Type from '@lucide/svelte/icons/type';
+import Activity from '@lucide/svelte/icons/activity';
+
+// Astro+Svelte 5 type-integration gap : le generic `Component<IconProps>`
+// n'est pas préservé quand on accède à l'icône via `s.icon` dans un map.
+// On type comme `any` ici, le dispatch fonctionne correctement à l'exécution.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type IconComponent = any;
+
+interface Step {
+  n: number;
+  icon: IconComponent;
+  title: string;
+  body: string;
+}
+
+const steps: Step[] = [
+  {
+    n: 1,
+    icon: Download,
+    title: 'Installez Sobr.ia',
+    body: 'Windows, macOS, Linux. Téléchargement direct, aucune inscription, aucun compte cloud.',
+  },
+  {
+    n: 2,
+    icon: Type,
+    title: 'Tapez votre prompt',
+    body: 'Choisissez votre modèle, voyez l’impact en grammes de CO₂, watts-heures et gouttes d’eau en temps réel.',
+  },
+  {
+    n: 3,
+    icon: Activity,
+    title: 'Suivez votre empreinte',
+    body: 'Journal scientifique reproductible (PROV-O JSON-LD), exports CSV, audit SHA-256, comparaisons multi-modèles.',
+  },
+];
+---
+
+<section id="comment" class="border-b border-ivory-4/20">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">3 — Comment ça marche</p>
+    <h2 class="mt-2 text-4xl md:text-5xl font-display text-ivory">
+      Trois étapes, <span class="italic text-lime-signature">zéro friction</span>.
+    </h2>
+
+    <ol class="mt-12 grid gap-8 md:grid-cols-3" data-reveal-list>
+      {
+        steps.map((s) => {
+          const Icon = s.icon;
+          return (
+            <li
+              class="reveal-item rounded-lg border border-ivory-4/40 bg-ink-2 p-6"
+              data-reveal-item
+            >
+              <div class="flex items-center gap-3">
+                <Icon size={28} class="text-lime-signature" />
+                <span class="font-mono text-xs text-ivory-3">Étape {s.n}</span>
+              </div>
+              <h3 class="mt-3 font-sans text-lg text-ivory">{s.title}</h3>
+              <p class="mt-2 text-sm text-ivory-2 leading-relaxed">{s.body}</p>
+            </li>
+          );
+        })
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .reveal-item {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity 500ms ease-out,
+      transform 500ms ease-out;
+  }
+  .reveal-item[data-revealed='true'] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script>
+  const lists = document.querySelectorAll('[data-reveal-list]');
+  lists.forEach((list) => {
+    const items = list.querySelectorAll<HTMLElement>('[data-reveal-item]');
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            items.forEach((el, i) => {
+              setTimeout(() => el.setAttribute('data-revealed', 'true'), i * 140);
+            });
+            io.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(list);
+  });
+</script>
