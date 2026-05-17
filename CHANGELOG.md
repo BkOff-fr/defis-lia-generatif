@@ -5,6 +5,185 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.8.0] — 2026-05-17 — Clarté produit (C32)
+
+> Release intermédiaire centrée UX et messaging avant la candidature
+> data.gouv.fr v1.0. Aucun nouveau module métier — mais le produit
+> raconte enfin son histoire pour les 5 personas (student / pro_tech /
+> enterprise / public_sector / researcher) identifiées dans
+> `docs/product/AUDIT-PRODUIT-2026-Q3.md`. Score moyen clarté UX
+> 6/10 → cible 8/10 minimum sur les 5 personas.
+
+### Added — C32.1 Messaging + labels + nettoyage
+
+- **README v2 refondu** : value proposition en exergue en haut, bloc
+  « Sobr.ia, c'est quoi ? » en langage simple sans jargon, section
+  « Pour qui ? » avec 5 cartes persona + liens docs spécifiques. Le
+  contenu technique (méthodologies, architecture) redescend après
+  les cartes. La section « Méthodologies disponibles » est préservée
+  intacte (garde-fou audit C32.0).
+- **5 guides persona** dans `docs/personas/` (`student.md`,
+  `pro-tech.md`, `enterprise.md`, `public-sector.md`, `researcher.md`)
+  — ~1 page chacun avec pitch, top use cases, modules pertinents et
+  quickstart copy-paste.
+- **Audit produit C32.0** versionné dans
+  `docs/product/AUDIT-PRODUIT-2026-Q3.md`.
+
+### Changed — C32.1 Labels modules clarifiés
+
+- **M9** « Référentiel modèles » → **« Bibliothèque de modèles »**.
+- **M17** « Empreinte projet » → **« Datasheet scientifique »**.
+- **M22** « Rapport CSRD / AGEC » → **« Rapport réglementaire (CSRD/AGEC) »**.
+- Rail nav (`+layout.svelte`), titres `<title>` + breadcrumbs des
+  pages M9 / M17 / Rapport CSRD alignés sur les nouveaux labels.
+- Specs Playwright `m9.spec.ts`, `m17.spec.ts`, `rapport-csrd.spec.ts`
+  mises à jour pour les nouveaux titres.
+
+### Removed — C32.1 Cleanup IDs UI utilisateur
+
+- Retrait des `<span class="module-id">{m.toUpperCase()}</span>` dans
+  l'onboarding (étape Bundle × 2) et `/parametres` (3 sections
+  modules). Les IDs `M1`, `M3`, etc. ne fuient plus dans l'UI
+  utilisateur mais restent **inchangés** en URL (`/m3`, `/m13`) et
+  en code Rust/TS (`ModuleId::M3`).
+- **M14 « À propos » retiré des 5 bundles persona par défaut**
+  (`sobria_core::Persona::default_modules`). M14 reste accessible via
+  l'entrée rail « À propos » (`alwaysVisible: true`). Nouveau test
+  invariant `no_persona_bundle_contains_m14` qui scelle la décision.
+- **TS bundles alignés sur Rust** : drift pré-existant (M11, M24, M5,
+  M21, M2, M6, M10, M16, M19, M23 dans le TS mais pas le Rust) résorbé
+  en faveur du canon Rust.
+
+### Added — C32.2 Onboarding pédagogique + fil narratif
+
+- **Nouvelle étape 2 « Sobr.ia en 30 secondes »** insérée entre Splash
+  et Persona Picker : 4 phrases en langage simple + schéma SVG
+  d'équivalence (1 prompt typique Mistral Large 2 = 1,14 g CO₂eq
+  ≈ 5 m voiture / 5 min TV LED). Bouton « Continuer » + lien discret
+  « Passer cette étape » avec persistance `localStorage.sobria_welcome_skipped=true`.
+- **Renumérotation onboarding** : 4 → 5 étapes (Splash 1, Intro 2,
+  Persona 3, Bundle 4, Ready 5). Progression dots, eyebrows, IDs
+  sections, focus management : tout cohérent.
+- **Bannière « Et après ? »** sous le résultat M1 Atelier après le
+  1er prompt soumis. 3 cartes contextuelles : Comparer ce modèle →
+  /comparer · Voir votre usage cumulé → /m15 · Fixer un budget mensuel
+  → /m25. Dismiss définitif via `localStorage.sobria_narrative_banner_dismissed=true`.
+- **Tooltips « Pourquoi ces modules ? »** dans l'onboarding (étape
+  Bundle) et `/parametres` (Section 2 « Vos modules actifs »).
+  Lookup persona-spécifique (~30 entrées) via la nouvelle fonction
+  `moduleReason(persona, id): string | undefined`. Attribut `title`
+  natif — fonctionne au survol ET au focus clavier.
+
+### Added — C32.3 Équivalences humaines + Mode Équipe guidé
+
+- **Composant `<EquivalenceCarbon />`** réutilisable dans
+  `web/src/lib/components/`. Props
+  `{ gco2eq, waterMl?, energyWh?, compact? }`. 4 facteurs canoniques
+  exportés en constantes : `CAR_GCO2EQ_PER_M=0.2` (ADEME Base Empreinte
+  2025), `STREAMING_GCO2EQ_PER_MIN=0.25` (Shift Project Lean ICT 2019),
+  `SHOWER_L=8` (ADEME douche éco), `LED_WH_PER_MIN=1`. Format adaptatif
+  par magnitude : cm/m/km voiture, s/min/h streaming et LED,
+  mL/%/douches. Tooltip source par équivalent + disclaimer « ordre de
+  grandeur ».
+- **Intégration M1 Atelier** : sous `ResultBlock`, ligne droite.
+- **Intégration M15 Dashboard** : sous les 3 stat-cards CO₂/énergie/eau,
+  encadré bleuté « Cette période, vous avez consommé l'équivalent
+  de : … ».
+- **Intégration M25 Eco-budget** : sous chaque progress bar de budget,
+  mode `compact`. Affiche l'équivalence selon l'indicateur du budget.
+- **Panneau « Activer Mode Équipe »** dans `/parametres` (visible
+  uniquement si `!$teamStore.url`). Bouton primary lime ouvre un
+  **dialog `aria-modal` à 3 étapes** : (1) Télécharger le binaire →
+  Releases GitHub, (2) Initialiser le serveur → 3 commandes
+  copy-paste, (3) Distribuer les codes aux employés → flow admin.
+- **`docs/operations/team-aggregator.md` enrichi** : nouveau bloc
+  **TL;DR** en tête (TPE/PME/freelance vs DSI), renommage
+  `## Pour les TPE/PME` → `## Pour les non-IT (TPE/PME, freelances)`
+  aligné audit C32.0 finding #6, avertissement « si vous n'avez pas
+  d'équipe IT, le binaire fait tout tout seul ».
+
+### Added — C32.4 Vendors disclosure
+
+- **Nouveau struct Rust `VendorDisclosure`** dans
+  `crates/sobria-estimator/src/model_presets.rs` avec enums
+  `VendorScope` (`Training` | `InferencePerPrompt`) et `VendorUnit`
+  (`TCo2Eq` | `GCo2Eq` | `Wh` | `MlWater` | `M3Water`). Champ
+  `vendor_disclosures: &[VendorDisclosure]` ajouté à `ModelPreset`.
+- **3 vendors disclosures intégrées dans `MODEL_REGISTRY`** :
+  - **Mistral Large 2** × ADEME × Carbone 4 (2025-08) : training
+    20 400 tCO₂eq + 281 000 m³ eau + inference 1,14 gCO₂eq pour 400
+    tokens. Première ACV complète publiée par un vendor mondial.
+  - **Gemini 2.0 Flash** (Google paper 2025-08) : 0,03 gCO₂eq + 0,24
+    Wh + 0,26 mL eau pour un prompt texte médian. Note méthodologique
+    « médian Google, sous-estime les requêtes complexes ».
+  - **Llama 3.1 70B** (Meta model card 2024-07) : training
+    location-based 11 390 tCO₂eq vs market-based 0 tCO₂eq, avec note
+    pédagogique anti-greenwashing sur la distinction REC.
+- **Migration SQLite Gold v3 idempotente** dans
+  `crates/sobria-ingest/src/gold.rs` : `CREATE TABLE IF NOT EXISTS
+  vendor_disclosures (id, model_id, vendor, scope CHECK IN (training |
+  inference_per_prompt), value, unit, source_url, published_at,
+  methodology_note)` + 2 index (model_id, vendor).
+- **DTO + IPC** : `VendorDisclosureDto` et `VendorComparisonRowDto`
+  dans `crates/sobria-app/src/dto.rs`. Nouveau IPC handler
+  `list_vendor_comparison()` qui agrège par fabricant pour la table
+  M9 (5 lignes : Mistral / Google / Meta / Anthropic / OpenAI).
+- **Encadré « Données vendor disclosure »** dans
+  `ModelDetailDrawer.svelte` (fiche M9), visible uniquement si le
+  modèle a au moins une disclosure. Cartes différenciées training
+  (violet) / inference (lime), notes méthodologiques, liens sources
+  cliquables.
+- **Table comparaison vendor** sur la page principale M9 sous le hero
+  (4 colonnes : Fabricant / Prompt-level / Training / Source ; ✅ ou
+  ❌ explicite, « Pas de disclosure officielle » pour Anthropic +
+  OpenAI).
+
+### Added — C32.5 DOI Zenodo + smoke-test 5 personas
+
+- **DOI Zenodo** : workflow GitHub Actions
+  `.github/workflows/zenodo.yml` qui déclenche l'archivage Zenodo sur
+  chaque release. Badge DOI ajouté en haut du README. Section
+  « Citation » BibTeX prête pour reproductibilité académique. Le DOI
+  effectif est généré par Zenodo à la première release v0.8.0
+  publiée sur GitHub.
+- **Smoke-test 5 personas** : runbook structuré dans
+  `docs/qa/smoke-test-v0.8.0-2026-05.md` qui couvre le walkthrough
+  complet par persona (Splash → Intro 30 sec → Persona → Bundle →
+  Ready → 1er prompt → bannière « Et après ? »). Sert de check-list
+  manuelle avant publication GitHub.
+
+### Tests
+
+- **`cargo test --workspace`** : 100 % vert sur les crates touchées —
+  `sobria-core` 49/49 (dont nouvel invariant
+  `no_persona_bundle_contains_m14`), `sobria-app` 247/247 (+3 tests
+  vendor disclosure), `sobria-estimator` 96/96 (+5 tests vendor
+  disclosure).
+- **`cargo clippy --workspace -- -D warnings`** clean sur les crates
+  touchées.
+- **`cargo fmt --check`** clean.
+- **`cd web && npm run check && npm run lint`** clean sur les
+  fichiers touchés (warnings prettier pré-existants C29 hors scope).
+
+### Sécurité + privacy
+
+- **Aucun nouveau flux réseau** introduit par v0.8.0. Mode local-first
+  préservé (cf. ADR-0014). Vendor disclosures stockées en données
+  statiques compilées dans le binaire, pas de fetch runtime.
+- **Bannière « Et après ? »** : dismiss persisté en localStorage
+  uniquement, jamais envoyé au serveur. Cohérent CLAUDE.md §7.
+- **Tooltips persona** : pure UI client, aucune télémétrie.
+
+### Bump versions
+
+- `Cargo.toml` workspace : `0.7.1` → `0.8.0` (propage aux 11 crates
+  via `version.workspace = true`).
+- `crates/sobria-app/tauri.conf.json` : `0.7.1` → `0.8.0`.
+- `web/package.json` : `0.7.1` → `0.8.0`.
+- `web-team/package.json` : `0.7.1` → `0.8.0`.
+- `extension/package.json` + `extension/manifest.json` : `0.7.1` →
+  `0.8.0`.
+
 ## [0.7.1] — 2026-05-16 — Polish Mode Équipe (C29)
 
 > Patch release qui ferme les 4 manques honnêtement notés en C28 :
