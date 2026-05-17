@@ -1,0 +1,41 @@
+---
+const navItems = [
+  { href: '/#pour-qui', label: 'Pour qui' },
+  { href: '/docs/', label: 'Doc' },
+  { href: '/#download', label: 'Télécharger' },
+  { href: '/candidature/', label: 'Candidature' },
+];
+const githubUrl = 'https://github.com/anthropics/defis-lia-generatif';
+---
+
+<header class="sticky top-0 z-50 backdrop-blur-md bg-ink/80 border-b border-ivory-4/30">
+  <nav
+    class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between"
+    aria-label="Navigation principale"
+  >
+    <a href="/" class="flex items-center gap-2 font-display text-xl">
+      <span class="text-lime-signature italic">s</span>
+      <span class="text-ivory">Sobr.ia</span>
+    </a>
+
+    <ul class="hidden md:flex items-center gap-6 text-sm">
+      {
+        navItems.map((item) => (
+          <li>
+            <a href={item.href} class="text-ivory-2 hover:text-ivory transition-colors">
+              {item.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <a
+      href={githubUrl}
+      rel="noopener external"
+      class="text-sm border border-ivory-4 hover:border-lime-signature hover:text-lime-signature rounded-md px-3 py-1.5 transition-colors"
+    >
+      GitHub ★
+    </a>
+  </nav>
+</header>

@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const sections = [
+  { id: 'hero', title: '1 — Hero (C33.2)', subtitle: '3D globe + value proposition' },
+  { id: 'pour-qui', title: '2 — Pour qui ?', subtitle: '5 personas (C33.2)' },
+  { id: 'comment', title: '3 — Comment ça marche ?', subtitle: '3 étapes (C33.2)' },
+  { id: 'download', title: '4 — Télécharger', subtitle: 'Auto-détection OS (C33.5)' },
+  { id: 'methodologies', title: '5 — Méthodologies', subtitle: 'Monte-Carlo 3D (C33.3)' },
+  { id: 'vendors', title: '6 — Vendors disclosure', subtitle: 'Table 5 vendeurs (C33.3)' },
+  {
+    id: 'territoire-fr',
+    title: '7 — Territoire français',
+    subtitle: 'Carte IRIS 2.5D (C33.3)',
+  },
+  {
+    id: 'entreprises',
+    title: '8 — Pour les entreprises',
+    subtitle: 'Self-hosted + Cloud (C33.3)',
+  },
+];
+---
+
+<BaseLayout
+  title="Sobr.ia — l'impact environnemental des LLMs, mesuré"
+  description="Application native multi-plateforme qui mesure l'empreinte carbone, eau, énergie de chaque prompt LLM. Frugal, open source, candidat défi data.gouv.fr."
+>
+  {
+    sections.map((s) => (
+      <section id={s.id} class="min-h-[60vh] border-b border-ivory-4/20">
+        <div class="max-w-6xl mx-auto px-6 py-24">
+          <p class="text-xs uppercase tracking-widest text-ivory-3">{s.subtitle}</p>
+          <h2 class="mt-2 text-4xl md:text-5xl font-display text-ivory">{s.title}</h2>
+          <p class="mt-6 text-ivory-3 max-w-2xl">
+            Section en construction — sera complétée par le sous-chantier indiqué.
+          </p>
+        </div>
+      </section>
+    ))
+  }
+</BaseLayout>

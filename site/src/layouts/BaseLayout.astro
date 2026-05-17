@@ -1,0 +1,48 @@
+---
+import '$styles/global.css';
+import Topbar from '$components/Topbar.astro';
+import Footer from '$components/Footer.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  noIndex?: boolean;
+}
+
+const {
+  title,
+  description = 'Sobr.ia — mesurer et visualiser l’impact environnemental des LLMs. Application native, frugal, open source.',
+  noIndex = false,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    {noIndex && <meta name="robots" content="noindex" />}
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+
+    <meta name="theme-color" content="#0a0d0b" />
+  </head>
+  <body class="bg-ink text-ivory">
+    <Topbar />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
