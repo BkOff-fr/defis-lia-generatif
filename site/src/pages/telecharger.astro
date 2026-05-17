@@ -1,0 +1,154 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const REPO_URL = 'https://github.com/BkOff-fr/defis-lia-generatif';
+const LATEST_RELEASE = `${REPO_URL}/releases/latest`;
+const ALL_RELEASES = `${REPO_URL}/releases`;
+---
+
+<BaseLayout
+  title="Télécharger Sobr.ia"
+  description="Versions, checksums SHA-256, instructions de vérification et avertissements OS pour les binaires non encore codesignés."
+>
+  <div class="max-w-4xl mx-auto px-6 py-16">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">Téléchargements</p>
+    <h1 class="mt-2 font-display text-5xl text-ivory">Toutes les versions de Sobr.ia</h1>
+    <p class="mt-4 text-ivory-2 max-w-2xl">
+      Tous les binaires sont publiés sur GitHub Releases. Les URLs ci-dessous pointent vers la
+      dernière version stable — pour les versions précédentes, consulter
+      <a href={ALL_RELEASES} class="text-lime-signature underline underline-offset-4"
+        >la page Releases du repo</a
+      >.
+    </p>
+
+    <section class="mt-12">
+      <h2 class="font-display text-3xl text-ivory">Téléchargements directs</h2>
+      <p class="mt-3 text-ivory-2 text-sm">
+        Liens stables <code class="text-lime-signature text-xs"
+          >releases/latest/download/&lt;file&gt;</code
+        >
+        — GitHub redirige automatiquement vers la dernière release tagguée.
+      </p>
+
+      <div class="mt-6 grid gap-3">
+        <a
+          href={LATEST_RELEASE}
+          rel="noopener external"
+          class="block rounded-lg border border-lime-signature/40 bg-ink-2 p-5 hover:border-lime-signature transition-colors"
+        >
+          <p class="font-sans text-lg text-ivory">📦 Voir la dernière release</p>
+          <p class="mt-1 text-xs text-ivory-3">
+            Page GitHub avec changelog, tous les binaires et fichiers .sha256.
+          </p>
+        </a>
+      </div>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="font-display text-3xl text-ivory">Vérifier l'empreinte SHA-256</h2>
+      <p class="mt-3 text-ivory-2 text-sm">
+        Chaque binaire est accompagné d'un fichier <code class="text-lime-signature text-xs"
+          >.sha256</code
+        > publié sur la release. Vérifiez l'empreinte avant d'exécuter le binaire :
+      </p>
+
+      <div class="mt-6 space-y-4">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-sans text-ivory mb-2">🪟 Windows (PowerShell)</p>
+          <pre
+            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>Get-FileHash -Algorithm SHA256 .\Sobr.ia_0.8.0_x64-setup.exe</code></pre>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-sans text-ivory mb-2">macOS / Linux</p>
+          <pre
+            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>shasum -a 256 Sobr.ia_0.8.0_aarch64.dmg
+# OU sur Linux :
+sha256sum Sobr.ia_0.8.0_amd64.AppImage</code></pre>
+        </article>
+      </div>
+
+      <p class="mt-4 text-xs text-ivory-3">
+        Comparez le hash affiché avec le contenu du fichier <code>.sha256</code> correspondant sur la
+        release.
+      </p>
+    </section>
+
+    <section class="mt-14" id="avertissements-os">
+      <h2 class="font-display text-3xl text-ivory">Avertissements OS</h2>
+      <p class="mt-3 text-ivory-2 text-sm">
+        En v0.1.0, les binaires <strong>ne sont pas encore codesignés</strong> (différé v1.0 — coût +
+        complexité). Vous verrez probablement un avertissement à la première ouverture. Voici comment
+        l'autoriser proprement (après avoir vérifié l'empreinte SHA-256 ci-dessus) :
+      </p>
+
+      <div class="mt-6 space-y-4">
+        <article class="rounded-lg border border-amber/30 bg-amber/5 p-5">
+          <p class="font-sans text-ivory mb-2">🪟 Windows SmartScreen</p>
+          <p class="text-sm text-ivory-2">
+            À l'ouverture du <code>.exe</code> ou <code>.msi</code> : « Windows a empêché le démarrage…
+            » → cliquer <strong>Informations complémentaires</strong> →
+            <strong>Exécuter quand même</strong>. Sobr.ia ne tente jamais d'accéder au réseau sans
+            votre action explicite.
+          </p>
+        </article>
+        <article class="rounded-lg border border-amber/30 bg-amber/5 p-5">
+          <p class="font-sans text-ivory mb-2">macOS Gatekeeper</p>
+          <p class="text-sm text-ivory-2 mb-2">
+            À l'ouverture du <code>.dmg</code> : « Sobr.ia ne peut pas être ouvert car l'identité du développeur
+            ne peut pas être confirmée. » → ouvrir
+            <strong>Réglages Système → Confidentialité et sécurité</strong>, descendre et cliquer <strong
+              >Ouvrir quand même</strong
+            >. Alternative en CLI :
+          </p>
+          <pre
+            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>xattr -d com.apple.quarantine /Applications/Sobr.ia.app</code></pre>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-sans text-ivory mb-2">🐧 Linux</p>
+          <p class="text-sm text-ivory-2 mb-2">
+            Le <code>.AppImage</code> doit être rendu exécutable :
+          </p>
+          <pre
+            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>chmod +x Sobr.ia_0.8.0_amd64.AppImage
+./Sobr.ia_0.8.0_amd64.AppImage</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="font-display text-3xl text-ivory">Code source + reproductibilité</h2>
+      <p class="mt-3 text-ivory-2 text-sm">
+        Sobr.ia est sous licence MIT (code) et CC-BY-4.0 (docs). Vous pouvez compiler vous-même les
+        binaires depuis le tag correspondant :
+      </p>
+      <ul class="mt-4 space-y-2 text-sm text-ivory-2">
+        <li>
+          <a
+            href={REPO_URL}
+            rel="noopener external"
+            class="text-lime-signature underline underline-offset-4"
+          >
+            github.com/BkOff-fr/defis-lia-generatif
+          </a>
+        </li>
+        <li>
+          Cargo workspace + Tauri 2 — voir
+          <a class="text-lime-signature underline underline-offset-4" href="/docs/"
+            >la documentation</a
+          > pour les prérequis.
+        </li>
+      </ul>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="font-display text-3xl text-ivory">Mobile (Android / iOS)</h2>
+      <p class="mt-3 text-ivory-2 text-sm">
+        Les builds mobiles sont planifiés pour v1.0+ (signing key Android via GitHub Secrets, Apple
+        Developer Program pour iOS). En v0.1, utilisez la version web / bureau ou
+        <a class="text-lime-signature underline underline-offset-4" href="/cloud/"
+          >inscrivez-vous à la mailing list</a
+        > pour être prévenu·e.
+      </p>
+    </section>
+  </div>
+</BaseLayout>

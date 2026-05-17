@@ -7,6 +7,38 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+### Added — C33.5 Workflows release + #download + pages secondaires (2026-05-17)
+
+- `.github/workflows/app-release.yml` : trigger sur tag `v*.*.*` + workflow_dispatch.
+  Matrix 4 jobs (Windows / macOS ARM / macOS Intel macos-13 / Linux Ubuntu 22.04),
+  installe Tauri CLI 2.x, build web frontend puis `cargo tauri build`, collecte
+  bundles (.msi/.exe/.dmg/.deb/.AppImage), calcule SHA-256, upload sur GitHub
+  Release via softprops/action-gh-release@v2. Cache cargo via Swatinem/rust-cache.
+- `.github/workflows/extension-release.yml` : trigger identique. Build Chrome
+  zip et Firefox xpi via scripts existants extension/, upload + SHA-256 sur la release.
+- DownloadSection.svelte : section `#download` avec auto-détection OS
+  (`navigator.userAgent` + `userAgentData.platform`), 7 cards (Win / macOS ARM /
+  macOS Intel / Linux / Chrome / Firefox / Android+iOS "Bientôt"), highlight
+  carte recommandée + badge lime.
+- `/telecharger/` : page détaillée avec section vérification SHA-256 (commandes
+  Win/macOS/Linux), avertissements OS (Gatekeeper / SmartScreen / chmod), code
+  source + reproductibilité.
+- `/cloud/` : narratif ADR-0014 dual-track. Mode Équipe self-hosted (Disponible)
+  vs Cloud managé v1.3 (Bientôt). Bouton mailto:contact@sobria.brilliantstudio.co
+  pour opt-in (zéro service tiers, RGPD-friendly par absence).
+- `/candidature/` : statut candidature data.gouv.fr (v0.8.0 → v1.0 cible 2026-Q4),
+  4 ADRs clés (0009/0012/0013/0014) avec résumés, liens audit sources +
+  catalogue datacenters + repo GitHub + cahier des charges.
+- index.astro : placeholder #download remplacé par DownloadSection ; 8/8 sections
+  désormais wirées.
+- Build : 45 pages (+3), Pagefind 7578 mots fr.
+
+Note : le trigger workflow_dispatch sur tag v0.7.1 reste à faire côté
+Thibault depuis l'UI GitHub Actions (ou `gh workflow run app-release.yml
+--ref v0.7.1`) pour rétro-publier les binaires sur la release v0.7.1
+existante. Les URLs `releases/latest/download/...` deviendront alors
+opérationnelles.
+
 ### Added — C33.3 4 sections 3D animées (2026-05-17)
 
 - MonteCarloViz.svelte : Three.js InstancedMesh 10 000 sphères, distribution

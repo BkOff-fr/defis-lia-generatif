@@ -1,0 +1,166 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const adrs = [
+  {
+    id: '0009',
+    title: 'Architecture médaillon (Copper / Silver / Gold)',
+    summary:
+      "Pipeline d'ingestion à 3 couches : données brutes immutables → Parquet validé → SQLite/Parquet consommables. Garantit la reproductibilité et le lineage.",
+    href: '/adrs/ADR-0009-medallion-architecture/',
+  },
+  {
+    id: '0012',
+    title: 'Multi-méthodologie engine',
+    summary:
+      "Sobr.ia ne choisit pas entre AFNOR SPEC 2314, EcoLogits et BoaVizta — il les fait toutes tourner en parallèle et affiche les écarts. L'utilisateur voit l'incertitude réelle.",
+    href: '/adrs/ADR-0012-multi-methodology-engine/',
+  },
+  {
+    id: '0013',
+    title: 'Extension navigateur + pairing Mode Équipe',
+    summary:
+      "Architecture pairing chiffrée entre l'extension navigateur (token rotatif) et le serveur self-hosted. Aucun prompt ne quitte la machine sans action utilisateur explicite.",
+    href: '/adrs/ADR-0013-extension-pairing-team-mode/',
+  },
+  {
+    id: '0014',
+    title: 'Dual-track local + cloud',
+    summary:
+      "Sobr.ia reste local-first par défaut. Cloud managé prévu v1.3+, opt-in, sans tracking. Mode Équipe self-hosted couvre 80 % des cas d'usage organisationnels dès maintenant.",
+    href: '/adrs/ADR-0014-dual-track-local-cloud/',
+  },
+];
+
+const REPO_URL = 'https://github.com/BkOff-fr/defis-lia-generatif';
+---
+
+<BaseLayout
+  title="Candidature data.gouv.fr — Sobr.ia"
+  description="Sobr.ia est candidat au défi data.gouv.fr « L'impact environnemental de l'IA générative ». Statut, sources et architecture."
+>
+  <div class="max-w-4xl mx-auto px-6 py-16">
+    <p class="text-xs uppercase tracking-widest text-ivory-3">🏛 défi data.gouv.fr 2026</p>
+    <h1 class="mt-2 font-display text-5xl text-ivory">
+      L'impact environnemental de l'IA générative, <span class="italic text-lime-signature"
+        >mesuré</span
+      >.
+    </h1>
+    <p class="mt-4 text-ivory-2 max-w-2xl">
+      Sobr.ia est candidat au défi data.gouv.fr lancé par Etalab — un défi qui demande aux projets
+      de mesurer, comparer et rendre publics les impacts environnementaux des LLMs en s'appuyant sur
+      les datasets officiels français.
+    </p>
+
+    <section class="mt-12">
+      <h2 class="font-display text-3xl text-ivory">Statut</h2>
+      <div class="mt-6 grid gap-4 sm:grid-cols-3">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="text-[10px] uppercase tracking-wider text-ivory-3">Version actuelle</p>
+          <p class="mt-2 font-display text-3xl text-lime-signature">v0.8.0</p>
+          <p class="mt-1 text-xs text-ivory-3">C32 Clarté produit shippée</p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="text-[10px] uppercase tracking-wider text-ivory-3">Cible v1.0</p>
+          <p class="mt-2 font-display text-3xl text-amber">2026 Q4</p>
+          <p class="mt-1 text-xs text-ivory-3">Soumission jury défi</p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="text-[10px] uppercase tracking-wider text-ivory-3">DOI Zenodo</p>
+          <p class="mt-2 font-display text-2xl text-ivory">À venir</p>
+          <p class="mt-1 text-xs text-ivory-3">Citation académique stabilisée</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="font-display text-3xl text-ivory">Architecture décisive</h2>
+      <p class="mt-3 text-ivory-2 text-sm">
+        Quatre décisions structurantes répondent directement aux exigences du défi. Chacune est
+        versionnée comme un Architecture Decision Record (ADR).
+      </p>
+
+      <ul class="mt-6 space-y-3">
+        {
+          adrs.map((adr) => (
+            <li>
+              <a
+                href={adr.href}
+                class="block rounded-lg border border-ivory-4/30 bg-ink-2 p-5 hover:border-lime-signature/60 transition-colors"
+              >
+                <div class="flex items-baseline gap-3">
+                  <span class="font-mono text-xs text-ivory-3">ADR-{adr.id}</span>
+                  <h3 class="font-sans text-lg text-ivory">{adr.title}</h3>
+                </div>
+                <p class="mt-2 text-sm text-ivory-2">{adr.summary}</p>
+                <p class="mt-3 text-xs font-sans uppercase tracking-wider text-ivory-3">
+                  Lire l'ADR →
+                </p>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="font-display text-3xl text-ivory">Sources de données</h2>
+      <p class="mt-3 text-ivory-2 text-sm max-w-3xl">
+        Sobr.ia croise 19 datasets dont 3 gouvernementaux français (ADEME, ARCEP, ODRE) + 1 vendeur
+        français avec ACV publié (Mistral × ADEME) + 2 vendeurs internationaux transparents (Google
+        Gemini, Meta Llama). Le détail complet est audité et versionné.
+      </p>
+
+      <div class="mt-6 grid gap-3 sm:grid-cols-2">
+        <a
+          href="/docs/sources/AUDIT-2026-Q3/"
+          class="block rounded-lg border border-lime-signature/40 bg-lime-signature/5 p-5 hover:border-lime-signature transition-colors"
+        >
+          <p class="font-sans text-lg text-ivory">📋 Audit sources 2026-Q3</p>
+          <p class="mt-2 text-sm text-ivory-2">
+            Évaluation détaillée des 19 datasets : producteur, fraîcheur, licence, décision
+            d'intégration.
+          </p>
+        </a>
+        <a
+          href="/docs/sources/CATALOGUE-DATACENTERS/"
+          class="block rounded-lg border border-ivory-4/30 bg-ink-2 p-5 hover:border-lime-signature/40 transition-colors"
+        >
+          <p class="font-sans text-lg text-ivory">🌍 Catalogue datacenters</p>
+          <p class="mt-2 text-sm text-ivory-2">
+            28 datacenters Europe : lat/lon, PUE, WUE, intensité carbone par maille.
+          </p>
+        </a>
+      </div>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="font-display text-3xl text-ivory">Code source + reproductibilité</h2>
+      <p class="mt-3 text-ivory-2 text-sm max-w-3xl">
+        Sobr.ia est entièrement open source. Le repo contient le code, les datasets versionnés via
+        DVC, la méthodologie scientifique, les ADRs, l'audit sources, et le site lui-même.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a
+          href={REPO_URL}
+          rel="noopener external"
+          class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory hover:border-lime-signature hover:text-lime-signature px-4 py-2 text-sm font-sans font-medium transition-colors"
+        >
+          GitHub repo ★
+        </a>
+        <a
+          href="/docs/CAHIER-DES-CHARGES-v1.0/"
+          class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory hover:border-lime-signature hover:text-lime-signature px-4 py-2 text-sm font-sans font-medium transition-colors"
+        >
+          Cahier des charges v1.0
+        </a>
+        <a
+          href="/docs/CANDIDATURE-DATA-GOUV/"
+          class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory hover:border-lime-signature hover:text-lime-signature px-4 py-2 text-sm font-sans font-medium transition-colors"
+        >
+          Dossier candidature
+        </a>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

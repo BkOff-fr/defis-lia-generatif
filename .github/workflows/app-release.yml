@@ -1,0 +1,150 @@
+name: app-release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag à builder (ex. v0.7.1). Si vide, utilise le ref courant.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+            rust-targets: 'x86_64-pc-windows-msvc'
+            tauri-args: ''
+          - os: macos-latest
+            label: macos-aarch64
+            rust-targets: 'aarch64-apple-darwin'
+            tauri-args: '--target aarch64-apple-darwin'
+          - os: macos-13
+            label: macos-x86_64
+            rust-targets: 'x86_64-apple-darwin'
+            tauri-args: '--target x86_64-apple-darwin'
+          - os: ubuntu-22.04
+            label: linux
+            rust-targets: 'x86_64-unknown-linux-gnu'
+            tauri-args: ''
+
+    steps:
+      - name: Determine target ref
+        id: ref
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            web/package-lock.json
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+          shared-key: ${{ matrix.label }}
+
+      - name: Install Linux WebKit deps
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build web frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Tauri build
+        working-directory: crates/sobria-app
+        run: cargo tauri build ${{ matrix.tauri-args }}
+
+      - name: Collect bundles
+        id: bundles
+        shell: bash
+        run: |
+          mkdir -p bundles
+          # Tauri output location depends on target. Glob to grab any bundle from this build.
+          shopt -s globstar nullglob
+          for f in target/**/release/bundle/**/* ; do
+            ext="${f##*.}"
+            case "$ext" in
+              msi|exe|dmg|deb|AppImage|appimage)
+                cp -v "$f" bundles/
+                ;;
+            esac
+          done
+          ls -la bundles/
+          # Compute SHA-256 for each artifact
+          cd bundles
+          for f in *; do
+            if [ -f "$f" ]; then
+              if command -v shasum >/dev/null 2>&1; then
+                shasum -a 256 "$f" > "${f}.sha256"
+              else
+                sha256sum "$f" > "${f}.sha256"
+              fi
+            fi
+          done
+          ls -la
+
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ref.outputs.ref }}
+          files: bundles/*
+          fail_on_unmatched_files: false
+          generate_release_notes: false
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,94 @@
+name: extension-release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag à builder (ex. v0.7.1). Si vide, utilise le ref courant.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: extension-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build extension bundles
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Determine target ref
+        id: ref
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        working-directory: extension
+        run: npm ci
+
+      - name: Build Chrome bundle
+        working-directory: extension
+        run: npm run build
+
+      - name: Build Firefox bundle
+        working-directory: extension
+        run: npm run build:firefox
+
+      - name: Package both
+        working-directory: extension
+        run: npm run package
+
+      - name: Collect artifacts + SHA-256
+        id: collect
+        shell: bash
+        run: |
+          mkdir -p bundles
+          shopt -s nullglob
+          for f in extension/dist/*.zip extension/dist-firefox/*.xpi; do
+            cp -v "$f" bundles/
+          done
+          ls -la bundles/
+          cd bundles
+          for f in *; do
+            if [ -f "$f" ]; then
+              sha256sum "$f" > "${f}.sha256"
+            fi
+          done
+          ls -la
+
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ref.outputs.ref }}
+          files: bundles/*
+          fail_on_unmatched_files: false
+          generate_release_notes: false
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
