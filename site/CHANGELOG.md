@@ -7,6 +7,32 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-05-17
+
+Premier site internet Sobr.ia (chantier C33), déployé sur
+`https://sobria.brilliantstudio.co/` via rsync SSH self-hosted nginx +
+Let's Encrypt. Astro 5 static + Svelte 5 islands + Tailwind 4 +
+Three.js + Pagefind. 8 sections landing + doc interactive (45 pages
+indexées Pagefind) + 3 pages secondaires (cloud, télécharger,
+candidature). Zéro tracking, fonts auto-hébergées, prefers-reduced-motion
+respecté, WebGL fallback.
+
+### Added — C33.7 Polish + tag site-v0.1.0 (2026-05-17)
+
+- OG image `/og-image.png` 1200×630 (96 KB, generated via sharp from
+  inline SVG), Twitter card `summary_large_image`, locale `fr_FR`,
+  og:site_name.
+- BaseLayout enrichi : og:image, og:image:width/height, og:locale,
+  og:site_name, twitter:card/title/description/image.
+- Astro `@astrojs/sitemap` activé → `/sitemap-index.xml` généré au build,
+  référencé depuis `public/robots.txt`.
+- Script `scripts/generate-og.mjs` pour régénérer l'OG image (à lancer
+  manuellement si le brand ou la headline change).
+- Smoke test cross-browser : prefers-reduced-motion + WebGL absent →
+  fallback SVG poster du globe; security headers `https://sobria.brilliantstudio.co/`
+  vérifiés (HSTS, X-Frame-Options DENY, CSP, etc.).
+- Tag `site-v0.1.0` poussé.
+
 ### Added — C33.6 CI/CD self-hosted nginx (2026-05-17)
 
 - Serveur Thibault (80.11.20.55, Ubuntu 22.04, nginx 1.18) provisionné :
