@@ -429,15 +429,32 @@ curl -I https://sobria.brilliantstudio.co/
 
 ### 6.1 Secrets à configurer
 
+> **MAJ C33.9 (2026-05-19)** — User / Host / Path sont désormais des
+> `env` codés en dur dans le workflow (valeurs publiques, déjà
+> documentées dans ce guide). **Seuls 2 secrets sensibles restent à
+> configurer.** Cf. retex du run `26101912448` : la variabilisation
+> excessive masquait un secret manquant en silent failure
+> (« Could not resolve hostname : Name or service not known » avec
+> hostname vide).
+
 Dans GitHub repo Settings → Secrets and variables → Actions, créer :
 
 | Nom | Valeur |
 |---|---|
-| `SOBRIA_DEPLOY_SSH_KEY` | Contenu complet de la clé privée ed25519 (incluant `-----BEGIN OPENSSH PRIVATE KEY-----` et `-----END OPENSSH PRIVATE KEY-----`) |
-| `SOBRIA_DEPLOY_HOST` | `80.11.20.55` |
-| `SOBRIA_DEPLOY_USER` | `deployer` |
-| `SOBRIA_DEPLOY_PATH` | `/var/www/sobria-site/` |
+| `SOBRIA_DEPLOY_SSH_KEY` | Contenu complet de la clé privée ed25519 (incluant `-----BEGIN OPENSSH PRIVATE KEY-----` et `-----END OPENSSH PRIVATE KEY-----` — newline final obligatoire) |
 | `SOBRIA_DEPLOY_KNOWN_HOSTS` | Sortie de `ssh-keyscan -t ed25519 80.11.20.55` (1 ligne) |
+
+Valeurs en clair dans le workflow (`env:` au niveau `jobs`) :
+
+```yaml
+env:
+  DEPLOY_USER: deployer
+  DEPLOY_HOST: 80.11.20.55
+  DEPLOY_PATH: /var/www/sobria-site/
+```
+
+Le job inclut un step **« Garde — secrets requis présents »** qui fail
+fast avec un message explicite si SSH_KEY ou KNOWN_HOSTS sont vides.
 
 ### 6.2 Workflow `.github/workflows/site-deploy.yml`
 

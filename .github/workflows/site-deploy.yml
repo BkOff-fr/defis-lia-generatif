@@ -17,6 +17,17 @@ concurrency:
 permissions:
   contents: read
 
+# Cible de déploiement — valeurs non secrètes, déjà documentées dans
+# docs/operations/site-deploy.md. Auparavant en secrets GitHub, ce qui
+# causait des silent failures quand un secret était vide (cf. run
+# 26101912448 : « Could not resolve hostname : Name or service not known »
+# avec hostname blanc, signe d'un secret SOBRIA_DEPLOY_HOST manquant).
+# Seuls SSH_KEY et KNOWN_HOSTS restent secrets (matière sensible).
+env:
+  DEPLOY_USER: deployer
+  DEPLOY_HOST: 80.11.20.55
+  DEPLOY_PATH: /var/www/sobria-site/
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -24,6 +35,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Garde — secrets requis présents
+        env:
+          SSH_KEY: ${{ secrets.SOBRIA_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SOBRIA_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::Secret SOBRIA_DEPLOY_SSH_KEY est vide ou manquant."
+            echo "Ajoute-le via Settings → Secrets → Actions (clé privée ed25519)."
+            exit 1
+          fi
+          if [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::Secret SOBRIA_DEPLOY_KNOWN_HOSTS est vide ou manquant."
+            echo "Génère avec : ssh-keyscan ${DEPLOY_HOST} 2>/dev/null"
+            exit 1
+          fi
+          echo "::notice::Secrets OK. Cible : ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
@@ -65,7 +93,7 @@ jobs:
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" \
             site/dist/ \
-            ${{ secrets.SOBRIA_DEPLOY_USER }}@${{ secrets.SOBRIA_DEPLOY_HOST }}:${{ secrets.SOBRIA_DEPLOY_PATH }}
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
 
       - name: Post-deploy smoke test
         run: |
