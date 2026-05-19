@@ -1795,6 +1795,36 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       </div>
     </footer>
 
+    <!-- Reveal observer dans son propre bloc — DOIT etre execute meme si
+         Three.js plante (cf. C33.10/C33.11 : un crash Three.js cachait tout
+         le contenu en laissant .rise:not(.lit) a opacity:0).
+         Fail-safe : apres 2,5s tous les .rise sont forcees visibles. -->
+    <script is:inline>
+      (function () {
+        var rises = document.querySelectorAll('.rise');
+        try {
+          var io = new IntersectionObserver(
+            function (entries) {
+              entries.forEach(function (e) {
+                if (e.isIntersecting) e.target.classList.add('lit');
+              });
+            },
+            { threshold: 0.12 }
+          );
+          rises.forEach(function (el) { io.observe(el); });
+        } catch (err) {
+          rises.forEach(function (el) { el.classList.add('lit'); });
+        }
+        // Safety net : si pour une raison X (cache, perf, IO timing) un
+        // element reste opacity:0 apres 2,5s, on force la visibilite.
+        setTimeout(function () {
+          document.querySelectorAll('.rise:not(.lit)').forEach(function (el) {
+            el.classList.add('lit');
+          });
+        }, 2500);
+      })();
+    </script>
+
     <!-- Three.js 0.158.0 self-hosted : la CSP nginx restreint script-src
          a 'self' (cf. .well-known config), donc unpkg.com etait bloque
          et toute la JS d'animation tombait avant l'IntersectionObserver. -->
@@ -2487,15 +2517,9 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       /* keep particle multiplier stable */
       window.__multiVal = 0;
 
-      /* ─── Reveals ─── */
-      const io = new IntersectionObserver(
-        (es) =>
-          es.forEach((e) => {
-            if (e.isIntersecting) e.target.classList.add('lit');
-          }),
-        { threshold: 0.18 },
-      );
-      document.querySelectorAll('.rise').forEach((el) => io.observe(el));
+      /* ─── Reveals : deplaces vers un bloc <script> autonome avant
+              Three.js, pour qu'un crash Three.js ne cache plus tout le
+              contenu (cf. C33.11 retex). ─── */
 
       /* ─── Live typing demo (ch 5) ─── */
       const LIVE_TEXT =
