@@ -1,27 +1,2585 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import Hero from '$components/sections/Hero.astro';
-import PourQui from '$components/sections/PourQui.astro';
-import CommentCaMarche from '$components/sections/CommentCaMarche.astro';
-import DownloadSection from '$components/sections/DownloadSection.svelte';
-import Methodologies from '$components/sections/Methodologies.astro';
-import VendorDisclosure from '$components/sections/VendorDisclosure.astro';
-import TerritoireFR from '$components/sections/TerritoireFR.astro';
-import Entreprises from '$components/sections/Entreprises.astro';
+// C33.8 — Refonte home Sobr.ia (handoff bundle Anthropic Design).
+//
+// Page self-contained : @font-face vers /public/fonts/, CSS et JS inlines,
+// Three.js charge via unpkg CDN. Pas de BaseLayout (la nav + footer du
+// design sont integres). Les sections Hero / PourQui / CommentCaMarche /
+// Methodologies / VendorDisclosure / TerritoireFR / Entreprises issues de
+// C33.3-C33.5 restent disponibles dans src/components/sections/ pour
+// reusage sur d'autres routes ; git pre-C33.8 conserve l'index v1.
+//
+// Source design : sobr-ia-design-system/project/site/index.html (handoff
+// 2026-05-12 via claude.ai/design). Adaptations apportees :
+//   - hrefs index.html / cloud.html / download.html / docs.html mappes
+//     vers les routes Astro (/, /cloud, /telecharger, /docs/).
+//   - @font-face inline pointant vers /fonts/*.woff2 (deja auto-heberges
+//     pour C33.4).
+//   - terrainMat + metaballs (references mortes dans la JS d'origine)
+//     supprimes pour eviter ReferenceError en runtime.
+
+const canonical = new URL('/', Astro.site).href;
+const ogImage = new URL('/og-image.png', Astro.site).href;
 ---
 
-<BaseLayout
-  title="Sobr.ia — l'empreinte de vos prompts IA, mesurée"
-  description="Application native multi-plateforme qui mesure l'empreinte carbone, eau, énergie de chaque prompt LLM. Frugal, open source, candidat défi data.gouv.fr."
->
-  <Hero />
-  <PourQui />
-  <CommentCaMarche />
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Sobr.ia — Le poids invisible de tes prompts</title>
+    <meta
+      name="description"
+      content="Mesure, suis, arbitre l'empreinte de tes prompts IA. Extension navigateur, dashboard d'équipe, suivi personnel, carte des datacenters européens. 100 % local, open source."
+    />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-  <DownloadSection client:visible />
+    <meta property="og:title" content="Sobr.ia — Le poids invisible de tes prompts" />
+    <meta
+      property="og:description"
+      content="Extension navigateur, dashboard d'équipe, suivi personnel, carte des datacenters européens. Sobr.ia est l'outil ouvert pour quantifier — et réduire — l'empreinte de l'IA générative."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content="Sobr.ia" />
 
-  <Methodologies />
-  <VendorDisclosure />
-  <TerritoireFR />
-  <Entreprises />
-</BaseLayout>
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sobr.ia — Le poids invisible de tes prompts" />
+    <meta name="twitter:image" content={ogImage} />
+
+    <meta name="theme-color" content="#0a0d0b" />
+
+    <style is:inline>
+      /* ─── Fonts auto-hebergees (cf. C33.4) ──────────────────────────── */
+      @font-face {
+        font-family: 'Geist';
+        font-style: normal;
+        font-weight: 300 700;
+        font-display: swap;
+        src: url('/fonts/geist-latin.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Geist';
+        font-style: normal;
+        font-weight: 300 700;
+        font-display: swap;
+        src: url('/fonts/geist-latin-ext.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Instrument Serif';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/instrument-serif-latin.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Instrument Serif';
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/instrument-serif-italic-latin.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 400 600;
+        font-display: swap;
+        src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+      }
+
+      /* ─── Reset + base ──────────────────────────────────────────────── */
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0a0d0b;
+        color: #f0ece3;
+        font-family: 'Geist', system-ui, sans-serif;
+        overflow-x: hidden;
+      }
+      :root {
+        --ink: #0a0d0b;
+        --lime: #c5f04a;
+        --ivory: #f0ece3;
+        --ivory-2: #b8b4ac;
+        --ivory-3: #72706a;
+        --ivory-4: #46443f;
+        --border: rgba(255, 255, 255, 0.07);
+        --display: 'Instrument Serif', serif;
+        --mono: 'JetBrains Mono', monospace;
+        --ui: 'Geist', system-ui, sans-serif;
+      }
+
+      /* Persistent stage */
+      .stage {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+      }
+      .stage canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 3;
+      }
+      .stage .grain {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .77, 0 0 0 0 .94, 0 0 0 0 .29, 0 0 0 .04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+        opacity: 0.4;
+        mix-blend-mode: overlay;
+        pointer-events: none;
+      }
+      .stage .vignette {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        background: radial-gradient(ellipse at center, transparent 40%, rgba(10, 13, 11, 0.6) 100%);
+        pointer-events: none;
+      }
+
+      .progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 2px;
+        width: 0;
+        background: linear-gradient(90deg, #7a9a32, var(--lime));
+        z-index: 200;
+        box-shadow: 0 0 12px var(--lime);
+        transition: width 120ms linear;
+      }
+      .rail {
+        position: fixed;
+        right: 22px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 150;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .rail .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+        cursor: pointer;
+        position: relative;
+        transition: all 300ms;
+      }
+      .rail .dot.on {
+        background: var(--lime);
+        box-shadow: 0 0 14px var(--lime);
+        transform: scale(1.5);
+      }
+      .rail .dot .lab {
+        position: absolute;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        font: 500 9px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--ivory-3);
+        background: rgba(10, 13, 11, 0.9);
+        backdrop-filter: blur(8px);
+        padding: 4px 10px;
+        border-radius: 99px;
+        border: 1px solid var(--border);
+        opacity: 0;
+        transition: opacity 200ms;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .rail .dot:hover .lab,
+      .rail .dot.on .lab {
+        opacity: 1;
+      }
+      @media (max-width: 900px) {
+        .rail {
+          display: none;
+        }
+      }
+
+      .layer {
+        position: relative;
+        z-index: 10;
+      }
+      .chap {
+        position: relative;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 96px 24px 60px;
+      }
+      .chap .inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .kicker {
+        font: 500 11px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--lime);
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 24px;
+      }
+      .kicker::before {
+        content: '';
+        width: 32px;
+        height: 1px;
+        background: var(--lime);
+      }
+      .kicker .num {
+        font: 400 13px var(--mono);
+        color: var(--ivory-3);
+      }
+      .giant {
+        font: 400 clamp(48px, 9vw, 128px)/0.95 var(--display);
+        font-style: italic;
+        letter-spacing: -0.025em;
+        color: var(--ivory);
+        text-wrap: balance;
+        max-width: 1100px;
+      }
+      .giant i {
+        color: var(--lime);
+      }
+      .huge {
+        font: 400 clamp(40px, 7vw, 104px)/1 var(--display);
+        font-style: italic;
+        letter-spacing: -0.025em;
+        color: var(--ivory);
+        max-width: 1100px;
+      }
+      .huge i {
+        color: var(--lime);
+      }
+      .large {
+        font: 400 clamp(28px, 4.5vw, 64px)/1.05 var(--display);
+        font-style: italic;
+        letter-spacing: -0.02em;
+        color: var(--ivory);
+        max-width: 900px;
+      }
+      .large i {
+        color: var(--lime);
+      }
+      .body-l {
+        font: 400 clamp(14px, 1.2vw, 18px)/1.65 var(--ui);
+        color: var(--ivory-2);
+        max-width: 520px;
+      }
+      .body-l b {
+        color: var(--ivory);
+        font-weight: 500;
+      }
+
+      .rise {
+        opacity: 0;
+        transform: translateY(36px);
+        transition:
+          opacity 900ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .rise.lit {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .rise.d1 {
+        transition-delay: 140ms;
+      }
+      .rise.d2 {
+        transition-delay: 280ms;
+      }
+      .rise.d3 {
+        transition-delay: 420ms;
+      }
+
+      /* FR/EN lang toggle in nav */
+      .lang-toggle {
+        display: inline-flex;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 99px;
+        padding: 3px;
+        margin-left: 8px;
+      }
+      .lang-toggle button {
+        background: transparent;
+        border: none;
+        color: #72706a;
+        font: 600 10px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        padding: 6px 10px;
+        border-radius: 99px;
+        cursor: pointer;
+        transition: all 200ms;
+      }
+      .lang-toggle button.on {
+        background: #c5f04a;
+        color: #0a0d0b;
+      }
+      .lang-toggle button:not(.on):hover {
+        color: #f0ece3;
+      }
+
+      /* Mobile bottom rail */
+      @media (max-width: 900px) {
+        .rail {
+          display: flex !important;
+          flex-direction: row;
+          right: auto;
+          top: auto;
+          left: 50%;
+          bottom: 18px;
+          transform: translateX(-50%);
+          background: rgba(10, 13, 11, 0.85);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.07);
+          padding: 10px 14px;
+          border-radius: 99px;
+          gap: 10px;
+          z-index: 160;
+        }
+        .rail .dot {
+          width: 8px;
+          height: 8px;
+        }
+        .rail .dot .lab {
+          display: none;
+        }
+        .scroll-cue {
+          bottom: 74px;
+        }
+        .nav .links a:not(:first-child):not(:last-child) {
+          display: none;
+        }
+        .lang-toggle {
+          display: none;
+        }
+      }
+
+      /* Layout normalisation */
+      .chap {
+        padding: 120px 24px;
+      }
+      .chap .inner {
+        max-width: 1240px;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .ch-0 .inner,
+      .ch-4 .inner,
+      .ch-6 .inner {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+      }
+      .ch-0 .inner > div,
+      .ch-4 .inner > div,
+      .ch-6 .inner > div {
+        max-width: 880px;
+        margin: 0 auto;
+      }
+      .ch-0 .giant,
+      .ch-4 .huge,
+      .ch-6 .huge {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .ch-0 .body-l,
+      .ch-4 .body-l,
+      .ch-6 .body-l {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .ch-1 .inner,
+      .ch-2 .inner,
+      .ch-3 .inner,
+      .ch-5 .inner {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 64px;
+        align-items: center;
+      }
+      .ch-2 .inner {
+        grid-template-columns: 1fr 1.1fr;
+      }
+      .ch-3 .inner {
+        grid-template-columns: 1.1fr 1fr;
+      }
+      .chap .kicker {
+        margin-bottom: 24px;
+      }
+      .chap .huge,
+      .chap .giant {
+        margin-bottom: 24px;
+      }
+      .chap .body-l {
+        margin-bottom: 0;
+      }
+      .chap .body-l + .body-l {
+        margin-top: 18px;
+      }
+      @media (max-width: 1000px) {
+        .ch-1 .inner,
+        .ch-2 .inner,
+        .ch-3 .inner,
+        .ch-5 .inner {
+          grid-template-columns: 1fr;
+          text-align: left;
+          gap: 48px;
+        }
+      }
+      @media (max-width: 700px) {
+        .chap {
+          padding: 88px 22px;
+        }
+      }
+
+      /* ─── INTERACTIVE PROMPT BOX (ch 1) ─── */
+      .prompt-lab {
+        background: linear-gradient(160deg, rgba(15, 18, 16, 0.85), rgba(15, 18, 16, 0.45));
+        backdrop-filter: blur(22px);
+        border: 1px solid rgba(197, 240, 74, 0.25);
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow:
+          0 40px 120px rgba(0, 0, 0, 0.6),
+          0 0 60px rgba(197, 240, 74, 0.06);
+      }
+      .prompt-lab .top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        font: 500 10px var(--mono);
+        color: var(--ivory-3);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+      .prompt-lab .top .led {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--lime);
+        box-shadow: 0 0 12px var(--lime);
+        animation: livePulse 1.6s ease-in-out infinite;
+      }
+      @keyframes livePulse {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .prompt-lab label {
+        display: block;
+        font: 500 10px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ivory-3);
+        margin-bottom: 8px;
+      }
+      .prompt-lab textarea {
+        width: 100%;
+        min-height: 88px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        font: 400 15px/1.55 var(--ui);
+        color: var(--ivory);
+        outline: none;
+        resize: vertical;
+        transition: border-color 200ms;
+      }
+      .prompt-lab textarea:focus {
+        border-color: rgba(197, 240, 74, 0.45);
+      }
+      .prompt-lab .row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+        align-items: center;
+      }
+      .prompt-lab .model {
+        flex: 1;
+        font: 400 12px var(--mono);
+        color: var(--ivory-3);
+      }
+      .prompt-lab select {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 10px;
+        color: var(--ivory);
+        font: 500 11px var(--ui);
+        outline: none;
+        cursor: pointer;
+      }
+      .prompt-lab .meters {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px dashed var(--border);
+      }
+      .prompt-lab .meter {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .prompt-lab .meter .k {
+        font: 500 9px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ivory-4);
+      }
+      .prompt-lab .meter .v {
+        font: 400 26px/1 var(--display);
+        font-style: italic;
+        color: var(--lime);
+        margin-top: 4px;
+        letter-spacing: -0.01em;
+      }
+      .prompt-lab .meter .v .u {
+        font: 400 10px var(--ui);
+        font-style: normal;
+        color: var(--ivory-3);
+        margin-left: 3px;
+      }
+      .prompt-lab .equiv {
+        margin-top: 14px;
+        padding: 12px 14px;
+        background: rgba(126, 182, 255, 0.05);
+        border: 1px dashed rgba(126, 182, 255, 0.22);
+        border-radius: 10px;
+        font: 400 12px/1.55 var(--ui);
+        color: var(--ivory-2);
+        font-style: italic;
+      }
+      .prompt-lab .equiv b {
+        color: var(--lime);
+        font-style: normal;
+        font-weight: 500;
+      }
+
+      .ch-1-bignum {
+        position: absolute;
+        font: 400 clamp(160px, 28vw, 420px)/0.85 var(--display);
+        font-style: italic;
+        letter-spacing: -0.04em;
+        color: rgba(197, 240, 74, 0.1);
+        pointer-events: none;
+        user-select: none;
+        left: 8%;
+        top: 10%;
+        text-shadow: 0 0 90px rgba(197, 240, 74, 0.18);
+        z-index: 5;
+      }
+
+      /* CH 5 — live demo */
+      .live-card {
+        background: linear-gradient(160deg, rgba(15, 18, 16, 0.95), rgba(15, 18, 16, 0.78));
+        backdrop-filter: blur(18px);
+        border: 1px solid rgba(197, 240, 74, 0.2);
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow:
+          0 40px 100px rgba(0, 0, 0, 0.65),
+          0 0 80px rgba(197, 240, 74, 0.08);
+        max-width: 540px;
+      }
+      .live-card .top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        font: 500 10px var(--mono);
+        color: var(--ivory-3);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+      .live-card .led {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--lime);
+        box-shadow: 0 0 12px var(--lime);
+        animation: livePulse 1.6s ease-in-out infinite;
+      }
+      .live-card .prompt {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        font: 400 14px/1.55 var(--ui);
+        color: var(--ivory-2);
+        margin-bottom: 14px;
+      }
+      .live-card .prompt::before {
+        content: '> ';
+        color: var(--lime);
+        font-family: var(--mono);
+      }
+      .live-card .response {
+        padding: 14px 16px;
+        background: rgba(126, 182, 255, 0.04);
+        border-left: 2px solid #7eb6ff;
+        border-radius: 0 8px 8px 0;
+        font: 400 13px/1.6 var(--ui);
+        color: var(--ivory-2);
+        margin-bottom: 14px;
+        min-height: 80px;
+      }
+      .live-card .response .cur {
+        display: inline-block;
+        width: 7px;
+        height: 1em;
+        background: var(--lime);
+        margin-left: 2px;
+        vertical-align: -2px;
+        animation: bl 1s steps(2) infinite;
+      }
+      @keyframes bl {
+        50% {
+          opacity: 0;
+        }
+      }
+      .live-card .badge-row {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border);
+      }
+      .sb-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: rgba(197, 240, 74, 0.08);
+        border: 1px solid rgba(197, 240, 74, 0.32);
+        border-radius: 99px;
+        color: var(--lime);
+        font: 500 12px var(--ui);
+      }
+      .sb-badge .v {
+        font-family: var(--mono);
+      }
+      .sb-badge .by {
+        font: 400 9px var(--ui);
+        color: rgba(197, 240, 74, 0.55);
+        padding-left: 7px;
+        border-left: 1px solid rgba(197, 240, 74, 0.25);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      /* CH 6 actions */
+      .ch-6 .actions {
+        display: flex;
+        justify-content: center;
+        gap: 14px;
+        margin-top: 5vh;
+        flex-wrap: wrap;
+      }
+      .ch-6 .meta {
+        margin-top: 6vh;
+        font: 400 12px var(--mono);
+        color: var(--ivory-3);
+        display: inline-flex;
+        align-items: center;
+        gap: 18px;
+        padding: 10px 22px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed var(--border);
+        border-radius: 99px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 22px;
+        border-radius: 99px;
+        font: 600 13px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        border: none;
+        text-decoration: none;
+        transition: all 250ms;
+      }
+      .btn.primary {
+        background: var(--lime);
+        color: var(--ink);
+      }
+      .btn.primary:hover {
+        box-shadow: 0 0 32px rgba(197, 240, 74, 0.45);
+        transform: translateY(-1px);
+      }
+      .btn.ghost {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--ivory);
+      }
+      .btn.ghost:hover {
+        border-color: var(--lime);
+        color: var(--lime);
+      }
+
+      /* ─── ch-0 hero feats ─── */
+      .hero-feats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        font: 500 11px var(--mono);
+        color: var(--ivory-3);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .hero-feats span:not(:nth-child(even)) {
+        color: var(--lime);
+      }
+
+      /* ─── shared feat-list ─── */
+      .feat-list {
+        list-style: none;
+        padding: 0;
+        margin: 24px 0 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .feat-list li {
+        font: 400 14px/1.5 var(--ui);
+        color: var(--ivory-2);
+        padding-left: 22px;
+        position: relative;
+      }
+      .feat-list li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 10px;
+        width: 12px;
+        height: 1px;
+        background: var(--lime);
+      }
+      .feat-list li b {
+        color: var(--ivory);
+        font-weight: 500;
+      }
+
+      /* ─── ch-2 team board ─── */
+      .team-board {
+        background: linear-gradient(160deg, rgba(15, 18, 16, 0.92), rgba(15, 18, 16, 0.65));
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(197, 240, 74, 0.22);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow:
+          0 40px 100px rgba(0, 0, 0, 0.6),
+          0 0 60px rgba(197, 240, 74, 0.05);
+      }
+      .tb-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .tb-title {
+        font: 500 11px var(--mono);
+        color: var(--ivory-3);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .tb-export {
+        font: 600 10px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--lime);
+        padding: 5px 10px;
+        border: 1px solid rgba(197, 240, 74, 0.3);
+        border-radius: 99px;
+        cursor: pointer;
+      }
+      .tb-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 18px;
+        padding-bottom: 14px;
+        border-bottom: 1px dashed var(--border);
+      }
+      .tb-stat {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .tb-stat .k {
+        font: 500 9px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ivory-4);
+        display: block;
+      }
+      .tb-stat .v {
+        font: 400 22px var(--display);
+        font-style: italic;
+        color: var(--ivory);
+        margin-top: 3px;
+        display: block;
+        letter-spacing: -0.01em;
+      }
+      .tb-stat .v small {
+        font: 400 10px var(--ui);
+        font-style: normal;
+        color: var(--ivory-3);
+        margin-left: 4px;
+      }
+      .tb-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .tb-row {
+        display: grid;
+        grid-template-columns: 30px 1fr 100px 64px;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      }
+      .tb-row:last-child {
+        border: none;
+      }
+      .tb-av {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #7a9a32, #c5f04a);
+        display: grid;
+        place-items: center;
+        font: 600 10px var(--ui);
+        color: #0a0d0b;
+      }
+      .tb-nm {
+        font: 500 13px var(--ui);
+        color: var(--ivory);
+      }
+      .tb-bar {
+        height: 5px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .tb-bar i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #7a9a32, #c5f04a);
+        width: var(--w);
+        animation: tbGrow 900ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        transform-origin: left;
+      }
+      @keyframes tbGrow {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+      .tb-val {
+        font: 500 13px var(--mono);
+        color: var(--lime);
+        text-align: right;
+      }
+      .tb-val small {
+        font: 400 10px var(--ui);
+        color: var(--ivory-3);
+        margin-left: 2px;
+      }
+
+      /* ─── ch-3 usage panel ─── */
+      .usage-panel {
+        background: linear-gradient(160deg, rgba(15, 18, 16, 0.92), rgba(15, 18, 16, 0.65));
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(197, 240, 74, 0.22);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow:
+          0 40px 100px rgba(0, 0, 0, 0.6),
+          0 0 60px rgba(197, 240, 74, 0.05);
+      }
+      .up-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .up-title {
+        font: 500 13px var(--ui);
+        color: var(--ivory);
+      }
+      .up-title b {
+        color: var(--lime);
+        font-weight: 500;
+      }
+      .up-sub {
+        font: 400 11px var(--mono);
+        color: var(--ivory-3);
+        margin-top: 4px;
+      }
+      .up-sub b {
+        color: var(--ivory);
+        font-weight: 500;
+      }
+      .up-ring {
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+      .up-chart {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        height: 160px;
+        align-items: end;
+        padding-bottom: 18px;
+        border-bottom: 1px dashed var(--border);
+      }
+      .up-day {
+        position: relative;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        border-radius: 6px;
+        padding: 4px;
+        transition: background 200ms;
+      }
+      .up-day:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .up-day.on {
+        background: rgba(197, 240, 74, 0.08);
+      }
+      .up-day i {
+        display: block;
+        width: 100%;
+        background: linear-gradient(180deg, #c5f04a, #7a9a32);
+        border-radius: 4px;
+        height: var(--h);
+        min-height: 6px;
+        transition: background 200ms;
+      }
+      .up-day.over i {
+        background: linear-gradient(180deg, #f08c5a, #9a4d2a);
+      }
+      .up-day.on i {
+        box-shadow: 0 0 16px rgba(197, 240, 74, 0.4);
+      }
+      .up-day .up-l {
+        font: 500 10px var(--mono);
+        color: var(--ivory-3);
+        margin-top: 6px;
+      }
+      .up-day.on .up-l {
+        color: var(--lime);
+      }
+      .up-detail {
+        padding: 12px 0 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        border-bottom: 1px dashed var(--border);
+      }
+      .up-detail .k {
+        font: 500 10px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ivory-4);
+      }
+      .up-detail .v {
+        font: 400 15px var(--display);
+        font-style: italic;
+        color: var(--ivory);
+      }
+      .up-detail .v b {
+        color: var(--lime);
+        font-style: italic;
+        font-weight: 400;
+      }
+      .up-alerts {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 12px;
+      }
+      .up-alerts label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font: 400 12px var(--ui);
+        color: var(--ivory-2);
+        cursor: pointer;
+      }
+      .up-alerts input[type='checkbox'] {
+        accent-color: var(--lime);
+        width: 14px;
+        height: 14px;
+      }
+
+      /* ─── ch-4 datacenters ─── */
+      .dc-map {
+        display: grid;
+        grid-template-columns: 1fr 240px;
+        gap: 16px;
+        align-items: start;
+        background: linear-gradient(160deg, rgba(15, 18, 16, 0.88), rgba(15, 18, 16, 0.55));
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(197, 240, 74, 0.18);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+      }
+      .dc-map svg {
+        display: block;
+      }
+      #dcDots circle {
+        filter: drop-shadow(0 0 8px currentColor);
+      }
+      .dc-detail {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        font: 400 12px var(--ui);
+        color: var(--ivory-2);
+      }
+      .dc-title {
+        font: 400 17px var(--display);
+        font-style: italic;
+        color: var(--ivory);
+        margin-bottom: 6px;
+        letter-spacing: -0.01em;
+      }
+      .dc-sub {
+        font: 400 11px var(--mono);
+        color: var(--ivory-3);
+      }
+      .dc-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+        font: 400 11px var(--ui);
+        color: var(--ivory-3);
+      }
+      .dc-row b {
+        color: var(--ivory);
+        font-family: var(--mono);
+        font-weight: 500;
+      }
+      .dc-op {
+        margin-top: 10px;
+        font: 400 10px var(--mono);
+        color: var(--ivory-4);
+        font-style: italic;
+      }
+      .dc-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 18px;
+        font: 400 11px var(--mono);
+        color: var(--ivory-3);
+      }
+      .dc-leg {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dc-leg i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      @media (max-width: 900px) {
+        .dc-map {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* nav + footer */
+      .nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: rgba(10, 13, 11, 0.45);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav .inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .nav .logo {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font: 400 18px var(--display);
+        font-style: italic;
+        color: var(--ivory);
+        text-decoration: none;
+      }
+      .nav .logo i {
+        color: var(--lime);
+      }
+      .nav .links {
+        display: flex;
+        gap: 6px;
+      }
+      .nav .links a {
+        padding: 8px 12px;
+        color: var(--ivory-3);
+        font: 500 12px var(--ui);
+        text-decoration: none;
+        border-radius: 8px;
+      }
+      .nav .links a.on {
+        color: var(--lime);
+      }
+      .nav .grow {
+        flex: 1;
+      }
+      .foot {
+        padding: 60px 0 30px;
+        border-top: 1px solid var(--border);
+        position: relative;
+        z-index: 10;
+        background: rgba(10, 13, 11, 0.7);
+        backdrop-filter: blur(10px);
+      }
+      .foot .inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 36px;
+      }
+      .foot .col h4 {
+        font: 500 11px var(--ui);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--ivory-3);
+        margin-bottom: 14px;
+      }
+      .foot .col a {
+        display: block;
+        padding: 4px 0;
+        color: var(--ivory-2);
+        font: 400 13px var(--ui);
+        text-decoration: none;
+      }
+      .foot .col a:hover {
+        color: var(--lime);
+      }
+      .foot .brand {
+        font: 400 28px var(--display);
+        font-style: italic;
+        color: var(--ivory);
+      }
+      .foot .brand i {
+        color: var(--lime);
+      }
+      .foot .tag {
+        font: 400 13px/1.5 var(--ui);
+        color: var(--ivory-3);
+        font-style: italic;
+        margin-top: 10px;
+        max-width: 300px;
+      }
+      .foot .bottom {
+        max-width: 1280px;
+        margin: 30px auto 0;
+        padding: 18px 24px 0;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font: 400 11px var(--mono);
+        color: var(--ivory-4);
+      }
+
+      .scroll-cue {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        font: 500 10px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.24em;
+        color: var(--ivory-3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        z-index: 20;
+        opacity: 1;
+        transition: opacity 500ms;
+      }
+      .scroll-cue.gone {
+        opacity: 0;
+      }
+      .scroll-cue::after {
+        content: '';
+        width: 1px;
+        height: 38px;
+        background: linear-gradient(180deg, var(--lime), transparent);
+        animation: drop 2.2s ease-in-out infinite;
+      }
+      @keyframes drop {
+        0% {
+          transform: translateY(-14px);
+          opacity: 0;
+        }
+        40% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(14px);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <canvas id="webgl"></canvas>
+      <div class="grain"></div>
+      <div class="vignette"></div>
+    </div>
+    <div class="progress" id="progress"></div>
+    <div class="rail" id="rail">
+      <div class="dot on" data-i="0"><span class="lab">00 · Hero</span></div>
+      <div class="dot" data-i="1"><span class="lab">01 · Calcul live</span></div>
+      <div class="dot" data-i="2"><span class="lab">02 · Équipes</span></div>
+      <div class="dot" data-i="3"><span class="lab">03 · Suivi perso</span></div>
+      <div class="dot" data-i="4"><span class="lab">04 · Datacenters</span></div>
+      <div class="dot" data-i="5"><span class="lab">05 · Extension</span></div>
+      <div class="dot" data-i="6"><span class="lab">06 · Action</span></div>
+    </div>
+
+    <nav class="nav">
+      <div class="inner">
+        <a class="logo" href="/">
+          <svg width="22" height="22" viewBox="0 0 100 100" fill="none"
+            ><path
+              d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84"
+              stroke="#c5f04a"
+              stroke-width="6"
+              stroke-linecap="round"
+              fill="none"></path><circle cx="50" cy="52" r="7" fill="#c5f04a"></circle></svg
+          >
+          Sobr<i>.</i>ia
+        </a>
+        <div class="links">
+          <a href="/" class="on">Produit</a>
+          <a href="/cloud">Cloud</a>
+          <a href="/telecharger">Télécharger</a>
+          <a href="/docs/">Docs</a>
+        </div>
+        <div class="grow"></div>
+        <div class="lang-toggle">
+          <button class="on" data-lang="fr">FR</button>
+          <button data-lang="en">EN</button>
+        </div>
+        <a
+          href="/telecharger"
+          class="btn primary"
+          style="padding:8px 16px;font-size:11px"
+          data-fr="Installer"
+          data-en="Install">Installer</a
+        >
+      </div>
+    </nav>
+
+    <div class="scroll-cue" id="cue">Suis la trace</div>
+
+    <div class="layer">
+      <section class="chap ch-0" data-chap="0">
+        <div class="inner">
+          <div>
+            <div class="kicker"><span class="num">00 / 06</span> La boîte à outils</div>
+            <h1 class="giant rise lit">
+              Mesure, suis, <i>arbitre</i>.<br />Ton IA, ton équipe,<br />ton territoire.
+            </h1>
+            <p class="body-l rise lit d1" style="margin-top:28px">
+              Extension navigateur, dashboard d'équipe, suivi personnel, carte des datacenters
+              européens. Sobr.ia est l'outil ouvert pour quantifier — et réduire — l'empreinte de
+              l'IA générative.
+            </p>
+            <div class="hero-feats rise lit d2" style="margin-top:32px">
+              <span>↳ Calcul live</span><span>·</span><span>Dashboard équipe</span><span>·</span
+              ><span>Suivi perso</span><span>·</span><span>186 datacenters cartographiés</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chap ch-1" data-chap="1">
+        <div class="ch-1-bignum" id="bignum">2,14</div>
+        <div class="inner">
+          <div>
+            <div class="kicker"><span class="num">01 / 06</span> Le chiffre invisible</div>
+            <h2 class="huge rise">Tape <i>quelque chose</i>.</h2>
+            <p class="body-l rise d1" style="margin-top:18px">
+              Le poids carbone de ton prompt apparaît derrière l'étoile. Modifie le texte, change le
+              modèle — la valeur évolue en temps réel.
+            </p>
+          </div>
+          <div class="prompt-lab rise d2">
+            <div class="top"><span class="led"></span>Démo interactive · calcul live</div>
+            <label for="liveInput">Ton prompt</label>
+            <textarea id="liveInput" placeholder="Explique-moi la photosynthèse en 500 mots…"
+              >Explique la photosynthèse à un lycéen, en 500 mots, avec des exemples concrets.</textarea
+            >
+            <div class="row">
+              <div class="model">
+                Tokens estimés : <b id="liveTokens" style="color:var(--ivory)">~ 420</b>
+              </div>
+              <select id="liveModel">
+                <option value="gpt5">GPT-5 (US-East)</option>
+                <option value="claude4">Claude 4 (US-West)</option>
+                <option value="mistralL">Mistral Large (FR)</option>
+                <option value="gpt4mini">GPT-4o-mini (US-East)</option>
+              </select>
+            </div>
+            <div class="meters">
+              <div class="meter">
+                <div class="k">CO₂eq</div>
+                <div class="v"><span id="liveCO2">2,14</span><span class="u">g</span></div>
+              </div>
+              <div class="meter">
+                <div class="k">Énergie</div>
+                <div class="v"><span id="liveWh">5,46</span><span class="u">Wh</span></div>
+              </div>
+              <div class="meter">
+                <div class="k">Eau</div>
+                <div class="v"><span id="liveH2O">18,3</span><span class="u">mL</span></div>
+              </div>
+            </div>
+            <div class="equiv">
+              ≈ <b id="liveEq">13 m</b> en voiture thermique
+              <span style="color:var(--ivory-4)">·</span> Mix : <b id="liveMix">392 g/kWh</b>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chap ch-2" data-chap="2">
+        <div class="inner">
+          <div>
+            <div class="kicker"><span class="num">02 / 06</span> Pour ton équipe</div>
+            <h2 class="huge rise">Une vue <i>collective</i>.<br />Sans flicage.</h2>
+            <p class="body-l rise d1" style="margin-top:18px">
+              Dashboard partagé · agrégats anonymisés par défaut · export CSRD en un clic. Tu vois
+              où l'équipe consomme, qui surchauffe, ce que tu peux optimiser.
+            </p>
+            <ul class="feat-list rise d2">
+              <li><b>Bilan hebdo automatique</b> pour chaque membre</li>
+              <li><b>Export PDF & CSV</b> pour rapports extra-financiers</li>
+              <li><b>Privacy-first</b> : agrégation locale, pseudonymes opt-in</li>
+              <li><b>Comparateur de modèles</b> partagé en workspace</li>
+            </ul>
+          </div>
+          <div class="team-board rise d2">
+            <div class="tb-head">
+              <div class="tb-title">Marketing · S46 · 7 membres</div>
+              <div class="tb-export">↓ CSRD</div>
+            </div>
+            <div class="tb-stats">
+              <div class="tb-stat">
+                <span class="k">Total</span><span class="v">2,4<small>kg CO₂eq</small></span>
+              </div>
+              <div class="tb-stat"><span class="k">Membres</span><span class="v">7</span></div>
+              <div class="tb-stat">
+                <span class="k">vs S-1</span><span class="v" style="color:var(--lime)">−18%</span>
+              </div>
+            </div>
+            <div class="tb-rows">
+              <div class="tb-row">
+                <span class="tb-av">CB</span><span class="tb-nm">Claire B.</span><span
+                  class="tb-bar"><i style="--w:92%"></i></span
+                ><span class="tb-val">468<small>g</small></span>
+              </div>
+              <div class="tb-row">
+                <span class="tb-av">JL</span><span class="tb-nm">Jean L.</span><span class="tb-bar"
+                  ><i style="--w:74%"></i></span
+                ><span class="tb-val">372<small>g</small></span>
+              </div>
+              <div class="tb-row">
+                <span class="tb-av">MN</span><span class="tb-nm">Marie N.</span><span class="tb-bar"
+                  ><i style="--w:58%"></i></span
+                ><span class="tb-val">298<small>g</small></span>
+              </div>
+              <div class="tb-row">
+                <span class="tb-av">PT</span><span class="tb-nm">Paul T.</span><span class="tb-bar"
+                  ><i style="--w:44%"></i></span
+                ><span class="tb-val">221<small>g</small></span>
+              </div>
+              <div class="tb-row">
+                <span class="tb-av">SR</span><span class="tb-nm">Sara R.</span><span class="tb-bar"
+                  ><i style="--w:29%"></i></span
+                ><span class="tb-val">146<small>g</small></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chap ch-3" data-chap="3">
+        <div class="inner">
+          <div class="usage-panel rise">
+            <div class="up-head">
+              <div>
+                <div class="up-title">Cette semaine · objectif <b>50 g/jour</b></div>
+                <div class="up-sub">Tu es à <b id="upPct">62%</b> de ton budget hebdo</div>
+              </div>
+              <div class="up-ring">
+                <svg viewBox="0 0 36 36" width="54" height="54">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15"
+                    fill="none"
+                    stroke="rgba(255,255,255,.08)"
+                    stroke-width="3"></circle>
+                  <circle
+                    id="upRing"
+                    cx="18"
+                    cy="18"
+                    r="15"
+                    fill="none"
+                    stroke="#c5f04a"
+                    stroke-width="3"
+                    stroke-dasharray="94.2"
+                    stroke-dashoffset="35.8"
+                    stroke-linecap="round"
+                    transform="rotate(-90 18 18)"></circle>
+                </svg>
+              </div>
+            </div>
+            <div class="up-chart" id="upChart">
+              <div class="up-day" data-day="Lundi" data-val="32">
+                <i style="--h:64%"></i><span class="up-l">L</span>
+              </div>
+              <div class="up-day" data-day="Mardi" data-val="48">
+                <i style="--h:96%"></i><span class="up-l">M</span>
+              </div>
+              <div class="up-day" data-day="Mercredi" data-val="22">
+                <i style="--h:44%"></i><span class="up-l">M</span>
+              </div>
+              <div class="up-day over" data-day="Jeudi" data-val="56">
+                <i style="--h:100%"></i><span class="up-l">J</span>
+              </div>
+              <div class="up-day" data-day="Vendredi" data-val="38">
+                <i style="--h:76%"></i><span class="up-l">V</span>
+              </div>
+              <div class="up-day" data-day="Samedi" data-val="12">
+                <i style="--h:24%"></i><span class="up-l">S</span>
+              </div>
+              <div class="up-day on" data-day="Dimanche" data-val="41">
+                <i style="--h:82%"></i><span class="up-l">D</span>
+              </div>
+            </div>
+            <div class="up-detail">
+              <span class="k">Sélection</span>
+              <span class="v"><b id="upDay">Dimanche</b> · <b id="upVal">41</b> g CO₂eq</span>
+            </div>
+            <div class="up-alerts">
+              <label><input type="checkbox" checked /> Alerte si dépassement quotidien</label>
+              <label><input type="checkbox" checked /> Bilan hebdo le dimanche soir</label>
+              <label><input type="checkbox" /> Comparer avec la moyenne équipe</label>
+            </div>
+          </div>
+          <div>
+            <div class="kicker"><span class="num">03 / 06</span> Suivi personnel</div>
+            <h2 class="huge rise">Tes habitudes,<br /><i>en clair</i>.</h2>
+            <p class="body-l rise d1" style="margin-top:18px">
+              Chaque session loggée en local. Pics, objectifs, équivalents — visibles sans effort.
+              Si tu dépasses, une notification douce. Pas plus.
+            </p>
+            <ul class="feat-list rise d2">
+              <li><b>Historique illimité</b>, stocké uniquement chez toi</li>
+              <li><b>Objectifs personnalisables</b> hebdo / mensuel / annuel</li>
+              <li><b>Bilan mensuel PDF</b> exportable pour ton suivi RSE</li>
+              <li><b>Comparaison avant/après</b> changement de modèle ou habitude</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="chap ch-4" data-chap="4">
+        <div class="inner">
+          <div>
+            <div class="kicker"><span class="num">04 / 06</span> Recherche &amp; datacenters</div>
+            <h2 class="huge rise">186 datacenters<br /><i>cartographiés</i>.</h2>
+            <p class="body-l rise d1" style="margin-top:18px">
+              On indexe les sites cloud européens : opérateur, capacité, PUE, mix CO₂ horaire.
+              Sobr.ia infère lequel a traité ton prompt selon la latence et la zone.
+            </p>
+            <ul class="feat-list rise d2">
+              <li>Sources <b>RTE, ENTSO-E, ElectricityMap, ADEME</b></li>
+              <li>Mix CO₂ live, mis à jour <b>toutes les 5 minutes</b></li>
+              <li>API publique pour <b>chercheurs &amp; agences</b></li>
+              <li>Open data sous licence <b>ODbL</b>, contributions bienvenues</li>
+            </ul>
+            <div class="dc-legend rise d3">
+              <span class="dc-leg"
+                ><i style="background:#c5f04a"></i>Bas-carbone (&lt;100 g/kWh)</span
+              >
+              <span class="dc-leg"><i style="background:#f5b769"></i>Moyen (100–250)</span>
+              <span class="dc-leg"><i style="background:#f08c5a"></i>Élevé (&gt;250)</span>
+            </div>
+          </div>
+          <div class="dc-map rise d2">
+            <svg viewBox="0 0 400 360" width="100%" preserveAspectRatio="xMidYMid meet">
+              <path
+                d="M 80 60 L 130 50 L 180 55 L 220 50 L 280 70 L 320 100 L 330 160 L 320 200 L 280 240 L 240 280 L 200 290 L 150 280 L 110 260 L 80 220 L 60 180 L 65 130 L 75 90 Z"
+                fill="rgba(197,240,74,.04)"
+                stroke="rgba(197,240,74,.15)"
+                stroke-width="1"></path>
+              <g id="dcDots">
+                <circle
+                  cx="155"
+                  cy="170"
+                  r="5"
+                  fill="#c5f04a"
+                  data-dc="FR · Île-de-France"
+                  data-mix="56"
+                  data-pue="1.18"
+                  data-sites="34"
+                  data-op="OVHcloud · Scaleway · Equinix"></circle>
+                <circle
+                  cx="220"
+                  cy="140"
+                  r="6"
+                  fill="#f08c5a"
+                  data-dc="DE · Frankfurt"
+                  data-mix="385"
+                  data-pue="1.25"
+                  data-sites="42"
+                  data-op="Telekom · Hetzner · Digital Realty"></circle>
+                <circle
+                  cx="120"
+                  cy="130"
+                  r="4"
+                  fill="#f5b769"
+                  data-dc="GB · London"
+                  data-mix="200"
+                  data-pue="1.22"
+                  data-sites="28"
+                  data-op="AWS · Google · Microsoft"></circle>
+                <circle
+                  cx="200"
+                  cy="105"
+                  r="4"
+                  fill="#f08c5a"
+                  data-dc="NL · Amsterdam"
+                  data-mix="312"
+                  data-pue="1.20"
+                  data-sites="22"
+                  data-op="Interxion · Equinix"></circle>
+                <circle
+                  cx="240"
+                  cy="190"
+                  r="3"
+                  fill="#c5f04a"
+                  data-dc="CH · Zürich"
+                  data-mix="29"
+                  data-pue="1.17"
+                  data-sites="14"
+                  data-op="Green · Equinix"></circle>
+                <circle
+                  cx="265"
+                  cy="105"
+                  r="4"
+                  fill="#f5b769"
+                  data-dc="DK · Copenhagen"
+                  data-mix="125"
+                  data-pue="1.15"
+                  data-sites="12"
+                  data-op="Apple · Meta"></circle>
+                <circle
+                  cx="180"
+                  cy="220"
+                  r="4"
+                  fill="#f5b769"
+                  data-dc="ES · Madrid"
+                  data-mix="142"
+                  data-pue="1.28"
+                  data-sites="18"
+                  data-op="Telefónica · AWS"></circle>
+                <circle
+                  cx="230"
+                  cy="240"
+                  r="4"
+                  fill="#f08c5a"
+                  data-dc="IT · Milano"
+                  data-mix="262"
+                  data-pue="1.30"
+                  data-sites="20"
+                  data-op="Aruba · Data4"></circle>
+                <circle
+                  cx="80"
+                  cy="115"
+                  r="3"
+                  fill="#f08c5a"
+                  data-dc="IE · Dublin"
+                  data-mix="298"
+                  data-pue="1.21"
+                  data-sites="16"
+                  data-op="AWS · Google · Microsoft"></circle>
+                <circle
+                  cx="275"
+                  cy="75"
+                  r="3"
+                  fill="#c5f04a"
+                  data-dc="SE · Stockholm"
+                  data-mix="45"
+                  data-pue="1.11"
+                  data-sites="10"
+                  data-op="Bahnhof · Meta"></circle>
+              </g>
+            </svg>
+            <div class="dc-detail" id="dcDetail">
+              <div class="dc-title">Survole un point</div>
+              <div class="dc-sub">10 régions cloud · 186 sites total</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chap ch-5" data-chap="5">
+        <div class="inner">
+          <div>
+            <div class="kicker"><span class="num">05 / 06</span> En direct dans ton chat</div>
+            <h2 class="large rise">
+              Une mesure <i>par message</i>.<br />Sans <i>quitter ton chat</i>.
+            </h2>
+            <p class="body-l rise d1" style="margin-top:22px">
+              L'extension Sobr.ia s'injecte dans ChatGPT, Claude, Mistral. Sous chaque réponse : un
+              bouton vert qui révèle le coût.
+            </p>
+            <p
+              class="body-l rise d2"
+              style="margin-top:12px;color:var(--ivory-3);font-style:italic"
+            >
+              Aucune donnée n'est envoyée. Tout est calculé dans ton navigateur.
+            </p>
+          </div>
+          <div class="live-card rise d3">
+            <div class="top"><span class="led"></span>ChatGPT · live · session #847</div>
+            <div class="prompt">Explique la photosynthèse à un lycéen, en 500 mots.</div>
+            <div class="response" id="resp"><span class="cur"></span></div>
+            <div class="badge-row">
+              <div class="sb-badge">
+                <svg width="12" height="12" viewBox="0 0 100 100" fill="none"
+                  ><path
+                    d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84"
+                    stroke="#c5f04a"
+                    stroke-width="10"
+                    stroke-linecap="round"
+                    fill="none"></path><circle cx="50" cy="52" r="10" fill="#c5f04a"></circle></svg
+                >
+                <span class="v" id="liveVal">0,00 g CO₂eq</span>
+                <span class="by">Sobr.ia</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chap ch-6" data-chap="6">
+        <div class="inner">
+          <div class="kicker" style="justify-content:center">
+            <span class="num">06 / 06</span> Maintenant
+          </div>
+          <h2 class="huge rise">Mesure ton <i>premier</i><br />prompt. 30 secondes.</h2>
+          <div class="actions rise d1">
+            <a href="/telecharger" class="btn primary">Installer l'extension</a>
+            <a href="/cloud" class="btn ghost">Voir les plans cloud</a>
+          </div>
+          <div class="meta rise d2">
+            <span>100 % local</span><span>·</span><span>open source · MIT</span><span>·</span><span
+              >AFNOR SPEC 2314</span
+            ><span>·</span><span>v0.8.0</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="foot">
+      <div class="inner">
+        <div class="col">
+          <div class="brand">Sobr<i>.</i>ia</div>
+          <div class="tag">L'outil de référence pour mesurer la sobriété de l'IA générative.</div>
+        </div>
+        <div class="col">
+          <h4>Produit</h4>
+          <a href="/">Présentation</a>
+          <a href="/telecharger">Télécharger</a>
+          <a href="/cloud">Cloud / SaaS</a>
+        </div>
+        <div class="col">
+          <h4>Ressources</h4>
+          <a href="/docs/">Documentation</a>
+          <a href="/docs/#methodology">Méthodologie</a>
+          <a href="/docs/#self-hosted">Self-hosted</a>
+        </div>
+        <div class="col">
+          <h4>Communauté</h4>
+          <a
+            href="https://github.com/BkOff-fr/defis-lia-generatif"
+            target="_blank"
+            rel="noopener noreferrer">GitHub</a
+          >
+          <a href="/candidature">Candidature data.gouv</a>
+          <a href="/adrs/">ADRs</a>
+        </div>
+      </div>
+      <div class="bottom">
+        <span>© 2026 Sobr.ia · MIT licence</span>
+        <span>v0.8.0</span>
+      </div>
+    </footer>
+
+    <script is:inline src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+    <script is:inline>
+      /* ════════════════════════════════════════════════════════
+         THREE.JS — token swarm + per-chapter environments
+         (terrainMat + metaballs refs from original handoff removed:
+         dead code that would have thrown ReferenceError)
+         ════════════════════════════════════════════════════════ */
+      const canvas = document.getElementById('webgl');
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 200);
+      camera.position.set(0, 0, 12);
+
+      function resize() {
+        renderer.setSize(innerWidth, innerHeight, false);
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+      }
+      resize();
+      addEventListener('resize', resize);
+
+      const mouse = { x: 0, y: 0, mx: 0, my: 0 };
+      addEventListener('mousemove', (e) => {
+        mouse.x = (e.clientX / innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+        mouse.mx = e.clientX;
+        mouse.my = e.clientY;
+      });
+      const isMobile = innerWidth < 900;
+
+      let orbPulse = 0;
+      addEventListener('click', () => {
+        if (scrollY < innerHeight * 0.8) orbPulse = 1.0;
+      });
+
+      /* ─── Hero abstract sphere (ch 0 focal) ─── */
+      const heroOrb = new THREE.Group();
+      const orbWire = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(2.6, 1)),
+        new THREE.LineBasicMaterial({ color: 0xc5f04a, transparent: true, opacity: 0 }),
+      );
+      const orbInner = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(2.6, 1),
+        new THREE.MeshBasicMaterial({
+          color: 0xc5f04a,
+          transparent: true,
+          opacity: 0,
+          wireframe: false,
+          side: THREE.BackSide,
+        }),
+      );
+      heroOrb.add(orbInner);
+      heroOrb.add(orbWire);
+      scene.add(heroOrb);
+
+      /* ─── Token swarm ─── */
+      const TOKEN_WORDS = [
+        'prompt',
+        'tokens',
+        'GPU',
+        'PUE',
+        'Wh',
+        'CO₂eq',
+        '2,14 g',
+        'compute',
+        'context',
+        'live',
+        'local',
+        'sobr.ia',
+        'open',
+        'audit',
+        'équipe',
+        'budget',
+        'impact',
+        'carbone',
+        'énergie',
+        'kWh',
+        'voiture',
+        'douche',
+        'forêt',
+        'Paris',
+        'Frankfurt',
+        'Mistral',
+        'GPT-5',
+        'Claude',
+        'datacenter',
+        'cloud',
+        'green',
+        'watt',
+        'reply',
+        'sobre',
+        'frugal',
+        'batch',
+        'warm',
+        'cool',
+        'idle',
+      ];
+
+      function makeTokenTex(word, color, weight) {
+        const c = document.createElement('canvas');
+        c.width = 384;
+        c.height = 96;
+        const ctx = c.getContext('2d');
+        ctx.font =
+          (weight === 'bold' ? '600 ' : '') + 'italic 52px "Instrument Serif",Georgia,serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 16;
+        ctx.fillText(word, 192, 48);
+        return new THREE.CanvasTexture(c);
+      }
+
+      const tokens = [];
+      const star = new THREE.Group();
+      scene.add(star);
+      const PALETTE = ['#c5f04a', '#f0ece3', '#b8b4ac', '#72706a'];
+      TOKEN_WORDS.forEach((word, idx) => {
+        const isAccent = idx % 5 === 0;
+        const tex = makeTokenTex(
+          word,
+          isAccent ? '#c5f04a' : PALETTE[idx % PALETTE.length],
+          isAccent ? 'bold' : '',
+        );
+        const sprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({
+            map: tex,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.85,
+            blending: THREE.NormalBlending,
+          }),
+        );
+        sprite.scale.set(2.4, 0.6, 1);
+        sprite.userData = { seed: Math.random() * Math.PI * 2, targets: [], word, isAccent };
+        star.add(sprite);
+        tokens.push(sprite);
+      });
+
+      function rand(a, b) {
+        return a + Math.random() * (b - a);
+      }
+      tokens.forEach((tok, i) => {
+        const T = [];
+        T[0] = new THREE.Vector3(rand(-12, 12), rand(-7, 7), rand(-6, 4));
+        const a1 = (i / tokens.length) * Math.PI * 2;
+        T[1] = new THREE.Vector3(
+          -5 + Math.cos(a1) * 2.8,
+          Math.sin(a1) * 2.2,
+          Math.sin(a1 * 2) * 1.5,
+        );
+        const team = i % 5;
+        T[2] = new THREE.Vector3(
+          (team - 2) * 2.6 + rand(-0.8, 0.8),
+          rand(-2.2, 2.2) - 1,
+          rand(-1, 1),
+        );
+        const t3 = i / tokens.length;
+        T[3] = new THREE.Vector3(
+          -9 + t3 * 18,
+          Math.sin(t3 * Math.PI * 3) * 1.8 - 1,
+          rand(-1.5, 1.5),
+        );
+        const dc = [
+          [-4, 1.5],
+          [2.5, 2],
+          [-3, -1],
+          [1, -0.5],
+          [3.5, -2],
+          [0, 2.5],
+          [-1, 1],
+          [2, -2.5],
+          [-2, 2.8],
+        ];
+        const p4 = dc[i % dc.length];
+        T[4] = new THREE.Vector3(p4[0] + rand(-0.6, 0.6), p4[1] + rand(-0.6, 0.6), rand(-0.8, 0.8));
+        T[5] = new THREE.Vector3(-5 + rand(-1.4, 1.4), (i / tokens.length - 0.5) * 10, rand(-1, 1));
+        const a6 = (i / tokens.length) * Math.PI * 2;
+        const r6 = 6 + Math.random() * 3;
+        T[6] = new THREE.Vector3(Math.cos(a6) * r6, Math.sin(a6) * r6, rand(-4, 4));
+        tok.userData.targets = T;
+        tok.position.copy(T[0]);
+      });
+
+      /* ─── Particles (background swarm) ─── */
+      const PCOUNT = innerWidth < 700 ? 600 : 1400;
+      const ppos = new Float32Array(PCOUNT * 3);
+      const psize = new Float32Array(PCOUNT);
+      const pseed = new Float32Array(PCOUNT);
+      for (let i = 0; i < PCOUNT; i++) {
+        ppos[3 * i] = (Math.random() - 0.5) * 30;
+        ppos[3 * i + 1] = (Math.random() - 0.5) * 20;
+        ppos[3 * i + 2] = (Math.random() - 0.5) * 15 - 5;
+        psize[i] = Math.random() * 0.08 + 0.02;
+        pseed[i] = Math.random() * Math.PI * 2;
+      }
+      const pgeo = new THREE.BufferGeometry();
+      pgeo.setAttribute('position', new THREE.BufferAttribute(ppos, 3));
+      pgeo.setAttribute('size', new THREE.BufferAttribute(psize, 1));
+      pgeo.setAttribute('seed', new THREE.BufferAttribute(pseed, 1));
+      const pmat = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: { uTime: { value: 0 }, uMult: { value: 1 } },
+        vertexShader:
+          'attribute float size;attribute float seed;uniform float uTime;uniform float uMult;varying float vA;void main(){vec3 p=position;p.x+=sin(uTime*.3+seed)*.2;p.y+=cos(uTime*.4+seed*1.3)*.2;p.y+=uTime*.05*uMult;p.y=mod(p.y+10.,20.)-10.;vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=size*uMult*(300./-mv.z);vA=.7;}',
+        fragmentShader:
+          'varying float vA;void main(){vec2 c=gl_PointCoord-.5;float d=length(c);if(d>.5)discard;float f=pow(1.-d*2.,2.);gl_FragColor=vec4(.77,.94,.29,f*vA);}',
+      });
+      const particles = new THREE.Points(pgeo, pmat);
+      scene.add(particles);
+
+      /* ─── Fog plane (ch 1) ─── */
+      const fogPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(40, 24),
+        new THREE.ShaderMaterial({
+          transparent: true,
+          depthWrite: false,
+          uniforms: {
+            uTime: { value: 0 },
+            uAlpha: { value: 0 },
+            uMouse: { value: new THREE.Vector2() },
+          },
+          vertexShader:
+            'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+          fragmentShader:
+            'varying vec2 vUv;uniform float uTime;uniform float uAlpha;uniform vec2 uMouse;float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float n(vec2 p){vec2 i=floor(p),f=fract(p);float a=h(i),b=h(i+vec2(1.,0.)),c=h(i+vec2(0.,1.)),d=h(i+vec2(1.,1.));vec2 u=f*f*(3.-2.*f);return mix(a,b,u.x)+(c-a)*u.y*(1.-u.x)+(d-b)*u.x*u.y;}void main(){vec2 p=vUv*3.+uTime*.04;float v=n(p)*.5+n(p*2.)*.25+n(p*4.)*.125;float d=distance(vUv,vec2(.5,.5)+uMouse*.2);float spot=smoothstep(.3,0.,d);gl_FragColor=vec4(vec3(.77,.94,.29)*v*.6+vec3(.49,.6,.18)*spot*.8,(v*.4+spot*.6)*uAlpha);}',
+        }),
+      );
+      fogPlane.position.set(0, 0, -3);
+      scene.add(fogPlane);
+
+      /* ─── Leaf path ─── */
+      function svgToScene(x, y, scale = 0.08) {
+        return new THREE.Vector3((x - 50) * scale, (50 - y) * scale, 0);
+      }
+      const leafCurve = new THREE.CatmullRomCurve3(
+        [
+          svgToScene(18, 78),
+          svgToScene(15, 64),
+          svgToScene(20, 46),
+          svgToScene(36, 28),
+          svgToScene(58, 22),
+          svgToScene(76, 28),
+          svgToScene(85, 44),
+          svgToScene(83, 60),
+          svgToScene(70, 78),
+          svgToScene(48, 86),
+          svgToScene(28, 86),
+          svgToScene(18, 78),
+        ],
+        true,
+        'catmullrom',
+        0.5,
+      );
+
+      const LOGO_NODES = [
+        { pos: svgToScene(32, 72), r: 0.22 },
+        { pos: svgToScene(50, 52), r: 0.3 },
+        { pos: svgToScene(74, 32), r: 0.2 },
+      ];
+
+      /* ─── Ch 2 — path-build particles ─── */
+      const PATH_PARTS = 90;
+      const pathParticles = new THREE.Group();
+      for (let i = 0; i < PATH_PARTS; i++) {
+        const m = new THREE.Mesh(
+          new THREE.SphereGeometry(0.045, 8, 8),
+          new THREE.MeshBasicMaterial({ color: 0xc5f04a, transparent: true, opacity: 0 }),
+        );
+        m.userData = {
+          u: i / PATH_PARTS,
+          scatter: new THREE.Vector3(
+            (Math.random() - 0.5) * 9,
+            (Math.random() - 0.5) * 6,
+            (Math.random() - 0.5) * 5,
+          ),
+          seed: Math.random() * Math.PI * 2,
+        };
+        pathParticles.add(m);
+      }
+      pathParticles.scale.setScalar(8);
+      scene.add(pathParticles);
+
+      const pathLineGeo = new THREE.BufferGeometry().setFromPoints(leafCurve.getPoints(200));
+      const pathLine = new THREE.Line(
+        pathLineGeo,
+        new THREE.LineBasicMaterial({ color: 0xc5f04a, transparent: true, opacity: 0 }),
+      );
+      pathLine.scale.setScalar(8);
+      scene.add(pathLine);
+
+      /* ─── Ch 3 — full logo ─── */
+      const logoGroup = new THREE.Group();
+      const logoTube = new THREE.Mesh(
+        new THREE.TubeGeometry(leafCurve, 200, 0.07, 8, true),
+        new THREE.MeshBasicMaterial({ color: 0xc5f04a, transparent: true, opacity: 0 }),
+      );
+      logoTube.scale.setScalar(8);
+      logoGroup.add(logoTube);
+      const logoNodes = LOGO_NODES.map((n) => {
+        const s = new THREE.Mesh(
+          new THREE.SphereGeometry(n.r, 24, 24),
+          new THREE.MeshBasicMaterial({ color: 0xc5f04a, transparent: true, opacity: 0 }),
+        );
+        s.position.copy(n.pos).multiplyScalar(8);
+        const halo = new THREE.Mesh(
+          new THREE.SphereGeometry(n.r * 1.8, 16, 16),
+          new THREE.MeshBasicMaterial({
+            color: 0xc5f04a,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+        );
+        halo.position.copy(s.position);
+        s.userData.halo = halo;
+        logoGroup.add(s);
+        logoGroup.add(halo);
+        return s;
+      });
+      scene.add(logoGroup);
+
+      /* ─── Ch 6 — globe ─── */
+      const earth = new THREE.Group();
+      const earthCore = new THREE.Mesh(
+        new THREE.SphereGeometry(3.2, 32, 24),
+        new THREE.MeshBasicMaterial({ color: 0x0a0d0b, transparent: true, opacity: 0 }),
+      );
+      const earthWire = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.SphereGeometry(3.2, 22, 16)),
+        new THREE.LineBasicMaterial({ color: 0xc5f04a, transparent: true, opacity: 0 }),
+      );
+      earth.add(earthCore);
+      earth.add(earthWire);
+      const earthDots = [];
+      for (let i = 0; i < 14; i++) {
+        const phi = Math.acos(1 - 2 * ((i + 0.5) / 14));
+        const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+        const R = 3.25;
+        const d = new THREE.Mesh(
+          new THREE.SphereGeometry(0.1, 12, 12),
+          new THREE.MeshBasicMaterial({ color: 0xc5f04a, transparent: true, opacity: 0 }),
+        );
+        d.position.set(
+          R * Math.sin(phi) * Math.cos(theta),
+          R * Math.cos(phi),
+          R * Math.sin(phi) * Math.sin(theta),
+        );
+        earth.add(d);
+        earthDots.push(d);
+      }
+      scene.add(earth);
+
+      /* ─── Camera + state per chapter ─── */
+      const CHAPTERS = [
+        {
+          pos: [0, 0, 12],
+          look: [0, 0, 0],
+          starScale: 1.0,
+          starOffsetX: 0,
+          starRotSpeed: 0.25,
+          chromShift: 0.05,
+          mode: 'star',
+        },
+        {
+          pos: [3, 0, 10],
+          look: [-0.5, 0, 0],
+          starScale: 0.85,
+          starOffsetX: -3.5,
+          starRotSpeed: 0.35,
+          chromShift: 0.1,
+          mode: 'fog',
+        },
+        {
+          pos: [0, 3, 15],
+          look: [0, -2, 0],
+          starScale: 0.7,
+          starOffsetX: 0,
+          starRotSpeed: 0.5,
+          chromShift: 0.08,
+          mode: 'terrain',
+        },
+        {
+          pos: [0, 0, 11],
+          look: [0, 0, 0],
+          starScale: 0.9,
+          starOffsetX: 0,
+          starRotSpeed: 0.15,
+          chromShift: 0.2,
+          mode: 'tension',
+        },
+        {
+          pos: [0, 0, 9],
+          look: [0, 0, 0],
+          starScale: 1.4,
+          starOffsetX: 0,
+          starRotSpeed: 0.2,
+          chromShift: 0.04,
+          mode: 'leaf',
+        },
+        {
+          pos: [3, -1, 10],
+          look: [-2, 0, 0],
+          starScale: 0.4,
+          starOffsetX: 4.5,
+          starRotSpeed: 0.6,
+          chromShift: 0.06,
+          mode: 'small',
+        },
+        {
+          pos: [0, 0, 12],
+          look: [0, 0, 0],
+          starScale: 0.9,
+          starOffsetX: 0,
+          starRotSpeed: 0.18,
+          chromShift: 0.04,
+          mode: 'globe',
+        },
+      ];
+
+      /* ─── Scroll progress ─── */
+      const chaps = document.querySelectorAll('.chap');
+      const dots = document.querySelectorAll('.rail .dot');
+      let progress = 0;
+      function computeProgress() {
+        const sy = scrollY,
+          vh = innerHeight;
+        for (let i = 0; i < chaps.length; i++) {
+          const top = chaps[i].offsetTop;
+          const next = i < chaps.length - 1 ? chaps[i + 1].offsetTop : top + chaps[i].offsetHeight;
+          if (sy + vh * 0.5 >= top && sy + vh * 0.5 < next)
+            return i + Math.min(1, (sy + vh * 0.5 - top) / (next - top));
+          if (i === chaps.length - 1 && sy + vh * 0.5 >= top) return chaps.length - 1;
+        }
+        return 0;
+      }
+      function smoothstep(x) {
+        return x * x * (3 - 2 * x);
+      }
+      let easedP = 0;
+      function onScroll() {
+        progress = computeProgress();
+        const docH = document.documentElement.scrollHeight - innerHeight;
+        document.getElementById('progress').style.width =
+          Math.min(100, Math.max(0, (scrollY / docH) * 100)) + '%';
+        const idx = Math.round(progress);
+        dots.forEach((d) => d.classList.toggle('on', +d.dataset.i === idx));
+        document.getElementById('cue').classList.toggle('gone', scrollY > innerHeight * 0.4);
+      }
+      addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+      dots.forEach((d) =>
+        d.addEventListener('click', () => {
+          const t = chaps[+d.dataset.i];
+          if (t) scrollTo({ top: t.offsetTop + 1, behavior: 'smooth' });
+        }),
+      );
+
+      /* ─── Animation loop ─── */
+      let last = performance.now();
+      const tmpV = new THREE.Vector3();
+      const tmpLook = new THREE.Vector3();
+
+      function loop(now) {
+        const dt = (now - last) / 1000;
+        last = now;
+        const targetP = progress;
+        easedP += (targetP - easedP) * Math.min(1, dt * 5);
+        const t = easedP;
+        pmat.uniforms.uTime.value += dt;
+        fogPlane.material.uniforms.uTime.value += dt;
+
+        const i0 = Math.max(0, Math.min(6, Math.floor(t))),
+          i1 = Math.max(0, Math.min(6, i0 + 1));
+        const f = t - i0,
+          fe = smoothstep(Math.min(1, Math.max(0, f)));
+        const c0 = CHAPTERS[i0],
+          c1 = CHAPTERS[i1];
+
+        const px = c0.pos[0] + (c1.pos[0] - c0.pos[0]) * fe;
+        const py = c0.pos[1] + (c1.pos[1] - c0.pos[1]) * fe;
+        const pz = c0.pos[2] + (c1.pos[2] - c0.pos[2]) * fe;
+        const mobZ = isMobile ? 6 : 0;
+        tmpV.set(
+          px + mouse.x * (isMobile ? 0.2 : 0.6),
+          py + mouse.y * (isMobile ? 0.15 : 0.4),
+          pz + mobZ,
+        );
+        camera.position.lerp(tmpV, 0.06);
+        tmpLook.set(
+          c0.look[0] + (c1.look[0] - c0.look[0]) * fe,
+          c0.look[1] + (c1.look[1] - c0.look[1]) * fe,
+          c0.look[2] + (c1.look[2] - c0.look[2]) * fe,
+        );
+        camera.lookAt(tmpLook);
+
+        const offX = c0.starOffsetX + (c1.starOffsetX - c0.starOffsetX) * fe;
+        const scale = c0.starScale + (c1.starScale - c0.starScale) * fe;
+        star.position.set(offX, 0, 0);
+        star.scale.setScalar(scale);
+        tokens.forEach((tok) => {
+          const T = tok.userData.targets;
+          const a = T[i0],
+            b = T[i1];
+          const tx = a.x + (b.x - a.x) * fe;
+          const ty = a.y + (b.y - a.y) * fe;
+          const tz = a.z + (b.z - a.z) * fe;
+          tok.position.x += (tx - tok.position.x) * 0.07;
+          tok.position.y += (ty - tok.position.y) * 0.07;
+          tok.position.z += (tz - tok.position.z) * 0.07;
+          tok.position.y += Math.sin(pmat.uniforms.uTime.value * 0.5 + tok.userData.seed) * 0.003;
+          tok.position.x +=
+            Math.cos(pmat.uniforms.uTime.value * 0.4 + tok.userData.seed * 1.3) * 0.002;
+          if (tok.userData.isAccent) {
+            const dx = mouse.x * 6 - tok.position.x;
+            const dy = mouse.y * 4 - tok.position.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < 9) {
+              const k = (1 - Math.sqrt(d2) / 3) * 0.06;
+              tok.position.x += dx * k;
+              tok.position.y += dy * k;
+            }
+            tok.position.x += mouse.x * 0.08;
+            tok.position.y += mouse.y * 0.06;
+          }
+          const tokenVis = t < 4.2 ? 0 : Math.min(1, (t - 4.2) * 1.6);
+          tok.material.opacity = tokenVis * (0.55 + (1 - Math.abs(f - 0.5) * 2) * 0.35);
+        });
+
+        if (orbPulse > 0.01) orbPulse *= 0.94;
+        const orbA = t < 0.85 ? 1 - t * 1.18 : 0;
+        heroOrb.visible = orbA > 0.01;
+        if (heroOrb.visible) {
+          heroOrb.rotation.y += dt * 0.18;
+          heroOrb.rotation.x = Math.sin(pmat.uniforms.uTime.value * 0.25) * 0.2;
+          const baseScale = 0.95 + Math.sin(pmat.uniforms.uTime.value * 0.8) * 0.04;
+          heroOrb.scale.setScalar(baseScale + orbPulse * 0.4);
+          orbWire.material.opacity = orbA * (0.75 + orbPulse * 0.5);
+          orbInner.material.opacity = orbA * (0.06 + orbPulse * 0.15);
+        }
+
+        const fogA = t >= 0.5 && t < 1.7 ? Math.min(1, 1 - Math.abs(t - 1) * 1.0) : 0;
+        fogPlane.material.uniforms.uAlpha.value = fogA;
+        fogPlane.material.uniforms.uMouse.value.set(mouse.x * 0.4, mouse.y * 0.4);
+
+        const ch2A = t >= 1.4 && t < 2.7 ? Math.min(1, 1 - Math.abs(t - 2) * 1.0) : 0;
+        const buildP = Math.max(0, Math.min(1, (t - 1.0) * 1.0));
+        const buildE = smoothstep(buildP);
+        pathParticles.visible = ch2A > 0.01 || (t > 0.8 && t < 3.2);
+        if (pathParticles.visible) {
+          pathParticles.rotation.y = Math.sin(pmat.uniforms.uTime.value * 0.15) * 0.1;
+          pathParticles.children.forEach((p) => {
+            const u = (p.userData.u + pmat.uniforms.uTime.value * 0.02) % 1;
+            const tgt = leafCurve.getPoint(u);
+            p.position.x = p.userData.scatter.x + (tgt.x * 8 - p.userData.scatter.x) * buildE;
+            p.position.y = p.userData.scatter.y + (tgt.y * 8 - p.userData.scatter.y) * buildE;
+            p.position.z = p.userData.scatter.z + (tgt.z * 8 - p.userData.scatter.z) * buildE;
+            p.position.y += Math.sin(pmat.uniforms.uTime.value * 0.8 + p.userData.seed) * 0.04;
+            p.material.opacity = Math.max(ch2A * 0.95, buildE * 0.7);
+          });
+          pathLine.material.opacity = Math.max(0, (buildE - 0.5) * 2) * 0.55 * Math.max(0.3, ch2A);
+        }
+
+        const logoA = t >= 2.3 && t < 3.8 ? Math.min(1, 1 - Math.abs(t - 3) * 0.95) : 0;
+        logoGroup.visible = logoA > 0.01;
+        if (logoGroup.visible) {
+          logoGroup.rotation.y = pmat.uniforms.uTime.value * 0.18;
+          logoGroup.rotation.z = Math.sin(pmat.uniforms.uTime.value * 0.12) * 0.06;
+          logoTube.material.opacity = logoA * 0.95;
+          logoNodes.forEach((n, idx) => {
+            n.material.opacity = logoA;
+            const pulse = 1 + Math.sin(pmat.uniforms.uTime.value * 1.6 + idx * 1.2) * 0.15;
+            n.scale.setScalar(pulse);
+            n.userData.halo.material.opacity =
+              logoA * 0.35 * (0.6 + Math.sin(pmat.uniforms.uTime.value * 2 + idx) * 0.4);
+            n.userData.halo.scale.setScalar(pulse * 1.2);
+          });
+        }
+
+        const earthA = t >= 5.4 ? Math.min(1, (t - 5.4) * 2) : 0;
+        earth.visible = earthA > 0.01;
+        if (earth.visible) {
+          earth.rotation.y += dt * 0.18;
+          earth.rotation.x = 0.2;
+          earthCore.material.opacity = 0.7 * earthA;
+          earthWire.material.opacity = 0.4 * earthA;
+          earthDots.forEach((d, i) => {
+            d.material.opacity =
+              (0.7 + Math.sin(pmat.uniforms.uTime.value * 1.4 + i * 0.5) * 0.3) * earthA;
+          });
+        }
+
+        pmat.uniforms.uMult.value = 1 + (window.__multiVal || 0) * 4;
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+
+      /* ════════════════════════════════════════════════════════
+         INTERACTIVE DEMOS
+         ════════════════════════════════════════════════════════ */
+
+      /* Ch 1 — Live CO2 calculator */
+      const MODELS = {
+        gpt5: { whIn: 0.0042, whOut: 0.014, pue: 1.28, mix: 392, name: 'GPT-5' },
+        claude4: { whIn: 0.0038, whOut: 0.013, pue: 1.3, mix: 268, name: 'Claude 4' },
+        mistralL: { whIn: 0.0034, whOut: 0.011, pue: 1.18, mix: 56, name: 'Mistral Large' },
+        gpt4mini: { whIn: 0.0015, whOut: 0.005, pue: 1.28, mix: 392, name: 'GPT-4o-mini' },
+      };
+      function fmt(v, d = 2) {
+        return v.toFixed(d).replace('.', ',');
+      }
+      function calcLive() {
+        const txt = document.getElementById('liveInput').value;
+        const modelKey = document.getElementById('liveModel').value;
+        const m = MODELS[modelKey];
+        const tokIn = Math.max(1, Math.round(txt.length / 3.2));
+        const tokOut = Math.max(20, Math.round(tokIn * 3.5));
+        const wh = (tokIn * m.whIn + tokOut * m.whOut) * m.pue;
+        const co2g = wh * (m.mix / 1000);
+        const water = wh * 1.8;
+        const kmCar = co2g / 0.192;
+        document.getElementById('liveTokens').textContent = '~ ' + tokIn + ' / ' + tokOut;
+        document.getElementById('liveCO2').textContent = fmt(co2g, 2);
+        document.getElementById('liveWh').textContent = fmt(wh, 2);
+        document.getElementById('liveH2O').textContent = fmt(water, 1);
+        document.getElementById('liveEq').textContent =
+          kmCar < 1 ? fmt(kmCar * 1000, 0) + ' m' : fmt(kmCar, 1) + ' km';
+        document.getElementById('liveMix').textContent = m.mix + ' g/kWh';
+        document.getElementById('bignum').textContent = fmt(co2g, 2);
+      }
+      document.getElementById('liveInput').addEventListener('input', calcLive);
+      document.getElementById('liveModel').addEventListener('change', calcLive);
+      calcLive();
+
+      /* Ch 3 — Usage tracker (interactive days) */
+      document.querySelectorAll('#upChart .up-day').forEach((d) => {
+        d.addEventListener('click', () => {
+          document.querySelectorAll('#upChart .up-day').forEach((x) => x.classList.remove('on'));
+          d.classList.add('on');
+          document.getElementById('upDay').textContent = d.dataset.day;
+          document.getElementById('upVal').textContent = d.dataset.val;
+        });
+      });
+
+      /* Ch 4 — Datacenter dots interactive */
+      const dcDetail = document.getElementById('dcDetail');
+      document.querySelectorAll('#dcDots circle').forEach((c) => {
+        c.style.cursor = 'pointer';
+        c.style.transition = 'transform 200ms';
+        c.addEventListener('mouseenter', () => {
+          c.setAttribute('r', +c.getAttribute('r') + 2);
+          const mix = +c.dataset.mix,
+            pue = c.dataset.pue,
+            sites = c.dataset.sites;
+          const tone = mix < 100 ? 'var(--lime)' : mix < 250 ? '#f5b769' : '#f08c5a';
+          dcDetail.innerHTML =
+            '<div class="dc-title">' +
+            c.dataset.dc +
+            '</div>' +
+            '<div class="dc-row"><span>Mix CO₂</span><b style="color:' +
+            tone +
+            '">' +
+            mix +
+            ' g/kWh</b></div>' +
+            '<div class="dc-row"><span>PUE moyen</span><b>' +
+            pue +
+            '</b></div>' +
+            '<div class="dc-row"><span>Sites recensés</span><b>' +
+            sites +
+            '</b></div>' +
+            '<div class="dc-op">' +
+            c.dataset.op +
+            '</div>';
+        });
+        c.addEventListener('mouseleave', () => {
+          c.setAttribute('r', +c.getAttribute('r') - 2);
+        });
+      });
+
+      /* keep particle multiplier stable */
+      window.__multiVal = 0;
+
+      /* ─── Reveals ─── */
+      const io = new IntersectionObserver(
+        (es) =>
+          es.forEach((e) => {
+            if (e.isIntersecting) e.target.classList.add('lit');
+          }),
+        { threshold: 0.18 },
+      );
+      document.querySelectorAll('.rise').forEach((el) => io.observe(el));
+
+      /* ─── Live typing demo (ch 5) ─── */
+      const LIVE_TEXT =
+        "La photosynthèse est le processus par lequel les plantes convertissent la lumière en énergie chimique. Elle se déroule dans les chloroplastes et libère de l'oxygène, essentiel à la vie.";
+      const VALUES = ['0,42 g', '0,98 g', '1,54 g', '2,01 g', '2,14 g'];
+      let typed = 0,
+        started = false;
+      function typeStep() {
+        const resp = document.getElementById('resp');
+        const val = document.getElementById('liveVal');
+        if (!resp) return;
+        typed = Math.min(LIVE_TEXT.length, typed + 2);
+        resp.innerHTML = LIVE_TEXT.slice(0, typed) + '<span class="cur"></span>';
+        const stage = Math.floor((typed / LIVE_TEXT.length) * VALUES.length);
+        val.textContent = (VALUES[Math.min(stage, VALUES.length - 1)] || '2,14 g') + ' CO₂eq';
+        if (typed < LIVE_TEXT.length) setTimeout(typeStep, 35 + Math.random() * 40);
+        else
+          setTimeout(() => {
+            typed = 0;
+            typeStep();
+          }, 3000);
+      }
+      new IntersectionObserver(
+        (es) =>
+          es.forEach((e) => {
+            if (e.isIntersecting && !started) {
+              started = true;
+              typeStep();
+            }
+          }),
+        { threshold: 0.4 },
+      ).observe(document.querySelector('.ch-5'));
+    </script>
+    <script is:inline>
+      /* FR / EN translations (kept from handoff; only nav + headings mapped) */
+      const I18N = {
+        'La boîte à outils': { fr: 'La boîte à outils', en: 'The toolbox' },
+        'Le chiffre invisible': { fr: 'Le chiffre invisible', en: 'The invisible number' },
+        'Pour ton équipe': { fr: 'Pour ton équipe', en: 'For your team' },
+        'Suivi personnel': { fr: 'Suivi personnel', en: 'Personal tracking' },
+        'Recherche & datacenters': { fr: 'Recherche & datacenters', en: 'Research & datacenters' },
+        'En direct dans ton chat': { fr: 'En direct dans ton chat', en: 'Live in your chat' },
+        Maintenant: { fr: 'Maintenant', en: 'Now' },
+        Installer: { fr: 'Installer', en: 'Install' },
+        Produit: { fr: 'Produit', en: 'Product' },
+        Cloud: { fr: 'Cloud', en: 'Cloud' },
+        Télécharger: { fr: 'Télécharger', en: 'Download' },
+        Docs: { fr: 'Docs', en: 'Docs' },
+      };
+      [
+        '.kicker',
+        '.huge',
+        '.giant',
+        '.large',
+        '.body-l',
+        '.btn',
+        '.nav .links a',
+        '.foot .col h4',
+        '.foot .col a',
+        'label',
+        '.feat-list li b',
+      ].forEach((sel) => {
+        document.querySelectorAll(sel).forEach((el) => {
+          if (!el.dataset.fr) el.dataset.fr = el.textContent.trim();
+        });
+      });
+
+      function applyLang(lang) {
+        document.querySelectorAll('[data-fr]').forEach((el) => {
+          const fr = el.dataset.fr;
+          const en = el.dataset.en || (I18N[fr] && I18N[fr].en) || fr;
+          if (lang === 'en' && (el.dataset.en || I18N[fr])) {
+            const textNode = [...el.childNodes].find((n) => n.nodeType === 3);
+            if (textNode) textNode.nodeValue = en;
+          } else {
+            const textNode = [...el.childNodes].find((n) => n.nodeType === 3);
+            if (textNode) textNode.nodeValue = fr;
+          }
+        });
+      }
+      document.querySelectorAll('.lang-toggle button').forEach((b) =>
+        b.addEventListener('click', () => {
+          document.querySelectorAll('.lang-toggle button').forEach((x) => x.classList.remove('on'));
+          b.classList.add('on');
+          applyLang(b.dataset.lang);
+        }),
+      );
+    </script>
+  </body>
+</html>
