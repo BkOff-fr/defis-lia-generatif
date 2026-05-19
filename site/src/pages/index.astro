@@ -1795,7 +1795,10 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       </div>
     </footer>
 
-    <script is:inline src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+    <!-- Three.js 0.158.0 self-hosted : la CSP nginx restreint script-src
+         a 'self' (cf. .well-known config), donc unpkg.com etait bloque
+         et toute la JS d'animation tombait avant l'IntersectionObserver. -->
+    <script is:inline src="/lib/three-0.158.0.min.js"></script>
     <script is:inline>
       /* ════════════════════════════════════════════════════════
          THREE.JS — token swarm + per-chapter environments
