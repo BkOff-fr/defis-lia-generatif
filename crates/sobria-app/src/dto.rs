@@ -16,7 +16,8 @@ use sobria_core::{
 use sobria_estimator::{
     CalibrationStatus, ForecastConfig, ForecastResult, ModelPreset, Openness, ParamOverrides,
     Scenario, ScenarioOutcome, SimulationRequest, SimulationResult, VendorDisclosure, VendorScope,
-    VendorUnit, YearlyForecastRequest, YearlyForecastResult, YearlyScenario, YearlyScenarioOutcome,
+    VendorUnit, VisionPricing, YearlyForecastRequest, YearlyForecastResult, YearlyScenario,
+    YearlyScenarioOutcome,
 };
 use sobria_geoloc::{
     CountryAggregate, DatacenterRecord, IndustrialSite, IndustrialSiteSummary, RegionFrAggregate,
@@ -851,6 +852,13 @@ pub struct TripletDto {
 /// Fiche détaillée d'un modèle exposant ses params distributionnels et
 /// un baseline contextuel (gpt-4o-mini 100/500 tokens, paramètres par
 /// défaut). **Pas journalisée** dans l'audit ledger.
+///
+/// **C34.5** — étendu avec les capabilities du modèle (vision, audio,
+/// reasoning, MoE) pour alimenter la fiche M9.
+///
+/// 4 bools indépendants : `vision_capable`, `audio_capable`,
+/// `reasoning_capable`, `deprecated` (cf. doc équivalente sur `ModelPreset`).
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize)]
 pub struct ModelDetailDto {
     pub id: String,
@@ -877,6 +885,41 @@ pub struct ModelDetailDto {
     /// Vide pour les modèles dont le fabricant n'a pas publié (Anthropic,
     /// OpenAI au 2026-05).
     pub vendor_disclosures: Vec<VendorDisclosureDto>,
+    /// **C34.5** — Date de sortie publique (ISO `YYYY-MM-DD`).
+    pub release_date: String,
+    /// **C34.5** — Paramètres actifs (= total pour dense, < pour MoE).
+    pub active_params_b: f64,
+    /// **C34.5** — Famille typée (snake_case).
+    pub model_family: String,
+    /// **C34.5** — Architecture (`dense_transformer` / `moe` / `mamba` /
+    /// `hybrid`).
+    pub architecture: String,
+    /// **C34.5** — Si MoE, nombre d'experts (sinon `None`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub moe_experts: Option<u32>,
+    /// **C34.5** — Si MoE, nombre d'experts actifs par token (sinon `None`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub moe_active_experts: Option<u32>,
+    /// **C34.5** — Accepte des images en entrée.
+    pub vision_capable: bool,
+    /// **C34.5** — Tarification tokens vision (formule vendor). `None` si
+    /// `vision_capable = false`. Sérialisé en JSON tagged (`{"kind": …}`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vision_pricing: Option<VisionPricing>,
+    /// **C34.5** — Accepte de l'audio en entrée.
+    pub audio_capable: bool,
+    /// **C34.5** — Reasoning model intégré.
+    pub reasoning_capable: bool,
+    /// **C34.5** — `(P5, P95)` ratio thinking/output tokens. `None` si
+    /// pas reasoning.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_token_multiplier: Option<(f64, f64)>,
+    /// **C34.5** — Overhead système typique de l'interface app vendor.
+    pub default_context_overhead_tokens: u32,
+    /// **C34.5** — Modèle obsolète (filtrer par défaut UI).
+    pub deprecated: bool,
+    /// **C34.5** — URL canonique de la source vendor.
+    pub source_url: String,
 }
 
 /// **C32.4** — Chiffre officiel publié par un fabricant (Mistral × ADEME,

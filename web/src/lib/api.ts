@@ -99,6 +99,13 @@ export interface TripletDto {
   p95: number;
 }
 
+/** **C34.5** — Tarification tokens vision selon vendor (mirror C34.2 Rust). */
+export type VisionPricing =
+  | { kind: 'open_ai_tiles'; base: number; per_tile: number; tile_size: number }
+  | { kind: 'anthropic_area'; divisor: number; max_tokens: number }
+  | { kind: 'gemini_native'; base: number; tile_size: number }
+  | { kind: 'llama_patches'; tokens_per_image: number };
+
 // Fiche détaillée d'un modèle (paramètres distributionnels + baseline
 // contextuel calculé sans journalisation). Cf. brief
 // `briefs/chantiers/C18-referentiel-modeles.md`.
@@ -121,6 +128,26 @@ export interface ModelDetailDto {
   baseline_water_l_p50: number;
   /** C32.4 — disclosures officielles publiées par le fabricant. */
   vendor_disclosures: VendorDisclosureDto[];
+  /** **C34.5** — Date de sortie publique (ISO `YYYY-MM-DD`). */
+  release_date: string;
+  /** **C34.5** — Paramètres actifs (= total pour dense, < pour MoE). */
+  active_params_b: number;
+  model_family: ModelFamilyDto;
+  architecture: ArchitectureKindDto;
+  /** **C34.5** — Nombre d'experts MoE (si architecture = moe). */
+  moe_experts?: number;
+  /** **C34.5** — Nombre d'experts actifs par token (si MoE). */
+  moe_active_experts?: number;
+  vision_capable: boolean;
+  /** **C34.5** — Formule de tarification tokens vision (selon vendor). */
+  vision_pricing?: VisionPricing;
+  audio_capable: boolean;
+  reasoning_capable: boolean;
+  /** **C34.5** — `[P5, P95]` ratio thinking/output tokens. `undefined` si pas reasoning. */
+  thinking_token_multiplier?: [number, number];
+  default_context_overhead_tokens: number;
+  deprecated: boolean;
+  source_url: string;
 }
 
 /** C32.4 — Périmètre d'une disclosure vendor. */

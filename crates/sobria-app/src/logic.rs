@@ -266,6 +266,7 @@ pub fn list_methodologies() -> IpcResult<Vec<crate::dto::MethodologyInfoDto>> {
 ///
 /// **Pas journalisé** dans l'audit ledger — c'est une fiche statique
 /// pédagogique, pas un acte d'estimation utilisateur.
+#[allow(clippy::too_many_lines)] // C34.5 — ajout 16 champs capabilities, refactor en helpers couterait en lisibilité.
 pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDetailDto> {
     let preset = find_preset(model_id)
         .ok_or_else(|| IpcError::new("not_found", format!("modèle '{model_id}' inconnu")))?;
@@ -343,6 +344,45 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         baseline_water_l_p50: water_p50,
         // C32.4 — vendor disclosures officielles.
         vendor_disclosures: preset.vendor_disclosures.iter().map(Into::into).collect(),
+        // C34.5 — capabilities du modèle pour la fiche M9.
+        release_date: preset.release_date.into(),
+        active_params_b: preset.active_params_b,
+        model_family: match preset.model_family {
+            sobria_estimator::ModelFamily::Anthropic => "anthropic",
+            sobria_estimator::ModelFamily::OpenAi => "open_ai",
+            sobria_estimator::ModelFamily::GoogleDeepMind => "google_deep_mind",
+            sobria_estimator::ModelFamily::MetaAi => "meta_ai",
+            sobria_estimator::ModelFamily::MistralAi => "mistral_ai",
+            sobria_estimator::ModelFamily::DeepSeek => "deep_seek",
+            sobria_estimator::ModelFamily::Xai => "xai",
+            sobria_estimator::ModelFamily::Alibaba => "alibaba",
+            sobria_estimator::ModelFamily::Microsoft => "microsoft",
+            sobria_estimator::ModelFamily::Other => "other",
+        }
+        .into(),
+        architecture: match preset.architecture {
+            sobria_estimator::ArchitectureKind::DenseTransformer => "dense_transformer",
+            sobria_estimator::ArchitectureKind::Moe { .. } => "moe",
+            sobria_estimator::ArchitectureKind::Mamba => "mamba",
+            sobria_estimator::ArchitectureKind::Hybrid => "hybrid",
+        }
+        .into(),
+        moe_experts: match preset.architecture {
+            sobria_estimator::ArchitectureKind::Moe { experts, .. } => Some(experts),
+            _ => None,
+        },
+        moe_active_experts: match preset.architecture {
+            sobria_estimator::ArchitectureKind::Moe { active_experts, .. } => Some(active_experts),
+            _ => None,
+        },
+        vision_capable: preset.vision_capable,
+        vision_pricing: preset.vision_pricing,
+        audio_capable: preset.audio_capable,
+        reasoning_capable: preset.reasoning_capable,
+        thinking_token_multiplier: preset.thinking_token_multiplier,
+        default_context_overhead_tokens: preset.default_context_overhead_tokens,
+        deprecated: preset.deprecated,
+        source_url: preset.source_url.into(),
     })
 }
 

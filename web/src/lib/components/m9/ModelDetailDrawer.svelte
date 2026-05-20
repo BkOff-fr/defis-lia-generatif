@@ -12,9 +12,14 @@
     FileText,
     Unlock,
     Key,
-    Lock
+    Lock,
+    Image as ImageIcon,
+    Mic,
+    Brain,
+    Layers,
+    Calendar
   } from '@lucide/svelte';
-  import type { ModelDetailDto, TripletDto, VendorDisclosureDto } from '$lib/api';
+  import type { ModelDetailDto, TripletDto, VendorDisclosureDto, VisionPricing } from '$lib/api';
   import { CALIB_LABEL, CALIB_TONE, OPENNESS_LABEL } from './ModelCard.svelte';
 
   type Props = {
@@ -238,6 +243,64 @@
   const waterBaseline = $derived(detail ? autoWater(detail.baseline_water_l_p50) : null);
   const co2P5 = $derived(detail ? autoCo2(detail.baseline_co2eq_p5_g) : null);
   const co2P95 = $derived(detail ? autoCo2(detail.baseline_co2eq_p95_g) : null);
+
+  // ── C34.5 — Capabilities & vision pricing computations ────────────────
+  /**
+   * Calcule les tokens vision pour un cas type, en utilisant la formule
+   * vendor du preset. Mirror JS de `VisionPricing::tokens_for` côté Rust.
+   * Sert à afficher dans la fiche M9 des exemples concrets.
+   */
+  function visionTokens(
+    vp: VisionPricing | undefined,
+    width: number,
+    height: number,
+    highDetail: boolean
+  ): number | null {
+    if (!vp) return null;
+    if (vp.kind === 'open_ai_tiles') {
+      if (!highDetail) return vp.base;
+      const tilesW = Math.ceil(width / vp.tile_size);
+      const tilesH = Math.ceil(height / vp.tile_size);
+      return vp.base + vp.per_tile * tilesW * tilesH;
+    }
+    if (vp.kind === 'anthropic_area') {
+      return Math.min(Math.floor((width * height) / vp.divisor), vp.max_tokens);
+    }
+    if (vp.kind === 'gemini_native') {
+      if (width <= 384 && height <= 384) return vp.base;
+      const tilesW = Math.ceil(width / vp.tile_size);
+      const tilesH = Math.ceil(height / vp.tile_size);
+      return vp.base * tilesW * tilesH;
+    }
+    if (vp.kind === 'llama_patches') {
+      return vp.tokens_per_image;
+    }
+    return null;
+  }
+
+  const visionLow512 = $derived(
+    detail?.vision_pricing ? visionTokens(detail.vision_pricing, 512, 512, false) : null
+  );
+  const visionHigh1024 = $derived(
+    detail?.vision_pricing ? visionTokens(detail.vision_pricing, 1024, 1024, true) : null
+  );
+  const visionHigh2048 = $derived(
+    detail?.vision_pricing ? visionTokens(detail.vision_pricing, 2048, 2048, true) : null
+  );
+
+  // Reasoning P50 = geomean(P5, P95). Cf. effective_tokens.rs ::auto_thinking_tokens.
+  const thinkingP50Ratio = $derived.by(() => {
+    if (!detail?.thinking_token_multiplier) return null;
+    const [p5, p95] = detail.thinking_token_multiplier;
+    return Math.sqrt(p5 * p95);
+  });
+
+  const SOURCE_VISION_BY_FAMILY: Record<string, string> = {
+    open_ai: 'https://platform.openai.com/docs/guides/vision/calculating-costs',
+    anthropic: 'https://docs.anthropic.com/en/docs/build-with-claude/vision',
+    google_deep_mind: 'https://ai.google.dev/gemini-api/docs/vision',
+    meta_ai: 'https://ai.meta.com/blog/llama-4-multimodal-intelligence/'
+  };
 </script>
 
 <!-- Backdrop scrim — bouton pour respecter les règles d'a11y. -->
@@ -450,6 +513,164 @@
           <span class="kpi-sub">médiane</span>
         </div>
       </div>
+    </section>
+
+    <!-- C34.5 — Capabilities & overhead du modèle -->
+    <section class="block capabilities" data-testid="capabilities">
+      <div class="block-h">
+        <Layers size={11} strokeWidth={1.8} /> Capacités
+        <span class="release-pip mono" title="Date de sortie publique">
+          <Calendar size={10} strokeWidth={1.8} />
+          {detail.release_date}
+        </span>
+      </div>
+
+      <ul class="cap-badges">
+        {#if detail.vision_capable}
+          <li class="cap-badge vision">
+            <ImageIcon size={12} strokeWidth={1.8} /> Vision
+          </li>
+        {/if}
+        {#if detail.audio_capable}
+          <li class="cap-badge audio">
+            <Mic size={12} strokeWidth={1.8} /> Audio
+          </li>
+        {/if}
+        {#if detail.reasoning_capable}
+          <li class="cap-badge reasoning">
+            <Brain size={12} strokeWidth={1.8} /> Reasoning
+          </li>
+        {/if}
+        {#if detail.architecture === 'moe'}
+          <li class="cap-badge moe">
+            <Cpu size={12} strokeWidth={1.8} />
+            MoE
+            {#if detail.moe_experts}
+              ({detail.moe_active_experts}/{detail.moe_experts} experts actifs)
+            {/if}
+          </li>
+        {/if}
+        {#if detail.architecture === 'dense_transformer'}
+          <li class="cap-badge dense">
+            <Cpu size={12} strokeWidth={1.8} /> Dense
+          </li>
+        {/if}
+        {#if detail.deprecated}
+          <li class="cap-badge deprecated">
+            <AlertTriangle size={12} strokeWidth={1.8} /> Deprecated
+          </li>
+        {/if}
+      </ul>
+
+      <!-- Active params (utile pour MoE) -->
+      {#if detail.architecture === 'moe' && detail.active_params_b < detail.approx_params_billions}
+        <div class="cap-row">
+          <span class="cap-label">Paramètres actifs</span>
+          <span class="cap-value mono"
+            >{detail.active_params_b}B / {detail.approx_params_billions}B totaux</span
+          >
+          <span class="cap-hint">Drive l'énergie d'inférence</span>
+        </div>
+      {/if}
+
+      <!-- Overhead par défaut (system prompt typique) -->
+      <div class="cap-row">
+        <span class="cap-label">System prompt typique</span>
+        <span class="cap-value mono">
+          {detail.default_context_overhead_tokens.toLocaleString('fr-FR')} tokens
+        </span>
+        <span class="cap-hint disclaimer">± 50 % — leaks publics</span>
+      </div>
+
+      <!-- Viz vision (si vision_capable) -->
+      {#if detail.vision_capable && detail.vision_pricing}
+        <div class="cap-viz">
+          <div class="cap-viz-h">
+            <ImageIcon size={11} strokeWidth={1.8} /> Tokens vision (formule
+            <a
+              class="cap-link"
+              href={SOURCE_VISION_BY_FAMILY[detail.model_family] ?? '#'}
+              target="_blank"
+              rel="noopener"
+              title="Documentation officielle vendor"
+            >
+              {detail.vision_pricing.kind}
+              <ArrowUpRight size={10} strokeWidth={2} />
+            </a>
+            )
+          </div>
+          <ul class="cap-viz-rows">
+            {#if visionLow512 !== null}
+              <li>
+                <span class="cap-viz-case">1 image 512×512 basse rés.</span>
+                <span class="cap-viz-tokens mono"
+                  >{visionLow512.toLocaleString('fr-FR')} tokens</span
+                >
+              </li>
+            {/if}
+            {#if visionHigh1024 !== null}
+              <li>
+                <span class="cap-viz-case">1 image 1024×1024 haute rés.</span>
+                <span class="cap-viz-tokens mono"
+                  >{visionHigh1024.toLocaleString('fr-FR')} tokens</span
+                >
+              </li>
+            {/if}
+            {#if visionHigh2048 !== null}
+              <li>
+                <span class="cap-viz-case">1 image 2048×2048 haute rés.</span>
+                <span class="cap-viz-tokens mono"
+                  >{visionHigh2048.toLocaleString('fr-FR')} tokens</span
+                >
+              </li>
+            {/if}
+          </ul>
+        </div>
+      {/if}
+
+      <!-- Viz reasoning (si reasoning_capable) -->
+      {#if detail.reasoning_capable && detail.thinking_token_multiplier && thinkingP50Ratio}
+        <div class="cap-viz reasoning">
+          <div class="cap-viz-h">
+            <Brain size={11} strokeWidth={1.8} /> Ratio thinking tokens
+          </div>
+          <ul class="cap-viz-rows">
+            <li>
+              <span class="cap-viz-case">P5 (minimum)</span>
+              <span class="cap-viz-tokens mono"
+                >× {detail.thinking_token_multiplier[0].toFixed(1)} tokens output</span
+              >
+            </li>
+            <li>
+              <span class="cap-viz-case">P50 (médiane, geomean P5×P95)</span>
+              <span class="cap-viz-tokens mono">× {thinkingP50Ratio.toFixed(1)} tokens output</span>
+            </li>
+            <li>
+              <span class="cap-viz-case">P95 (maximum)</span>
+              <span class="cap-viz-tokens mono"
+                >× {detail.thinking_token_multiplier[1].toFixed(1)} tokens output</span
+              >
+            </li>
+          </ul>
+          <p class="cap-footnote">
+            Exemple : 500 tokens output →
+            <b>~{Math.round(500 * thinkingP50Ratio).toLocaleString('fr-FR')}</b>
+            tokens thinking (P50).
+          </p>
+        </div>
+      {/if}
+
+      <!-- Source model card officielle -->
+      <a
+        class="cap-source"
+        href={detail.source_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={detail.source_url}
+      >
+        <BookOpen size={11} strokeWidth={1.8} /> Model card officielle
+        <ArrowUpRight size={10} strokeWidth={2} />
+      </a>
     </section>
 
     <!-- C32.4 — Vendor disclosures (encadré ACV vendor officiel) -->
@@ -1014,5 +1235,181 @@
 
   .mono {
     font-family: var(--font-mono);
+  }
+
+  /* ─── C34.5 — Capabilities & vision/reasoning viz ─────────────────── */
+  /* .capabilities hérite de .block (padding, border, etc.) */
+
+  .release-pip {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    color: var(--ivory-3);
+    font: 500 10px/1 var(--font-mono);
+  }
+  .cap-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 16px;
+    padding: 0;
+    list-style: none;
+  }
+  .cap-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: var(--radius-pill);
+    font: 600 10px/1 var(--font-mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .cap-badge.vision {
+    background: rgba(126, 182, 255, 0.1);
+    border: 1px solid rgba(126, 182, 255, 0.25);
+    color: var(--blue);
+  }
+  .cap-badge.audio {
+    background: rgba(186, 134, 255, 0.1);
+    border: 1px solid rgba(186, 134, 255, 0.25);
+    color: #ba86ff;
+  }
+  .cap-badge.reasoning {
+    background: rgba(197, 240, 74, 0.1);
+    border: 1px solid rgba(197, 240, 74, 0.25);
+    color: var(--lime);
+  }
+  .cap-badge.moe {
+    background: rgba(245, 183, 105, 0.1);
+    border: 1px solid rgba(245, 183, 105, 0.25);
+    color: var(--amber);
+  }
+  .cap-badge.dense {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    color: var(--ivory-3);
+  }
+  .cap-badge.deprecated {
+    background: rgba(240, 108, 90, 0.1);
+    border: 1px solid rgba(240, 108, 90, 0.25);
+    color: var(--coral);
+  }
+
+  .cap-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+    font: 500 12px/1.4 var(--font-ui);
+  }
+  .cap-row:last-of-type {
+    border-bottom: none;
+  }
+  .cap-label {
+    color: var(--ivory-3);
+    flex: 0 0 180px;
+  }
+  .cap-value {
+    color: var(--ivory);
+    font-weight: 600;
+  }
+  .cap-hint {
+    margin-left: auto;
+    font: 400 10px/1 var(--font-mono);
+    color: var(--ivory-4);
+    font-style: italic;
+  }
+  .cap-hint.disclaimer {
+    color: var(--amber);
+  }
+
+  .cap-viz {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+  }
+  .cap-viz.reasoning {
+    border-color: rgba(197, 240, 74, 0.2);
+    background: linear-gradient(180deg, rgba(197, 240, 74, 0.04), rgba(197, 240, 74, 0.01));
+  }
+  .cap-viz-h {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 10px/1 var(--font-ui);
+    color: var(--ivory-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+  .cap-link {
+    color: var(--lime);
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .cap-link:hover {
+    text-decoration: underline;
+  }
+  .cap-viz-rows {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .cap-viz-rows li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    font: 500 12px/1.4 var(--font-ui);
+  }
+  .cap-viz-case {
+    color: var(--ivory-3);
+  }
+  .cap-viz-tokens {
+    color: var(--ivory);
+    font-weight: 600;
+  }
+  .cap-footnote {
+    margin: 8px 0 0;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    font: 400 11px/1.5 var(--font-ui);
+    color: var(--ivory-3);
+  }
+  .cap-footnote b {
+    color: var(--lime);
+    font-weight: 700;
+  }
+
+  .cap-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    color: var(--ivory-2);
+    font: 500 11px/1 var(--font-mono);
+    text-decoration: none;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .cap-source:hover {
+    border-color: var(--lime);
+    color: var(--lime);
   }
 </style>
