@@ -186,15 +186,56 @@ Pour CHAQUE preset, il manque :
 
 ---
 
-## 5. Décisions ouvertes à faire confirmer par Thibault
+## 5. Décisions validées 2026-05-20 (Thibault)
 
-1. **Sonnet 4.7 absent** : OK avec inclure seulement Opus 4.7 + Sonnet 4.6, en l'indiquant explicitement dans la description du preset Opus 4.7 ?
-2. **Granularité OpenAI** : intégrer `gpt-5-5-thinking` et `gpt-5-5-pro` comme presets séparés (3 sub-variants documentés sur le system card), ou un seul `gpt-5-5` avec note "varient avec effort xhigh/high/medium/low/non-reasoning" ?
-3. **DeepSeek V3** : inclure aussi `deepseek-v3` (déc 2024) comme baseline historique, ou se limiter à R1 + V4 ?
-4. **Qwen 3 dense plus petits** (0.6B → 32B) : inclure le 32B comme preset open-weights représentatif ? Ou seulement le MoE 235B-A22B ?
-5. **Phi-4 base 14.7B** (déc 2024, non-reasoning) : inclure aussi, ou se limiter à Phi-4 Reasoning (avril 2025) et Phi-4 Reasoning Vision (mars 2026) ?
+1. ✅ **Sonnet 4.7 absent** : confirmé — on inclut Opus 4.7 + Sonnet 4.6, et la description Opus 4.7 documentera explicitement que Sonnet 4.7 n'existe pas (rythmes Opus/Sonnet découplés depuis 4.x).
+2. ✅ **Catalogue v0.9.0 = 25 presets** (17 nouveaux + 8 deprecated). Élague Qwen3-Max, DeepSeek V3, Phi-4 base et Qwen 3 dense intermédiaires.
+3. ✅ **GPT-5.5 = 3 presets séparés** : `gpt-5-5`, `gpt-5-5-thinking`, `gpt-5-5-pro` (cohérent avec o3 standalone).
+4. ✅ **Naming Modality** : rename existant en `ModelDomain` (rename SemVer 0.9.0 propre, breaking change documenté CHANGELOG). Nouveau type `InputModality` dans `sobria-core/src/input_modality.rs`. `Model.modality: ModelDomain` reste.
+5. ✅ **Disclaimer overhead** : texte officiel = « Estimation overhead système ± 50 % — basée sur leaks publics et reverse-engineering interfaces vendor (Claude.ai, ChatGPT app, Gemini app). À surcharger en mode Expert si vous connaissez votre valeur exacte. »
 
-**Recommandation par défaut C34.2** (si pas de feedback) : avancer avec **catalogue de 25 presets** = configuration intermédiaire confortable (12 sortis 2026, 11 sortis 2025, 8 deprecated 2024 conservés). Élaguer Qwen3-Max si Thibault préfère 22 presets.
+### Catalogue 25 presets retenu (final v0.9.0)
+
+**17 nouveaux (12 sortis 2026 + 5 sortis 2025)** :
+
+| # | id | display | date | source |
+|---|---|---|---|---|
+| 1 | `claude-opus-4-7` | Claude Opus 4.7 | 2026-04-16 | Anthropic |
+| 2 | `claude-sonnet-4-6` | Claude Sonnet 4.6 | 2026-02-17 | Anthropic |
+| 3 | `claude-haiku-4-5` | Claude Haiku 4.5 | 2025-10 | Anthropic |
+| 4 | `claude-opus-4` | Claude Opus 4 | 2025-05-22 | Anthropic |
+| 5 | `claude-sonnet-4` | Claude Sonnet 4 | 2025-05-22 | Anthropic |
+| 6 | `claude-3-7-sonnet` | Claude 3.7 Sonnet | 2025-02-25 | Anthropic |
+| 7 | `gpt-5-5` | GPT-5.5 | 2026-04-23 | OpenAI |
+| 8 | `gpt-5-5-thinking` | GPT-5.5 Thinking | 2026-04-23 | OpenAI |
+| 9 | `gpt-5-5-pro` | GPT-5.5 Pro | 2026-04-23 | OpenAI |
+| 10 | `o3` | OpenAI o3 | 2024-12 | OpenAI |
+| 11 | `gemini-3-5-flash` | Gemini 3.5 Flash | 2026-05 | Google DeepMind |
+| 12 | `gemini-3-1-pro` | Gemini 3.1 Pro | 2026-02 | Google DeepMind |
+| 13 | `gemini-2-5-pro` | Gemini 2.5 Pro | 2025-03 | Google DeepMind |
+| 14 | `llama-4-scout` | Llama 4 Scout | 2025-04-05 | Meta |
+| 15 | `llama-4-maverick` | Llama 4 Maverick | 2025-04-05 | Meta |
+| 16 | `mistral-large-3` | Mistral Large 3 | 2025-12-02 | Mistral AI |
+| 17 | `deepseek-v4-pro` | DeepSeek V4 Pro | 2026-04-24 | DeepSeek |
+
+**À ajouter pour atteindre 25** (selon DoD final, modèles ≥ 2025) :
+
+| # | id | display | date | source |
+|---|---|---|---|---|
+| 18 | `mistral-small-4` | Mistral Small 4 | 2026-03-16 | Mistral AI |
+| 19 | `mistral-medium-3-5` | Mistral Medium 3.5 | 2026-04-30 | Mistral AI |
+| 20 | `deepseek-r1` | DeepSeek R1 | 2025-01-20 | DeepSeek |
+| 21 | `grok-4` | xAI Grok 4 | 2025-07-10 | xAI |
+| 22 | `qwen-3-6-plus` | Qwen 3.6-Plus | 2026-04-02 | Alibaba |
+| 23 | `phi-4-reasoning-vision` | Phi-4 Reasoning Vision 15B | 2026-03-04 | Microsoft |
+| 24 | `phi-4-reasoning` | Phi-4 Reasoning | 2025-04-30 | Microsoft |
+| 25 | `llama-3-3-70b` | Llama 3.3 70B | 2024-12 | Meta |
+
+**Total 2025-2026** : 17 (= ≥ 12 DoD ✅) ; **Total** : 25 (+8 deprecated = 33 dans registry) — DoD ≥ 20 ✅.
+
+> Note : `gemini-3-pro` (2025-11) et `gemini-2-5-flash` (2025-03) restent **non inclus** dans les 25 v0.9.0 par décision d'élagage. Possibles à ajouter en v0.9.1 si demande utilisateurs.
+
+**8 deprecated conservés** (déjà présents, `deprecated: true` à ajouter en C34.2) : `gpt-4o`, `gpt-4o-mini`, `claude-3-5-sonnet`, `mistral-large-2`, `mistral-medium-3`, `llama-3-1-70b`, `llama-3-1-8b`, `gemini-2-0-flash`.
 
 ---
 
@@ -221,12 +262,9 @@ Pour CHAQUE preset, il manque :
 
 ---
 
-## 7. Questions bloquantes à Thibault (à valider AVANT C34.2)
+## 7. Questions bloquantes — RÉSOLUES 2026-05-20
 
-1. **Naming `Modality`** : option (a) rename existant → `ModelDomain` (cassant SemVer 0.9.0 propre) ou (b) garder `Modality` existant + créer `InputModality` (compat conservatrice) ?
-2. **Catalogue final** : 22 / 25 / 32 presets ? Recommandation = 25 (équilibre couverture/lisibilité M1).
-3. **GPT-5.5 sub-variants** : 1 preset ou 3 (default/Thinking/Pro) ?
-4. **Disclaimer overhead** : wording proposé = "Estimation overhead système ± 50 % — basée sur leaks publics et reverse-engineering interfaces vendor (Claude.ai, ChatGPT app, Gemini app). À surcharger en mode Expert si vous connaissez votre valeur exacte." OK ?
+Voir §5 ci-dessus. Toutes validées par Thibault avant démarrage C34.2.
 
 ---
 
