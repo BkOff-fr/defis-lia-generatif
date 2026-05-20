@@ -9,7 +9,7 @@
 
 use chrono::Utc;
 use serde::Serialize;
-use sobria_core::{EstimationRequest, Indicator};
+use sobria_core::{ContextOverhead, EstimationRequest, Indicator, InputModality};
 
 use crate::{
     distributions::Distribution, engine::MonteCarloEngine, engine_trait::EmpreinteMethod,
@@ -69,6 +69,12 @@ pub struct ReproductionCase {
     pub disable_embodied: bool,
     /// Notes méthodologiques.
     pub notes: &'static str,
+    /// **C34.6** — Modalités d'input à ajouter à la requête (vision, doc,
+    /// audio). Vide par défaut (cas legacy textuels).
+    pub modalities: &'static [InputModality],
+    /// **C34.6** — Overhead système à ajouter à la requête. Zéros par
+    /// défaut (cas legacy textuels).
+    pub overhead: ContextOverhead,
 }
 
 /// Type d'un cas validé.
@@ -131,6 +137,20 @@ fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationReq
     }
 }
 
+/// **C34.6** — Construit un `EstimationRequest` pour un `ReproductionCase`
+/// avec ses modalités et overhead injectés (cas legacy : vides).
+fn request_for_reproduction(case: &ReproductionCase) -> EstimationRequest {
+    EstimationRequest {
+        model_id: case.model_id.into(),
+        tokens_in: case.tokens_in,
+        tokens_out_estimated: case.tokens_out,
+        datacenter_id: None,
+        timestamp: Utc::now(),
+        modalities: case.modalities.to_vec(),
+        overhead: case.overhead,
+    }
+}
+
 /// Exécute un cas de plausibilité.
 pub fn run_plausibility(case: &PlausibilityCase) -> EstimatorResult<ValidationReport> {
     let params =
@@ -185,7 +205,7 @@ pub fn run_reproduction(case: &ReproductionCase) -> EstimatorResult<ValidationRe
         // pas l'embodied ou l'inclut via une formule différente).
         params = params.with_embodied(Distribution::Point { value: 0.0 });
     }
-    let request = request_for(case.model_id, case.tokens_in, case.tokens_out);
+    let request = request_for_reproduction(case);
     let result = match case.method {
         EmpreinteMethod::AfnorSobria => {
             let engine = MonteCarloEngine::new(42).with_n(10_000);
