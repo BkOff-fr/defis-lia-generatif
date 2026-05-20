@@ -5,6 +5,163 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.9.0] — 2026-05-20 — Catalogue 2026 + modalités + overhead (C34)
+
+> Crédibilité scientifique du moteur. Le catalogue rattrape 2 ans de
+> releases LLM (Claude 4.x, GPT-5.5, Gemini 3.x, Llama 4, DeepSeek V4,
+> Mistral Large 3, Grok 4, Qwen 3.6, Phi-4 reasoning). Le moteur
+> modélise enfin les modalités non-texte (vision / document / audio)
+> et l'overhead système (system prompt + tools + memory + thinking
+> tokens des reasoning models). Cette release précède C33 site internet :
+> on ne peut pas marketer un moteur avec un catalogue 2024.
+
+### Added — C34.2 Catalogue 25 presets
+
+- **17 nouveaux presets 2025-2026** dans `model_presets.rs` :
+  Claude Opus 4.7 (2026-04-16), Claude Sonnet 4.6 (2026-02-17), Claude
+  Haiku 4.5, Claude Opus 4, Claude Sonnet 4, Claude 3.7 Sonnet, GPT-5.5
+  (2026-04-23) + GPT-5.5 Thinking + GPT-5.5 Pro, OpenAI o3, Gemini 3.5
+  Flash (2026-05), Gemini 3.1 Pro, Gemini 2.5 Pro, Llama 4 Scout (MoE
+  109B/17B), Llama 4 Maverick (MoE 400B/17B), Llama 3.3 70B, Mistral
+  Large 3 (MoE 675B/41B), Mistral Small 4, Mistral Medium 3.5, DeepSeek
+  V4 Pro (MoE 1600B/49B), DeepSeek R1 (MoE 671B/37B), Grok 4, Qwen
+  3.6-Plus, Phi-4 Reasoning, Phi-4 Reasoning Vision 15B.
+- **3 nouveaux enums** : `ModelFamily` (anthropic / open_ai / google_deep_mind
+  / meta_ai / mistral_ai / deep_seek / xai / alibaba / microsoft / other),
+  `ArchitectureKind` (dense_transformer / moe { experts, active_experts }
+  / mamba / hybrid), `VisionPricing` (open_ai_tiles / anthropic_area /
+  gemini_native / llama_patches).
+- **`VisionPricing::tokens_for(count, width, height, high_detail)`** —
+  formules sourcées docs officielles vendor (OpenAI Vision pricing,
+  Anthropic vision, Gemini API vision, Llama 4 multimodal blog).
+- **`available_models_filtered(include_deprecated: bool)`** — nouveau
+  helper pour filtrer les deprecated dans l'UI.
+- **35 nouveaux tests** sur `model_presets.rs` (vision_pricing,
+  release_date validation, source_url HTTPS, MoE active < total, etc.).
+
+### Added — C34.3 Modalités d'input + overhead système
+
+- **`sobria_core::InputModality`** tagged union : `text` | `vision_low
+  { image_count }` | `vision_high { image_count, avg_width, avg_height }`
+  | `document { page_count }` | `audio_input { duration_seconds }`. Avec
+  `default_token_count()` agnostique du preset (formule générique fallback).
+- **`sobria_core::ContextOverhead`** struct : `system_prompt_tokens`,
+  `tools_definition_tokens`, `memory_tokens`, `thinking_tokens_p50`.
+  Sépare physiquement `total_input()` (prefill) et `total_output()`
+  (decode/thinking).
+- **`EstimationRequest`** étendu avec `modalities: Vec<InputModality>`
+  et `overhead: ContextOverhead`, `#[serde(default)]` pour compat audit
+  ledger v0.8.x.
+- **Module `sobria_estimator::effective_tokens`** — bridge entre
+  `InputModality` (sobria-core) et `VisionPricing` (sobria-estimator).
+  Calcule `effective_in = tokens_in + overhead.total_input() + Σ modalities`
+  et `effective_out = tokens_out + overhead.total_output() + auto_thinking`.
+- **Thinking tokens automatiques** pour reasoning models : si l'user
+  n'a pas fourni `overhead.thinking_tokens_p50`, l'engine ajoute
+  `output × geometric_mean(P5, P95)` du `thinking_token_multiplier`
+  du preset (sources : system cards o3, DeepSeek R1 arXiv 2501.12948,
+  Anthropic extended thinking doc, Gemini 2.5+ thinking doc).
+- **Engines AFNOR Monte-Carlo + EcoLogits** intégrés à
+  `effective_tokens()` — les modalités contribuent au pipeline énergétique.
+
+### Added — C34.4 UI M1 modalités + détails techniques
+
+- **`ModalitiesPanel.svelte`** (nouveau composant sous le Composer) :
+  - Toggles Image / Document PDF / Audio (désactivés si le preset ne
+    supporte pas la capability — badge N/A).
+  - Sous-formulaires : image_count + radio basse/haute résolution +
+    avg_width × avg_height pour Vision High ; page_count pour Document ;
+    duration_seconds pour Audio.
+  - Mode Simple/Expert (persisté localStorage). Simple cache les
+    détails techniques par défaut.
+  - **Badge bleu reasoning** affiché automatiquement si le modèle a
+    reasoning_capable, montrant "~N tokens thinking (P50, ratio P5×-P95×
+    P5-P95)".
+  - Détails techniques (`<details>`) : system_prompt_tokens (pré-rempli
+    depuis preset.default_context_overhead_tokens à chaque changement
+    de modèle), tools_definition_tokens, memory_tokens, et thinking
+    override pour reasoning models. Footer affiche total overhead.
+  - **Disclaimer ± 50 %** en jaune sur la summary, conformément à la
+    décision Thibault (cf. brief C34 §5).
+- **`+page.svelte` M1** : intègre `ModalitiesPanel`, state
+  `modalities: InputModality[]` et `overhead: ContextOverhead`, payload
+  d'estimation enrichi seulement si non-vide (compat audit ledger).
+
+### Added — C34.5 UI M9 capacités + viz vision + viz reasoning
+
+- **Section "Capacités"** dans `ModelDetailDrawer.svelte` :
+  - Header avec release_date.
+  - Badges Vision (bleu) / Audio (violet) / Reasoning (lime) /
+    MoE+Dense (ambre/gris) / Deprecated (corail).
+  - Cap row "Paramètres actifs" pour MoE (active drives énergie).
+  - Cap row "System prompt typique" avec disclaimer ± 50 %.
+  - **Viz Vision** (si vision_capable) : 3 cas calculés via mirror JS
+    de `VisionPricing::tokens_for` — 512×512 low, 1024×1024 high,
+    2048×2048 high + lien vers doc vendor.
+  - **Viz Reasoning** (si reasoning_capable) : tableau P5 / P50
+    (geomean P5×P95) / P95 du multiplier + exemple "500 tokens output
+    → ~N tokens thinking (P50)".
+  - Bouton "Model card officielle" linkant source_url.
+- **`ModelPresetDto` + `ModelDetailDto`** étendus avec capabilities,
+  vision_pricing JSON tagged, et meta MoE (experts / active_experts).
+- **Mirror TS `VisionPricing`** typed tagged union dans `api.ts`.
+
+### Added — C34.6 ReproductionCase modalités
+
+- **5 nouveaux `ReproductionCase`** dans `validation/cases.rs` :
+  - `c34-vision-gpt4o-2-high-images-fr` : GPT-4o + 2 images 1024×1024
+    haute rés. (1530 tokens vision via OpenAI tiles formula).
+  - `c34-document-gpt4o-5-pages-fr` : PDF 5 pages → 5500 tokens
+    génériques (1100 tokens/page).
+  - `c34-audio-gpt4o-30s-fr` : 30 secondes audio → 300 tokens (Whisper
+    rate 10 tokens/s).
+  - `c34-reasoning-o3-complex-fr` : o3 reasoning, auto-thinking ~12k
+    tokens (geomean √(5×30) ≈ 12.25 × 1000 output).
+  - `c34-overhead-claude-3-7-fr` : Claude 3.7 Sonnet + overhead claude.ai
+    2000 tokens system + auto thinking (geomean √(2×50) = 10 × 500 output).
+- **`ReproductionCase` étendu** avec `modalities: &'static [InputModality]`
+  et `overhead: ContextOverhead` (zéros par défaut, cas legacy).
+
+### Changed — C34 Anciens presets 2024 deprecated
+
+- Les 8 presets 2024 (`gpt-4o`, `gpt-4o-mini`, `claude-3-5-sonnet`,
+  `mistral-large-2`, `mistral-medium-3`, `llama-3-1-70b`, `llama-3-1-8b`,
+  `gemini-2-0-flash`) sont marqués `deprecated: true`. Conservés pour
+  reproductibilité historique du ledger audit (estimations passées
+  restent valides). Les vendor_disclosures C32.4 (Mistral × ADEME,
+  Meta location/market-based, Google Gemini) sont préservées intactes.
+
+### Changed — C34.3 Rename `Modality` → `ModelDomain` (breaking)
+
+- **Breaking** : `sobria_core::Modality` renommé en `ModelDomain`.
+  Sémantique inchangée : qualifie le **modèle entier** (LLM/Image/
+  Audio/Video). Le rename résout le conflit avec le nouveau
+  `InputModality` (type d'INPUT d'un prompt).
+- Le champ `Model.modality: ModelDomain` reste accessible avec le
+  même nom de champ. Seule la déclaration du type est renommée.
+
+### Methodology
+
+- **Disclaimer overhead système** : « Estimation overhead système ± 50 %
+  — basée sur leaks publics et reverse-engineering interfaces vendor
+  (Claude.ai, ChatGPT app, Gemini app). À surcharger en mode Expert si
+  vous connaissez votre valeur exacte. » Visible dans tooltips M1 et
+  doc M9.
+- **Sources vision tokens** :
+  - OpenAI : <https://platform.openai.com/docs/guides/vision/calculating-costs>
+  - Anthropic : <https://docs.anthropic.com/en/docs/build-with-claude/vision>
+  - Google Gemini : <https://ai.google.dev/gemini-api/docs/vision>
+  - Meta Llama : <https://ai.meta.com/blog/llama-4-multimodal-intelligence/>
+- **Sources thinking tokens** :
+  - OpenAI o3 / GPT-5.5 Thinking : system cards (P5=5, P95=30)
+  - DeepSeek R1 / V4 : <https://arxiv.org/abs/2501.12948> (P5=8, P95=25)
+  - Claude extended thinking : Anthropic doc (P5=2, P95=50, configurable)
+  - Gemini 2.5+ thinking : Google doc (P5=3, P95=25)
+  - Phi-4 reasoning : Microsoft Research technical report (P5=5, P95=15)
+- **Cutoff** : shortlist validée par 10 WebSearch officiels au
+  2026-05-20. Zéro preset fantôme (modèles non sortis exclus).
+  Documentation : `briefs/chantiers/C34-shortlist-models-validated.md`.
+
 ## [0.8.0] — 2026-05-17 — Clarté produit (C32)
 
 > Release intermédiaire centrée UX et messaging avant la candidature

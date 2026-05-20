@@ -1,6 +1,6 @@
 {
   "name": "sobria-extension",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Extension navigateur Sobr.ia — WebExtension MV3, mesure d'empreinte LLM 100 % locale (C27, ADR-0013 Phase 1)",
   "license": "MIT",

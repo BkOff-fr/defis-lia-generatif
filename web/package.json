@@ -1,6 +1,6 @@
 {
   "name": "sobria-web",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Frontend SvelteKit pour Sobr.ia — embarqué dans Tauri (ADR-0002)",
   "license": "MIT",

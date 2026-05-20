@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sobr.ia",
   "short_name": "Sobr.ia",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Mesurez l'empreinte environnementale de vos prompts IA en direct. 100 % local, sou self-hosted équipe (sans cloud Sobr.ia).",
   "author": "Sobr.ia contributors",
   "homepage_url": "https://sobr.ia",
