@@ -32,14 +32,17 @@
     type DatacenterSummaryDto,
     type EmpreinteMethod,
     type EquivalentDto,
+    type ContextOverhead,
     type EstimationRequestDto,
     type EstimationResultDto,
+    type InputModality,
     type IpcErrorCode,
     type MethodologyInfoDto,
     type ModelPresetDto
   } from '$lib/api';
   import { preferences, moduleLabel, type ModuleId } from '$lib/preferences';
   import Composer from '$lib/components/Composer.svelte';
+  import ModalitiesPanel from '$lib/components/ModalitiesPanel.svelte';
   import ResultBlock from '$lib/components/ResultBlock.svelte';
   import HypothesisBlock from '$lib/components/HypothesisBlock.svelte';
   import EquivalenceCarbon from '$lib/components/EquivalenceCarbon.svelte';
@@ -110,6 +113,19 @@
     'Écris-moi un résumé de 500 mots sur la photosynthèse, accessible à un lycéen, en distinguant la phase claire et la phase sombre.'
   );
   let tokensOut = $state(720);
+
+  // ─── C34.4 — Modalités + overhead ──────────────────────────────────
+  // Vide par défaut → équivalent à Text + zéro overhead (compat v0.8.x).
+  // Le ModalitiesPanel pré-remplit overhead.system_prompt_tokens depuis
+  // preset.default_context_overhead_tokens à chaque changement de modèle.
+  let modalities = $state<InputModality[]>([]);
+  let overhead = $state<ContextOverhead>({
+    system_prompt_tokens: 0,
+    tools_definition_tokens: 0,
+    memory_tokens: 0,
+    thinking_tokens_p50: 0
+  });
+  const selectedModel = $derived(models.find((m) => m.id === selectedModelId) ?? null);
 
   // ─── C25 — Datacenters (M12) ─────────────────────────────────────────
   // Le catalogue est chargé une fois au bootstrap via IPC. Le picker
@@ -239,11 +255,21 @@
       // C25 — On n'ajoute `datacenter_id` que s'il y en a un choisi.
       // `exactOptionalPropertyTypes` interdit de passer `undefined`
       // explicitement sur un champ optionnel.
+      // C34.3 — modalities et overhead inclus seulement s'ils ont du sens
+      // (modalities non-vide ou overhead non-zéro). serde côté Rust gère le
+      // default si absent — compat audit ledger v0.8.x.
+      const hasOverhead =
+        overhead.system_prompt_tokens > 0 ||
+        overhead.tools_definition_tokens > 0 ||
+        overhead.memory_tokens > 0 ||
+        overhead.thinking_tokens_p50 > 0;
       const req: EstimationRequestDto = {
         model_id: selectedModelId,
         tokens_in: tokensIn,
         tokens_out_estimated: Math.max(1, tokensOut),
-        ...(selectedDatacenter ? { datacenter_id: selectedDatacenter.id } : {})
+        ...(selectedDatacenter ? { datacenter_id: selectedDatacenter.id } : {}),
+        ...(modalities.length > 0 ? { modalities } : {}),
+        ...(hasOverhead ? { overhead } : {})
       };
       const r = await estimatePrompt(req);
       result = r;
@@ -474,6 +500,8 @@
       {datacenters}
       bind:selectedDatacenter
     />
+    <!-- C34.4 — modalités d'input + overhead système -->
+    <ModalitiesPanel model={selectedModel} bind:modalities bind:overhead {tokensOut} />
   {/if}
 
   <!-- ─── Résultat ─────────────────────────────────────────────── -->

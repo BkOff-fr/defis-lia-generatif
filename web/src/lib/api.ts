@@ -29,6 +29,22 @@ export type Openness = 'open' | 'open_weights' | 'closed';
 export type Calibration = 'validated' | 'indicative' | 'extrapolated';
 export type IndicatorName = 'co2eq' | 'energy' | 'water' | 'critical_metals' | 'cost';
 
+/** **C34.4** — Famille typée du fabricant (snake_case from Rust). */
+export type ModelFamilyDto =
+  | 'anthropic'
+  | 'open_ai'
+  | 'google_deep_mind'
+  | 'meta_ai'
+  | 'mistral_ai'
+  | 'deep_seek'
+  | 'xai'
+  | 'alibaba'
+  | 'microsoft'
+  | 'other';
+
+/** **C34.4** — Architecture (`dense_transformer`, `moe`, `mamba`, `hybrid`). */
+export type ArchitectureKindDto = 'dense_transformer' | 'moe' | 'mamba' | 'hybrid';
+
 export interface ModelPresetDto {
   id: string;
   display_name: string;
@@ -38,6 +54,40 @@ export interface ModelPresetDto {
   openness: Openness;
   calibration: Calibration;
   sources: string[];
+  /** **C34.4** — Date de sortie publique (ISO `YYYY-MM-DD`). */
+  release_date: string;
+  /** **C34.4** — Paramètres actifs (= total pour dense, < pour MoE). */
+  active_params_b: number;
+  model_family: ModelFamilyDto;
+  architecture: ArchitectureKindDto;
+  vision_capable: boolean;
+  audio_capable: boolean;
+  reasoning_capable: boolean;
+  /** **C34.4** — `[P5, P95]` ratio thinking/output tokens. `undefined` si pas reasoning. */
+  thinking_token_multiplier?: [number, number];
+  /** **C34.4** — Overhead système typique (interface app vendor). */
+  default_context_overhead_tokens: number;
+  /** **C34.4** — Modèle obsolète (filtrer par défaut UI). */
+  deprecated: boolean;
+  /** **C34.4** — URL canonique de la source vendor. */
+  source_url: string;
+}
+
+/** **C34.3** — Type d'input d'un prompt multimodal. Tagged union JSON. */
+export type InputModality =
+  | { kind: 'text' }
+  | { kind: 'vision_low'; image_count: number }
+  | { kind: 'vision_high'; image_count: number; avg_width: number; avg_height: number }
+  | { kind: 'document'; page_count: number }
+  | { kind: 'audio_input'; duration_seconds: number };
+
+/** **C34.3** — Overhead système d'un prompt (tokens cachés). */
+export interface ContextOverhead {
+  system_prompt_tokens: number;
+  tools_definition_tokens: number;
+  memory_tokens: number;
+  /** Tokens thinking côté output (reasoning models). P50 attendu. */
+  thinking_tokens_p50: number;
 }
 
 // ─── Référentiel modèles (C18 — M9) ──────────────────────────────────────
@@ -131,6 +181,10 @@ export interface EstimationRequestDto {
    * `afnor_sobria` au premier lancement.
    */
   method?: EmpreinteMethod;
+  /** **C34.3** — Modalités d'input du prompt (texte / images / docs / audio). */
+  modalities?: InputModality[];
+  /** **C34.3** — Overhead système (system prompt + tools + memory + thinking). */
+  overhead?: ContextOverhead;
 }
 
 // Histogramme équi-width de la distribution Monte-Carlo d'un indicateur.

@@ -88,6 +88,11 @@ pub struct ReferentielReloadResultDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Preset modèle envoyé au frontend (déclinaison statique → owned strings).
+///
+/// **C34.4** — 3 bools de capabilities (vision/audio/reasoning) + `deprecated` :
+/// allow `struct_excessive_bools` car chaque flag a une sémantique distincte
+/// et indépendante (cf. doc équivalente sur `ModelPreset`).
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize)]
 pub struct ModelPresetDto {
     pub id: String,
@@ -98,10 +103,36 @@ pub struct ModelPresetDto {
     pub openness: String,
     pub calibration: String,
     pub sources: Vec<String>,
+    /// **C34.4** — Date de sortie publique (ISO `YYYY-MM-DD`).
+    pub release_date: String,
+    /// **C34.4** — Paramètres actifs (en milliards). `= approx_params_billions`
+    /// pour dense, < pour MoE.
+    pub active_params_b: f64,
+    /// **C34.4** — Famille typée du fabricant (snake_case).
+    pub model_family: String,
+    /// **C34.4** — Architecture (`dense_transformer`, `moe`, `mamba`, `hybrid`).
+    pub architecture: String,
+    /// **C34.4** — Accepte des images en entrée.
+    pub vision_capable: bool,
+    /// **C34.4** — Accepte de l'audio en entrée.
+    pub audio_capable: bool,
+    /// **C34.4** — Reasoning model (extended thinking / chain-of-thought intégré).
+    pub reasoning_capable: bool,
+    /// **C34.4** — `(P5, P95)` du ratio thinking/output tokens. `None` si
+    /// pas reasoning_capable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_token_multiplier: Option<(f64, f64)>,
+    /// **C34.4** — Overhead système typique (interface app vendor).
+    pub default_context_overhead_tokens: u32,
+    /// **C34.4** — `true` pour les modèles obsolètes (à filtrer par défaut UI).
+    pub deprecated: bool,
+    /// **C34.4** — URL canonique de la source vendor (model card).
+    pub source_url: String,
 }
 
 impl From<&ModelPreset> for ModelPresetDto {
     fn from(p: &ModelPreset) -> Self {
+        use sobria_estimator::{ArchitectureKind, ModelFamily};
         Self {
             id: p.id.to_string(),
             display_name: p.display_name.to_string(),
@@ -121,6 +152,35 @@ impl From<&ModelPreset> for ModelPresetDto {
             }
             .into(),
             sources: p.sources.iter().map(|s| (*s).to_string()).collect(),
+            release_date: p.release_date.to_string(),
+            active_params_b: p.active_params_b,
+            model_family: match p.model_family {
+                ModelFamily::Anthropic => "anthropic",
+                ModelFamily::OpenAi => "open_ai",
+                ModelFamily::GoogleDeepMind => "google_deep_mind",
+                ModelFamily::MetaAi => "meta_ai",
+                ModelFamily::MistralAi => "mistral_ai",
+                ModelFamily::DeepSeek => "deep_seek",
+                ModelFamily::Xai => "xai",
+                ModelFamily::Alibaba => "alibaba",
+                ModelFamily::Microsoft => "microsoft",
+                ModelFamily::Other => "other",
+            }
+            .into(),
+            architecture: match p.architecture {
+                ArchitectureKind::DenseTransformer => "dense_transformer",
+                ArchitectureKind::Moe { .. } => "moe",
+                ArchitectureKind::Mamba => "mamba",
+                ArchitectureKind::Hybrid => "hybrid",
+            }
+            .into(),
+            vision_capable: p.vision_capable,
+            audio_capable: p.audio_capable,
+            reasoning_capable: p.reasoning_capable,
+            thinking_token_multiplier: p.thinking_token_multiplier,
+            default_context_overhead_tokens: p.default_context_overhead_tokens,
+            deprecated: p.deprecated,
+            source_url: p.source_url.to_string(),
         }
     }
 }
