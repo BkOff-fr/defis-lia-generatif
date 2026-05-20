@@ -144,6 +144,14 @@ pub struct EstimationRequestDto {
     /// si aucune préférence n'est encore enregistrée.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<sobria_core::EmpreinteMethod>,
+    /// **C34.3** — Modalités d'input du prompt (texte, vision, document,
+    /// audio). `None`/absent → uniquement Text (compatible v0.8.x).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modalities: Option<Vec<sobria_core::InputModality>>,
+    /// **C34.3** — Overhead système (system prompt + tools + memory +
+    /// thinking). `None`/absent → zéros (compatible v0.8.x).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overhead: Option<sobria_core::ContextOverhead>,
 }
 
 impl EstimationRequestDto {
@@ -156,6 +164,8 @@ impl EstimationRequestDto {
             tokens_out_estimated: self.tokens_out_estimated,
             datacenter_id: self.datacenter_id,
             timestamp,
+            modalities: self.modalities.unwrap_or_default(),
+            overhead: self.overhead.unwrap_or_default(),
         }
     }
 }
@@ -1547,6 +1557,8 @@ mod tests {
             tokens_out_estimated: 500,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         let json = serde_json::to_string(&dto).unwrap();
         let back: EstimationRequestDto = serde_json::from_str(&json).unwrap();
@@ -1609,6 +1621,8 @@ mod tests {
                 tokens_out_estimated: 200,
                 datacenter_id: None,
                 timestamp: Utc::now(),
+                modalities: Vec::new(),
+                overhead: sobria_core::ContextOverhead::default(),
             },
             indicators: vec![IndicatorValue {
                 indicator: Indicator::Co2Eq,

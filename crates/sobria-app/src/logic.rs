@@ -291,6 +291,8 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         tokens_out_estimated: 500,
         datacenter_id: None,
         timestamp: Utc::now(),
+        modalities: Vec::new(),
+        overhead: sobria_core::ContextOverhead::default(),
     };
     let engine = sobria_estimator::engine_for(user_default_method(state));
     let result = engine.estimate(&req, &params).map_err(AppError::from)?;
@@ -993,6 +995,8 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
             tokens_out_estimated: row.tokens_out,
             datacenter_id: row.datacenter_id.clone(),
             method: None,
+            modalities: None,
+            overhead: None,
         };
         match estimate_prompt(est_req, state) {
             Ok(dto) => {
@@ -1330,6 +1334,8 @@ fn compute_baseline_for_dc(
         tokens_out_estimated: REF_TOKENS_OUT,
         datacenter_id: Some(dc.id.clone()),
         timestamp: Utc::now(),
+        modalities: Vec::new(),
+        overhead: sobria_core::ContextOverhead::default(),
     };
     // Polish G — baseline DC respecte la méthodologie user
     let engine = sobria_estimator::engine_for(user_default_method(state));
@@ -1417,6 +1423,8 @@ pub fn benchmark_models(
             datacenter_id: req.datacenter_id.clone(),
             // Méthodo explicite — pas de fallback IPC, on a déjà résolu.
             method: Some(user_method),
+            modalities: None,
+            overhead: None,
         };
         let result_dto = estimate_prompt(est_req, state)?;
         let preset = find_preset(model_id)
@@ -1991,6 +1999,8 @@ mod tests {
             tokens_out_estimated: 50,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         let err = estimate_prompt(req, &state).unwrap_err();
         assert_eq!(err.code, "unknown_model");
@@ -2005,6 +2015,8 @@ mod tests {
             tokens_out_estimated: 0,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         let err = estimate_prompt(req, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -2019,6 +2031,8 @@ mod tests {
             tokens_out_estimated: 500,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         let result = estimate_prompt(req, &state).unwrap();
         assert!(result.audit_id >= 1);
@@ -2042,6 +2056,8 @@ mod tests {
             tokens_out_estimated: 100,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         for _ in 0..5 {
             estimate_prompt(req.clone(), &state).unwrap();
@@ -2060,6 +2076,8 @@ mod tests {
             tokens_out_estimated: 30,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         for _ in 0..7 {
             estimate_prompt(req.clone(), &state).unwrap();
@@ -2083,6 +2101,8 @@ mod tests {
             tokens_out_estimated: 20,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         for _ in 0..3 {
             estimate_prompt(req.clone(), &state).unwrap();
@@ -2268,6 +2288,8 @@ mod tests {
             tokens_out_estimated: 500,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         }
     }
 
@@ -2335,6 +2357,8 @@ mod tests {
                 tokens_out_estimated: 500,
                 datacenter_id: None,
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             scenarios: vec![],
             forecast: None,
@@ -2457,6 +2481,8 @@ mod tests {
                     tokens_out_estimated: 500,
                     datacenter_id: None,
                     method: None,
+                    modalities: None,
+                    overhead: None,
                 },
                 scenarios: vec![],
                 forecast: None,
@@ -2472,6 +2498,8 @@ mod tests {
                     tokens_out_estimated: 500,
                     datacenter_id: Some("ovh-gra-gravelines".into()),
                     method: None,
+                    modalities: None,
+                    overhead: None,
                 },
                 scenarios: vec![],
                 forecast: None,
@@ -2981,6 +3009,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                     tokens_out_estimated: 500,
                     datacenter_id: None,
                     method: None,
+                    modalities: None,
+                    overhead: None,
                 },
                 &state,
             )
@@ -3073,6 +3103,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             tokens_out_estimated: 500,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         for _ in 0..3 {
             estimate_prompt(est_req.clone(), &state).unwrap();
@@ -3204,6 +3236,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                     tokens_out_estimated: 500,
                     datacenter_id: None,
                     method: None,
+                    modalities: None,
+                    overhead: None,
                 },
                 &state,
             )
@@ -3440,6 +3474,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: None,
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             scenarios: growth_pcts
                 .iter()
@@ -3589,6 +3625,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             tokens_out_estimated: 500,
             datacenter_id: None,
             method: None,
+            modalities: None,
+            overhead: None,
         };
         for _ in 0..3 {
             estimate_prompt(est_req.clone(), &state).unwrap();
@@ -3710,6 +3748,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: None,
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             &state,
         )
@@ -3721,6 +3761,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: Some("ovh-gra-gravelines".into()),
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             &state,
         )
@@ -3753,6 +3795,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: Some("does-not-exist".into()),
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             &state,
         )
@@ -3772,6 +3816,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: None,
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             sobria_core::EmpreinteMethod::AfnorSobria,
         )
@@ -3783,6 +3829,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: Some("ovh-gra-gravelines".into()),
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             sobria_core::EmpreinteMethod::AfnorSobria,
         )
@@ -3863,6 +3911,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: Some("ovh-gra-gravelines".into()),
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             &state,
         )
@@ -3881,6 +3931,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 tokens_out_estimated: 500,
                 datacenter_id: None,
                 method: None,
+                modalities: None,
+                overhead: None,
             },
             &state,
         )

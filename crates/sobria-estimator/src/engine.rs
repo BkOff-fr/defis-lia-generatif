@@ -12,9 +12,11 @@ use sobria_core::{
 use tracing::debug;
 
 use crate::{
+    effective_tokens,
     engine_trait::{EmpreinteEngine, EmpreinteMethod},
     equivalents,
     error::{EstimatorError, EstimatorResult},
+    model_presets::find_preset,
     params::EstimationParams,
 };
 
@@ -96,8 +98,14 @@ impl MonteCarloEngine {
         let mut energy_samples = Vec::with_capacity(n_usize);
         let mut water_samples = Vec::with_capacity(n_usize);
 
-        let t_in = f64::from(request.tokens_in);
-        let t_out = f64::from(request.tokens_out_estimated);
+        // C34.3 — effective tokens incluant overhead système + modalités
+        // + thinking tokens auto pour reasoning models. Si le modèle est
+        // inconnu, fallback aux valeurs brutes (pas d'overhead/modality).
+        let preset_opt = find_preset(&request.model_id);
+        let (effective_in, effective_out) =
+            effective_tokens::effective_tokens(request, preset_opt);
+        let t_in = f64::from(effective_in);
+        let t_out = f64::from(effective_out);
 
         for _ in 0..self.n {
             let eps_prefill = params.epsilon_prefill_mj_per_token.sample(&mut rng);
@@ -318,6 +326,8 @@ mod tests {
             tokens_out_estimated: tokens_out,
             datacenter_id: None,
             timestamp: Utc::now(),
+            modalities: Vec::new(),
+            overhead: sobria_core::ContextOverhead::default(),
         }
     }
 

@@ -297,6 +297,8 @@ mod tests {
                 tokens_out_estimated: 500,
                 datacenter_id: None,
                 timestamp: Utc::now(),
+                modalities: Vec::new(),
+                overhead: sobria_core::ContextOverhead::default(),
             },
             indicators: vec![IndicatorValue {
                 indicator: Indicator::Co2Eq,

@@ -39,6 +39,7 @@ use sobria_core::{
 
 use crate::{
     distributions::Distribution,
+    effective_tokens,
     engine_trait::{EmpreinteEngine, EmpreinteMethod},
     equivalents,
     error::{EstimatorError, EstimatorResult},
@@ -231,8 +232,18 @@ impl EcoLogitsEngine {
         let if_elec = Self::point_value(params.if_electrical_g_per_kwh);
         let wue = Self::point_value(params.wue_l_per_kwh);
 
+        // C34.3 — effective tokens. EcoLogits utilise principalement t_out
+        // pour ses formules f_energy_per_token / f_latency_per_token ; on y
+        // injecte donc l'effective_out (qui inclut thinking auto pour
+        // reasoning models). L'overhead côté input (system + tools + memory
+        // + modalités) ne contribue pas au modèle énergétique EcoLogits (qui
+        // facture par token de décode), c'est conservé par cohérence avec
+        // la méthodologie publiée.
+        let (_effective_in, effective_out) =
+            effective_tokens::effective_tokens(request, Some(preset));
+
         // Usage
-        let energy_kwh = request_energy_kwh(p_billions, request.tokens_out_estimated, pue);
+        let energy_kwh = request_energy_kwh(p_billions, effective_out, pue);
         let energy_watt_hours = energy_kwh * 1000.0;
         let usage_co2_g = energy_kwh * if_elec;
 
@@ -242,7 +253,7 @@ impl EcoLogitsEngine {
         // ReproductionCase usage-only et comparaisons croisées.
         let embodied_co2_g = match params.embodied_g_per_request {
             Distribution::Point { value: 0.0 } => 0.0,
-            _ => request_embodied_co2eq_g(p_billions, request.tokens_out_estimated),
+            _ => request_embodied_co2eq_g(p_billions, effective_out),
         };
 
         // Total CO2
@@ -370,6 +381,8 @@ mod tests {
             tokens_out_estimated: t_out,
             datacenter_id: None,
             timestamp: Utc::now(),
+            modalities: Vec::new(),
+            overhead: sobria_core::ContextOverhead::default(),
         }
     }
 

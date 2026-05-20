@@ -126,6 +126,8 @@ fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationReq
         tokens_out_estimated: tokens_out,
         datacenter_id: None,
         timestamp: Utc::now(),
+        modalities: Vec::new(),
+        overhead: sobria_core::ContextOverhead::default(),
     }
 }
 

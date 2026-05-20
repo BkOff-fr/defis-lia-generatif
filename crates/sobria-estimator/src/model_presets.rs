@@ -1691,6 +1691,8 @@ mod tests {
             tokens_out_estimated: t_out,
             datacenter_id: None,
             timestamp: Utc::now(),
+            modalities: Vec::new(),
+            overhead: sobria_core::ContextOverhead::default(),
         }
     }
 

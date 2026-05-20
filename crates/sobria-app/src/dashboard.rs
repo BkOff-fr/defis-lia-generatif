@@ -416,6 +416,8 @@ mod tests {
                 tokens_out_estimated: 500,
                 datacenter_id: None,
                 timestamp: ts,
+                modalities: Vec::new(),
+                overhead: sobria_core::ContextOverhead::default(),
             },
             indicators: vec![
                 IndicatorValue {

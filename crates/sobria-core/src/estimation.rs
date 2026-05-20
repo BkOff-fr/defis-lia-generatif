@@ -9,8 +9,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    context_overhead::ContextOverhead,
     error::{SobriaError, SobriaResult},
     indicators::{Equivalent, IndicatorValue},
+    input_modality::InputModality,
     methodology::EmpreinteMethod,
 };
 
@@ -28,6 +30,19 @@ pub struct EstimationRequest {
     pub datacenter_id: Option<String>,
     /// Horodatage UTC de la requête.
     pub timestamp: DateTime<Utc>,
+    /// **C34.3** — Modalités d'input du prompt (texte / images / documents /
+    /// audio). Vide par défaut (compatible v0.8.x : `modalities = []` ⇔
+    /// `[Text]` implicite, pas de surcoût).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modalities: Vec<InputModality>,
+    /// **C34.3** — Overhead système (system prompt + tools + memory +
+    /// thinking). Zéros par défaut (compatible v0.8.x).
+    #[serde(default, skip_serializing_if = "is_default_overhead")]
+    pub overhead: ContextOverhead,
+}
+
+fn is_default_overhead(o: &ContextOverhead) -> bool {
+    o.is_empty()
 }
 
 impl EstimationRequest {
@@ -35,10 +50,15 @@ impl EstimationRequest {
     ///
     /// # Erreurs
     ///
-    /// Retourne `SchemaValidation` si `tokens_in > 10_000_000` ou
-    /// `tokens_out_estimated > 10_000_000` (garde-fou anti-abus).
+    /// Retourne `SchemaValidation` si :
+    /// - `tokens_in > 10_000_000` ou `tokens_out_estimated > 10_000_000`
+    /// - `model_id` vide
+    /// - `modalities.len() > 32` (garde-fou anti-abus C34.3)
+    /// - n'importe quel champ `ContextOverhead` > 10_000_000 (anti-abus)
     pub fn validate(&self) -> SobriaResult<()> {
         const MAX_TOKENS: u32 = 10_000_000;
+        const MAX_MODALITIES: usize = 32;
+
         if self.tokens_in > MAX_TOKENS || self.tokens_out_estimated > MAX_TOKENS {
             return Err(SobriaError::SchemaValidation(format!(
                 "tokens absurdes : in={}, out={}",
@@ -47,6 +67,22 @@ impl EstimationRequest {
         }
         if self.model_id.trim().is_empty() {
             return Err(SobriaError::SchemaValidation("model_id vide".into()));
+        }
+        if self.modalities.len() > MAX_MODALITIES {
+            return Err(SobriaError::SchemaValidation(format!(
+                "trop de modalities : {} > {}",
+                self.modalities.len(),
+                MAX_MODALITIES
+            )));
+        }
+        if self.overhead.system_prompt_tokens > MAX_TOKENS
+            || self.overhead.tools_definition_tokens > MAX_TOKENS
+            || self.overhead.memory_tokens > MAX_TOKENS
+            || self.overhead.thinking_tokens_p50 > MAX_TOKENS
+        {
+            return Err(SobriaError::SchemaValidation(
+                "overhead tokens absurdes".into(),
+            ));
         }
         Ok(())
     }
@@ -103,6 +139,8 @@ mod tests {
             tokens_out_estimated: 720,
             datacenter_id: Some("openai-us-east-virginia".into()),
             timestamp: Utc::now(),
+            modalities: Vec::new(),
+            overhead: ContextOverhead::default(),
         }
     }
 

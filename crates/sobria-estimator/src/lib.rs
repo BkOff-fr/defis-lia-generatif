@@ -6,7 +6,7 @@
 //! ## Exemple
 //!
 //! ```no_run
-//! use sobria_core::EstimationRequest;
+//! use sobria_core::{ContextOverhead, EstimationRequest};
 //! use sobria_estimator::{EstimationParams, MonteCarloEngine};
 //! use chrono::Utc;
 //!
@@ -16,6 +16,8 @@
 //!     tokens_out_estimated: 500,
 //!     datacenter_id: None,
 //!     timestamp: Utc::now(),
+//!     modalities: Vec::new(),
+//!     overhead: ContextOverhead::default(),
 //! };
 //! let params = EstimationParams::for_model("gpt-4o-mini").unwrap();
 //! let engine = MonteCarloEngine::default();
@@ -35,6 +37,7 @@
 #![allow(clippy::cast_sign_loss)]
 
 pub mod distributions;
+pub mod effective_tokens;
 pub mod engine;
 pub mod engine_trait;
 pub mod equivalents;
@@ -48,6 +51,9 @@ pub mod yearly_forecast;
 pub mod engines;
 
 pub use distributions::Distribution;
+pub use effective_tokens::{
+    auto_thinking_tokens, effective_tokens, modalities_total, modality_tokens, overhead_from_preset,
+};
 pub use engine::{
     bin_samples, MonteCarloEngine, DEFAULT_BIN_COUNT, DEFAULT_N, MIN_SAMPLES_FOR_BINS,
 };

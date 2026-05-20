@@ -22,10 +22,15 @@ pub enum ModelProvider {
     Other(String),
 }
 
-/// Modalités d'IA générative. La v1.0 ne couvre que `Text`.
+/// **Domaine fonctionnel** du modèle (anciennement `Modality` — renommé en
+/// C34.3 pour éviter le conflit avec [`crate::input_modality::InputModality`]
+/// qui désigne le type d'INPUT d'un prompt).
+///
+/// Le `ModelDomain` qualifie le modèle entier (LLM générant du texte,
+/// Stable Diffusion générant des images, etc.), pas la requête.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
-pub enum Modality {
+pub enum ModelDomain {
     /// Texte uniquement (LLMs) — périmètre v1.0.
     Text,
     /// Image (Stable Diffusion, etc.) — v2.0.
@@ -45,8 +50,9 @@ pub struct Model {
     pub name: String,
     /// Fournisseur.
     pub provider: ModelProvider,
-    /// Modalité principale.
-    pub modality: Modality,
+    /// Domaine fonctionnel du modèle (LLM texte, image, etc.). Anciennement
+    /// `modality: Modality` (renommé en C34.3 — semver 0.9.0 propre).
+    pub modality: ModelDomain,
     /// Nombre de paramètres (en milliards). `None` si non public.
     pub parameters_billions: Option<f64>,
     /// Contexte maximal en tokens.
@@ -65,7 +71,7 @@ mod tests {
             id: "gpt-4o-mini".into(),
             name: "GPT-4o mini".into(),
             provider: ModelProvider::OpenAI,
-            modality: Modality::Text,
+            modality: ModelDomain::Text,
             parameters_billions: Some(8.0),
             context_tokens: Some(128_000),
             sources: vec![

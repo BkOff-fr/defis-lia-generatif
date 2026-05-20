@@ -99,6 +99,8 @@ fn estimation_result_from_row(row: &EstimationRow) -> EstimationResult {
             tokens_out_estimated: row.tokens_out,
             datacenter_id: row.region.clone(),
             timestamp: row.ts,
+            modalities: Vec::new(),
+            overhead: sobria_core::ContextOverhead::default(),
         },
         indicators: vec![
             IndicatorValue {

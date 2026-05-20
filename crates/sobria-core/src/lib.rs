@@ -19,16 +19,19 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::float_cmp)]
 
+pub mod context_overhead;
 pub mod datacenter;
 pub mod emission;
 pub mod error;
 pub mod estimation;
 pub mod indicators;
+pub mod input_modality;
 pub mod methodology;
 pub mod model;
 pub mod preferences;
 pub mod validation;
 
+pub use context_overhead::ContextOverhead;
 pub use datacenter::Datacenter;
 pub use emission::EmissionFactor;
 pub use error::{SobriaError, SobriaResult};
@@ -36,8 +39,9 @@ pub use estimation::{EstimationRequest, EstimationResult, Hypothesis};
 pub use indicators::{
     DistributionBins, Equivalent, Indicator, IndicatorValue, UncertaintyInterval,
 };
+pub use input_modality::InputModality;
 pub use methodology::EmpreinteMethod;
-pub use model::{Modality, Model, ModelProvider};
+pub use model::{Model, ModelDomain, ModelProvider};
 pub use preferences::{ModuleId, Persona};
 pub use validation::{validate_country_iso, validate_year};
 
