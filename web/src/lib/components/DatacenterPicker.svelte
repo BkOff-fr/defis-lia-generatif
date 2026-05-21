@@ -228,22 +228,22 @@
     width: 100%;
     padding: 12px 14px;
     background: var(--surface);
-    border: 1px solid color-mix(in oklab, var(--ink-mute) 14%, transparent);
+    border: 1px solid color-mix(in oklab, var(--ivory-3) 14%, transparent);
     border-radius: 12px;
     cursor: pointer;
     text-align: left;
   }
   .trigger:hover {
-    border-color: color-mix(in oklab, var(--ink-mute) 28%, transparent);
+    border-color: color-mix(in oklab, var(--ivory-3) 28%, transparent);
   }
   .ico {
     display: grid;
     place-items: center;
     width: 32px;
     height: 32px;
-    background: color-mix(in oklab, var(--accent) 12%, transparent);
+    background: color-mix(in oklab, var(--lime) 12%, transparent);
     border-radius: 8px;
-    color: var(--accent);
+    color: var(--lime);
   }
   .col {
     display: grid;
@@ -254,22 +254,22 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--ink-mute);
+    color: var(--ivory-3);
   }
   .vv {
     font-size: 14px;
-    color: var(--ink);
+    color: var(--ivory);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .vm {
     font-size: 12px;
-    color: var(--ink-mute);
+    color: var(--ivory-3);
     font-feature-settings: 'tnum';
   }
   .chev {
-    color: var(--ink-mute);
+    color: var(--ivory-3);
   }
   .panel {
     position: absolute;
@@ -277,8 +277,8 @@
     left: 0;
     right: 0;
     z-index: 30;
-    background: var(--surface);
-    border: 1px solid color-mix(in oklab, var(--ink-mute) 16%, transparent);
+    background: var(--ink-2);
+    border: 1px solid var(--border-hi);
     border-radius: 12px;
     box-shadow: 0 12px 32px color-mix(in oklab, black 12%, transparent);
     max-height: 360px;
@@ -292,22 +292,31 @@
     align-items: center;
     gap: 8px;
     padding: 10px 12px;
-    border-bottom: 1px solid color-mix(in oklab, var(--ink-mute) 10%, transparent);
-    color: var(--ink-mute);
+    border-bottom: 1px solid color-mix(in oklab, var(--ivory-3) 10%, transparent);
+    color: var(--ivory-3);
   }
   .search input {
     border: none;
     outline: none;
     background: transparent;
-    color: var(--ink);
+    color: var(--ivory);
     font-size: 13px;
     width: 100%;
   }
   .clear {
     background: transparent;
     border: none;
-    color: var(--ink-mute);
+    color: var(--ivory-3);
     cursor: pointer;
+    display: inline-flex;
+    border-radius: 4px;
+  }
+  .clear:hover {
+    color: var(--ivory);
+  }
+  .search:focus-within {
+    color: var(--ivory-2);
+    box-shadow: inset 0 -2px 0 var(--lime);
   }
   .options {
     list-style: none;
@@ -320,7 +329,7 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--ink-mute);
+    color: var(--ivory-3);
   }
   .option {
     display: grid;
@@ -330,24 +339,24 @@
   }
   .option:hover,
   .option.active {
-    background: color-mix(in oklab, var(--accent) 8%, transparent);
+    background: color-mix(in oklab, var(--lime) 8%, transparent);
   }
   .option .opt-label {
     font-size: 13px;
-    color: var(--ink);
+    color: var(--ivory);
   }
   .option .opt-meta {
     font-size: 11px;
-    color: var(--ink-mute);
+    color: var(--ivory-3);
     font-feature-settings: 'tnum';
   }
   .option.none {
-    border-bottom: 1px solid color-mix(in oklab, var(--ink-mute) 8%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--ivory-3) 8%, transparent);
   }
   .empty {
     padding: 14px;
     text-align: center;
-    color: var(--ink-mute);
+    color: var(--ivory-3);
     font-size: 12px;
   }
 </style>

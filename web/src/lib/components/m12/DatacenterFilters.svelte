@@ -130,7 +130,7 @@
     background: color-mix(in oklab, var(--surface) 70%, transparent);
     backdrop-filter: blur(14px) saturate(1.2);
     -webkit-backdrop-filter: blur(14px) saturate(1.2);
-    border: 1px solid color-mix(in oklab, var(--ink-mute) 12%, transparent);
+    border: 1px solid color-mix(in oklab, var(--ivory-3) 12%, transparent);
     border-radius: 14px;
     box-shadow: 0 8px 24px color-mix(in oklab, black 12%, transparent);
     padding: 14px;
@@ -220,6 +220,9 @@
   }
   .op-row:hover {
     border-color: var(--border-hi);
+  }
+  .op-row:focus-within {
+    border-color: var(--lime);
   }
   .op-row.on {
     background: var(--lime-soft);

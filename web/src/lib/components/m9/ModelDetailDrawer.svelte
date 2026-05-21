@@ -1020,7 +1020,7 @@
     display: grid;
     grid-template-columns: auto 1fr;
     grid-template-rows: auto auto;
-    gap: 2px 10px;
+    gap: 5px 10px;
     align-items: baseline;
     padding: 10px 12px;
     background: rgba(0, 0, 0, 0.22);

@@ -264,9 +264,9 @@
           <text
             x={n.x + NODE_W + 6}
             y={n.y + n.height / 2 + 14}
-            fill="#72706a"
+            fill="#b8b4ac"
             font-family="JetBrains Mono, monospace"
-            font-size="8"
+            font-size="9"
           >
             {fmtTwh(n.value_twh, 1)} TWh
           </text>

@@ -5,6 +5,32 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [Non publié]
+
+### Fixed — Polish visuel UI (tokens fantômes + redondance)
+
+- **DatacenterPicker illisible** : remplacement des tokens de design
+  inexistants (`--accent` → `--lime`, `--ink-mute` → `--ivory-3`) et de
+  `color: var(--ink)` (texte quasi-noir sur fond sombre) → `--ivory`. Le
+  panneau déroulant passe d'un fond translucide (`--surface`) à un fond
+  opaque (`--ink-2` + `--border-hi`). La valeur sélectionnée et les options
+  sont désormais lisibles.
+- **Filtres / drill-down M12** (`CountryDrillDown`, `DatacenterDrillDown`,
+  `DatacenterFilters`) : `--ink-mute` invalide dans les bordures `color-mix`
+  → `--ivory-3`.
+- **Sankey M20** : sous-labels TWh `#72706a` → `#b8b4ac` (contraste) + taille
+  8 → 9 px.
+
+### Changed
+
+- **M1 — équivalences** : suppression de la ligne texte `EquivalenceCarbon`
+  (« ≈ cm voiture · s streaming · s LED ») qui doublonnait les tuiles
+  visuelles « Pour mettre cela en perspective ». Le composant reste utilisé
+  en M15/M25.
+- **A11y** : affordance focus (`:focus-within` lime) sur les lignes de
+  filtres M9/M12/M20 ; états hover/focus sur la recherche du DatacenterPicker ;
+  espacement `.kpi` du tiroir détail modèle (M9) 2 → 5 px.
+
 ## [0.9.0] — 2026-05-20 — Catalogue 2026 + modalités + overhead (C34)
 
 > Crédibilité scientifique du moteur. Le catalogue rattrape 2 ans de

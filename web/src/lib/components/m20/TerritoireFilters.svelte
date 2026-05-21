@@ -202,6 +202,9 @@
   .region-row:hover {
     border-color: var(--border-hi);
   }
+  .region-row:focus-within {
+    border-color: var(--lime);
+  }
   .region-row.on {
     background: var(--lime-soft);
     border-color: rgba(197, 240, 74, 0.4);

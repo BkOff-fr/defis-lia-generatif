@@ -337,6 +337,10 @@
     border-color: var(--border-hi);
     color: var(--ivory);
   }
+  .radio:focus-within {
+    border-color: var(--lime);
+    color: var(--ivory);
+  }
   .radio.on {
     border-color: rgba(197, 240, 74, 0.4);
     color: var(--lime);
