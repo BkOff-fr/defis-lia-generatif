@@ -7,6 +7,32 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Claude Opus 4.8 + sync catalogue extension
+
+- **Claude Opus 4.8** ajouté au registre Rust `MODEL_REGISTRY`
+  (`crates/sobria-estimator/src/model_presets.rs`) — paramètres extrapolés
+  même classe taille qu'Opus 4.7 (2000B, ε_decode P50 = 50 000 mJ/tok,
+  embodied P50 = 0.5 gCO₂eq/req), `release_date: "2026-05-15"`.
+- **Extension `MODEL_PRESETS`** synchronisée 8 → **34 presets** :
+  catalogue C34 complet (Claude Opus/Sonnet/Haiku 4.x + 3.7 Sonnet,
+  GPT-5.5 / 5.5 Thinking / 5.5 Pro / o3, Gemini 3.5 Flash / 3.1 Pro /
+  2.5 Pro, Llama 4 Scout/Maverick + 3.3 70B, Mistral Medium 3.5 / Small 4
+  / Large 3, DeepSeek V4 Pro / R1, Grok 4, Qwen 3.6 Plus, Phi-4
+  Reasoning + Vision) + 8 modèles 2024 conservés `deprecated` pour
+  reproductibilité audit ledger et parité tests historiques.
+- **Mappings content scripts** étendus pour reconnaître les nouveaux
+  modèles sur les UI vendor (claude.ai : Opus/Sonnet/Haiku 4.x ;
+  chatgpt.com : GPT-5.5 / o3 ; chat.mistral.ai : Medium 3.5 / Large 3 /
+  Small 4). Mode `specific-first` enforced pour éviter le matching
+  greedy de `String.includes()`.
+
+### Fixed
+
+- **Bug latent matching modèle ChatGPT** : `text.includes('gpt-4o')`
+  matchait avant `gpt-4o mini` (ordre d'insertion `Object.entries`).
+  Réordonné specific-first dans les 3 content scripts. Sans correction,
+  un user sur ChatGPT « GPT-4o mini » se voyait calculer comme GPT-4o.
+
 ### Fixed — Polish visuel UI (tokens fantômes + redondance)
 
 - **DatacenterPicker illisible** : remplacement des tokens de design

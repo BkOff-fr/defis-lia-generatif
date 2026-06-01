@@ -24,7 +24,18 @@ const SELECTOR_TEXTAREA =
 const SELECTOR_SEND_BUTTON =
   "button[aria-label='Send Message'], button[aria-label*='envoyer' i], button[type='submit']";
 
+// Ordre = specific-first (les variantes 4.8 / 4.7 / 4.6 / 4.5 doivent matcher
+// AVANT « opus 4 » / « sonnet 4 » / « haiku 4 », et 4.x avant 3.x).
 const MODEL_NAME_TO_PRESET_ID: Record<string, string> = {
+  // Claude 4.x (2025-2026)
+  'opus 4.8': 'claude-opus-4-8',
+  'opus 4.7': 'claude-opus-4-7',
+  'sonnet 4.6': 'claude-sonnet-4-6',
+  'haiku 4.5': 'claude-haiku-4-5',
+  'opus 4': 'claude-opus-4',
+  'sonnet 4': 'claude-sonnet-4',
+  // Claude 3.x
+  '3.7 sonnet': 'claude-3-7-sonnet',
   'claude 3.5 sonnet': 'claude-3-5-sonnet',
   'claude 3.5 haiku': 'claude-3-5-sonnet',
   'claude 3 opus': 'claude-3-5-sonnet',

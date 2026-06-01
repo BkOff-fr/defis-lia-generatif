@@ -489,8 +489,38 @@ const LLAMA_VISION: VisionPricing = VisionPricing::LlamaPatches {
 /// 2024 (conservés pour reproductibilité de l'audit ledger historique).
 pub static MODEL_REGISTRY: &[ModelPreset] = &[
     // ════════════════════════════════════════════════════════════════════════
-    // ANTHROPIC (6 presets, 6 en 2025-2026)
+    // ANTHROPIC (7 presets, 7 en 2025-2026)
     // ════════════════════════════════════════════════════════════════════════
+    ModelPreset {
+        id: "claude-opus-4-8",
+        display_name: "Claude Opus 4.8",
+        provider: "Anthropic",
+        family: "claude-4",
+        approx_params_billions: 2000.0,
+        active_params_b: 2000.0,
+        openness: Openness::Closed,
+        // 2000 × 25 = 50000 mJ/tok (même classe taille qu'Opus 4.7).
+        epsilon_prefill_mj: (12_120.0, 20_000.0, 33_000.0),
+        epsilon_decode_mj: (30_300.0, 50_000.0, 82_500.0),
+        embodied_g_per_req: (0.303, 0.500, 0.825),
+        calibration: CalibrationStatus::Extrapolated,
+        sources: &[
+            "Anthropic Claude Opus 4.8 release (2026-05)",
+            "Estimation taille — analyse publique 2026",
+        ],
+        vendor_disclosures: &[],
+        release_date: "2026-05-15",
+        model_family: ModelFamily::Anthropic,
+        architecture: ArchitectureKind::DenseTransformer,
+        vision_capable: true,
+        vision_pricing: Some(ANTHROPIC_VISION),
+        audio_capable: false,
+        reasoning_capable: true,
+        thinking_token_multiplier: Some((2.0, 50.0)),
+        default_context_overhead_tokens: 2000,
+        deprecated: false,
+        source_url: "https://www.anthropic.com/news",
+    },
     ModelPreset {
         id: "claude-opus-4-7",
         display_name: "Claude Opus 4.7",

@@ -32,15 +32,21 @@ const SELECTOR_TEXTAREA = '#prompt-textarea, div[contenteditable="true"]#prompt-
 const SELECTOR_SEND_BUTTON =
   "[data-testid='send-button'], [data-testid='composer-send-button'], button[aria-label*='envoyer' i], button[aria-label*='send' i]";
 
+// Ordre = specific-first : `text.includes(key)` matche le premier qui colle.
 const MODEL_NAME_TO_PRESET_ID: Record<string, string> = {
+  // 2026 (C34.2)
+  'gpt-5.5 thinking': 'gpt-5-5-thinking',
+  'gpt-5.5 pro': 'gpt-5-5-pro',
+  'gpt-5.5': 'gpt-5-5',
+  o3: 'o3',
+  // 2024 (deprecated mais encore visibles dans certaines interfaces)
+  'gpt-4o mini': 'gpt-4o-mini',
+  'gpt-4o-mini': 'gpt-4o-mini',
   'gpt-4o': 'gpt-4o',
   'gpt-4 turbo': 'gpt-4o',
   'gpt-4': 'gpt-4o',
-  'gpt-4o mini': 'gpt-4o-mini',
-  'gpt-4o-mini': 'gpt-4o-mini',
   'o1-preview': 'gpt-4o',
-  'o1-mini': 'gpt-4o-mini',
-  'gpt-5': 'gpt-4o' // mapping provisoire si GPT-5 visible
+  'o1-mini': 'gpt-4o-mini'
 };
 
 function extractModelId(): string | null {

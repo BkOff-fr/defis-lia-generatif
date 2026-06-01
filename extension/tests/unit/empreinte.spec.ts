@@ -327,9 +327,24 @@ describe('AFNOR point-estimate — sanity & comportement', () => {
 // ───────────────────────────────────────────────────────────────────────────────
 
 describe('Registry presets', () => {
-  it('contient les 8 modèles attendus (mirror Rust)', () => {
-    expect(MODEL_PRESETS.length).toBe(8);
+  it('contient au moins le catalogue C34 (mirror Rust) + les 8 modèles historiques 2024', () => {
+    // ≥ 25 actifs (C34.2) + 8 deprecated conservés pour reproductibilité audit.
+    expect(MODEL_PRESETS.length).toBeGreaterThanOrEqual(25);
     const ids = MODEL_PRESETS.map((p) => p.id);
+    // Cœur 2025-2026 (sous-ensemble — la liste exhaustive est testée Rust).
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'claude-opus-4-8',
+        'claude-opus-4-7',
+        'claude-sonnet-4-6',
+        'gpt-5-5',
+        'o3',
+        'gemini-3-1-pro',
+        'llama-4-maverick',
+        'mistral-large-3'
+      ])
+    );
+    // 8 modèles 2024 conservés pour parité tests historiques.
     expect(ids).toEqual(
       expect.arrayContaining([
         'gpt-4o',

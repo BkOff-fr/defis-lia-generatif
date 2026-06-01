@@ -22,12 +22,20 @@ const HOST = 'le-chat' as const;
 const SELECTOR_TEXTAREA = "textarea[name='message'], textarea[placeholder*='Ask' i]";
 const SELECTOR_SEND_BUTTON = "button[type='submit'], button[aria-label*='Send' i]";
 
+// Ordre = specific-first (« large 3 » avant « large » sinon `includes()`
+// matche le générique en premier sur les pages affichant la version).
 const MODEL_NAME_TO_PRESET_ID: Record<string, string> = {
-  'mistral large 2': 'mistral-large-2',
-  'mistral large': 'mistral-large-2',
+  // 2025 (C34.2)
+  'mistral medium 3.5': 'mistral-medium-3-5',
   'mistral medium 3': 'mistral-medium-3',
-  'mistral medium': 'mistral-medium-3',
-  'mistral small': 'mistral-medium-3'
+  'mistral large 3': 'mistral-large-3',
+  'mistral small 4': 'mistral-small-4',
+  // génériques (sans version → dernier en date)
+  'mistral medium': 'mistral-medium-3-5',
+  'mistral large': 'mistral-large-3',
+  'mistral small': 'mistral-small-4',
+  // 2024 (deprecated)
+  'mistral large 2': 'mistral-large-2'
 };
 
 function extractModelId(): string | null {
