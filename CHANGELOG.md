@@ -7,6 +7,234 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Fixed — C46 Stabilisation pré-commit (audit 2026-06-12)
+
+- **Route détail employé inopérante** : `/admin/users/{id}/analytics`
+  utilisait la syntaxe de paramètre d'axum 0.8 dans un projet en axum
+  0.7 (`{id}` y est un littéral) → 404 systématique sur l'endpoint
+  vedette de C44. Corrigé en `:id` + test d'intégration HTTP couvrant
+  les 3 politiques ADR-0016 (la route n'en avait aucun).
+- **`cargo test -p sobria-team-aggregator` compile à nouveau** : helper
+  de test des alertes non mis à jour après le DDL v4 (champ `project`
+  manquant).
+- **CORS pour l'extension** : le service worker MV3 appelle l'API
+  équipe depuis une origine `chrome-extension://…` — sans en-têtes CORS
+  Chrome bloquait la réponse et l'envoi best-effort échouait en silence.
+  `CorsLayer` limité aux schémas d'extensions navigateur (jamais
+  d'origine web), preflight couvert par test d'intégration.
+- **Manifests extension resynchronisés** : Firefox gelé à 0.6.0 avec une
+  description antérieure au Mode Équipe → aligné sur 0.9.0 ; typo
+  « sou self-hosted » corrigée côté Chrome ; artefacts de packaging
+  locaux (`Sobria.zip`, copies de `dist-firefox`) ignorés par git.
+
+### Added — C45 Manifeste immersif « Le poids invisible »
+
+- **`/manifeste`** : expérience en 7 scènes-mots (Invisible · Mesurer ·
+  Douter · Choisir · Ensemble · Ouvrir · Commencer) — déclarations
+  géantes, reveals au scroll, marquees, compteur et pliage k-anonyme
+  animés, chiffres réels du moteur (seed 42). Direction inspirée des
+  références validées (manifeste en scènes + jeu typographique).
+  Amélioration progressive stricte : page complète sans JS,
+  `prefers-reduced-motion` intégral, zéro dépendance.
+- Entrées : lien hero de l'accueil + footer. DA + storyboard :
+  `briefs/chantiers/C45-manifeste-immersif.md`.
+
+> ⚠ C45 : v1 écrite SANS rendu écran (environnement indisponible) —
+> itération visuelle obligatoire avant mise en avant (brief §5).
+
+### Added — C44 Politique de visibilité + dimension projet (ADR-0016)
+
+- **`visibility_policy`** (anonymous | opt_in défaut | identified) :
+  choisie au déploiement, modifiable par CLI ; le mode nominatif exige
+  une **attestation CSE/salariés** (`config set visibility_policy
+  identified --attest "…"`), stockée et tracée. Matrice appliquée côté
+  serveur sur analytics, liste employés et détail individuel.
+- **Détail par employé** : `GET /admin/users/:id/analytics` + page
+  web-team `/admin/users/[id]` (série quotidienne, modèles, méthodos) —
+  403 expliqué quand la politique l'interdit.
+- **Dimension projet** : `estimations.project` (DDL v4), étiquette par
+  CONVERSATION choisie dans le popup extension (clé URL d'onglet,
+  résolue au dispatch via sender), agrégats « Par projet » au dashboard
+  avec repli k-anonyme (« autres projets ») hors mode nominatif.
+- `/me/sharing` renvoie la politique : chaque salarié sait sous quel
+  régime il travaille (ligne dédiée dans son espace).
+- **Site** : nouvelles pages `/produit`, `/equipe` (3 politiques,
+  tableau comparatif), `/methode` ; `/telecharger` restructuré ;
+  `/cloud` → `/equipe` ; topbar/footer réécrits (51 pages, build vert).
+
+> ⚠ C44 : vérification partielle (panne de l'environnement en cours de
+> chantier) — voir `briefs/chantiers/C44-politique-projets-site.md` §5
+> pour la frontière vérifié/non-vérifié et les commandes à lancer.
+
+### Changed — C43 Vitrine : extension + site de présentation
+
+- **Popup extension refondu** en 3 niveaux (chiffre du jour, état
+  d'association, actions) avec détails repliés, états vides soignés,
+  vouvoiement, contrastes AA, ≥ 12px ; indicateurs in-page apaisés
+  (« fourchette x – y g (confiance 90 %) », fin du pulse infini).
+  +19 tests (84/84 verts).
+- **Site (accueil scrollytelling)** : chapitre Équipe aligné sur
+  l'ADR-0015 (participants opt-in + agrégat anonyme + seuil k — fin du
+  classement nominatif fictif), nouveau chapitre « Mesurer, puis
+  réduire » (deltas réels du moteur), vouvoiement intégral, chiffres
+  défendables (28 datacenters documentés), v0.9.0, CTA final 3 boutons
+  (extension · app · Mode Équipe self-hosted).
+
+
+### Changed — C42 Slugs parlants + cohérence hors-Tauri
+
+- **URLs humaines** : `/m9 /m15 /m17 /m25` → `/modeles /suivi /datasheets
+  /eco-budget`, redirections client depuis les anciennes adresses
+  (query/hash préservés). Derniers codes internes retirés de la façade.
+- **Plus d'actions qui mentent hors Tauri** : bannière au chargement de
+  rapport-csrd (+ Générer désactivé), boutons ledger du journal,
+  « Nouveau projet » (datasheets) et submit éco-budget désactivés avec
+  explication au survol.
+
+### Added — C42
+
+- **CI `team-docker`** : build de l'image Mode Équipe (kit C40) + smoke
+  test `/health` en conteneur — valide ce qui ne pouvait pas l'être en
+  session.
+- **`briefs/COMMIT-PLAN-C37-C42.md`** : 8 commits proposés, fichiers
+  exacts, WIP préexistant isolé (224 fichiers hors périmètre).
+
+
+### Changed — C41 Finitions utilisabilité
+
+- **Modèle par défaut du Composer** : `gpt-4o-mini` (deprecated) →
+  `claude-haiku-4-5` — la boucle « Réduire » montre de vraies
+  alternatives dès la première estimation.
+- **« Comparer en détail » pré-remplit le comparateur**
+  (`?models=…&tin=…&tout=…`, ids validés, ≥ 2 requis).
+- **Lexique inline** : 10 définitions (P50, P5–P95, prefill, PUE…) en
+  tooltip accessible reliées au glossaire M8 — posées sur ResultBlock
+  et Composer (`lib/lexique.ts`, `Term.svelte`).
+
+### Fixed — C41
+
+- **Paramètres** : bootstrap scindé — Runtime/Référentiel/Méthodologies
+  s'affichent en démo même quand le pairing (desktop-only) rejette
+  (bug C37 §1) ; dernier message `cargo run` remplacé.
+- **ESLint** : global `__APP_VERSION__` déclaré (no-undef passé inaperçu,
+  l'étape eslint étant tronquée par les timeouts sandbox).
+
+
+### Added — C40 Kit de déploiement Mode Équipe (Docker + communication)
+
+### Added — C40 Parcours première heure + boucle « Réduire »
+
+- **Onboarding** : carte « Mesure automatique » à l'étape finale —
+  génération du code de pairing extension sans passer par Paramètres.
+- **Boucle « Réduire »** : sous chaque résultat, jusqu'à 3 alternatives
+  plus sobres réestimées par le moteur (`estimate_for_comparison`),
+  deltas %, liens Comparer / Éco-budget. Jamais d'heuristique client.
+- **M15** : état vide accueillant avec CTA (premier prompt / extension).
+- **Kit UAT** (docs/qa/uat/) : protocole, script SUS, 27 tâches sur
+  5 personas, grilles — prêt à dérouler (C36).
+- e2e : rail C39 asserté (essentiels + toggle « Plus ») et boucle
+  Réduire couverte dans estimate.spec.
+
+- **`deploy/team/`** : Dockerfile multi-stage (build SvelteKit `web-team`
+  → build Rust avec dashboard embarqué rust-embed → runtime
+  `debian:stable-slim` non-root, volume `/data`, healthcheck `/health`),
+  `docker-compose.yml` (service unique, volume nommé) et `entrypoint.sh`
+  (`init` automatique au premier démarrage via
+  `SOBRIA_TEAM_ADMIN_PASSWORD`, puis `serve`).
+- **`docs/operations/deploiement-equipe.md`** : guide PME ~30 min —
+  démarrage Compose, Option A cert auto-signé / Option B reverse proxy
+  Caddy + Let's Encrypt, codes d'enrôlement, réglages privacy ADR-0015,
+  sauvegarde SQLite/WAL, mise à jour, dépannage. ⚠️ Images non testées en
+  CI à ce jour.
+- **`docs/operations/modeles-communication.md`** : modèles d'emails
+  information-consultation CSE + annonce salariés (garanties ADR-0015,
+  disclaimer « à faire valider par votre juriste »).
+
+### Changed — C39 Rail simplifié + jargon retiré
+
+- **Rail de navigation repensé** : 5 essentiels avec labels (Estimer,
+  Comparer, Suivi, Modèles, Datacenters), 9 modules derrière « Plus »
+  (état persisté, auto-dépliage si page active) — fini les 13 icônes
+  mystères. Largeur 76 → 96px, snippet unique au lieu de 3 duplications.
+- **Codes modules retirés de l'UI** : eyebrows « Module M9 · … »
+  humanisés sur 12 pages (codes conservés dans la doc).
+
+### Added — C38.x finitions aggregator
+
+- **Rétention** : purge automatique des estimations > `retention_days`
+  (défaut 730 j) au démarrage puis quotidienne.
+- **CLI `config list|get|set`** (k_anonymity_min, retention_days) avec
+  planchers validés ; doc opérateur étendue (privacy, CSE, RGPD).
+
+### Fixed
+
+- **Formatage web-team** : dérive Prettier préexistante résorbée sur
+  l'ensemble du package.
+
+
+### Added — C38 Dashboard équipe privacy-first (ADR-0015)
+
+- **ADR-0015** : périmètre privacy du Mode Équipe — k-anonymat des
+  agrégats admin (seuil `config.k_anonymity_min`, défaut 5, plancher 3),
+  identification **opt-in contrôlée par le salarié**, self-service
+  intégral, masquage appliqué côté serveur.
+- **`users.share_identified`** (DDL v3) + **`GET|PUT /api/v1/me/sharing`**
+  (route user-only, admin → 403) + toggle dans l'espace salarié web-team.
+- **Garde k-anonymat** sur `/api/v1/admin/analytics` : sections vides +
+  bloc `k_anonymity{required, active_users, blocked}` si activité
+  insuffisante ; carte explicative côté dashboard.
+
+### Changed — C38
+
+- **`top_users` (nominatif) → `top_users_shared`** : participants opt-in
+  nommés + agrégat anonyme `N participants` ; suppression du checkbox
+  « Anonymiser » client-side (pseudo-protection).
+- **`/api/v1/admin/users`** : `totals: null` sans consentement — la page
+  Employés devient une vue de gestion des enrôlements.
+- Tests : +5 unitaires (92 au total sur l'aggregator), intégration
+  admin réécrite sur le contrat ADR-0015 (blocage k, opt-in, 403 admin).
+
+
+### Added — C37 Mode démo web (fixtures du moteur réel)
+
+- **Mode démo hors Tauri** : la démo web déployée sert désormais des
+  fixtures précalculées par `sobria-estimator` (seed 42, N = 10⁴) au lieu
+  d'écrans vides — 204 résultats Monte-Carlo (34 modèles × 2 méthodologies
+  × 3 tailles), catalogue M9, datacenters M12, dashboard M15 étiqueté
+  « (démo) ». Chargement paresseux : le bundle desktop n'embarque rien.
+  Bannière « Mode démo » + hypothèse `mode_demo` sur chaque résultat.
+  Générateur reproductible : `tools/fixturegen/`. Voir
+  `briefs/chantiers/C37-mode-demo-web.md`.
+- **`tools/fixturegen/`** : crate hors-workspace générant les fixtures
+  depuis le vrai moteur (models/methodologies/estimates JSON).
+
+### Changed — C37 a11y, typographie, voix
+
+- **Contrastes WCAG AA** : `--ivory-3` 3,94:1 → 5,0:1 (#83817a) ;
+  `--ivory-4` 2,01:1 → 3,1:1 (#62605a, réservé décoratif).
+- **Échelle typographique en rem** (respect du réglage navigateur),
+  corps 14 → 15px, plancher 12px (308 tailles 8-11px relevées dans
+  41 fichiers, annotations SVG ≥ 10px).
+- **Version dynamique** dans le rail (`__APP_VERSION__` via Vite define,
+  était « v0.3.0 » hardcodé) + suffixe LOCAL/DÉMO.
+- **Vouvoiement unifié** et messages d'erreur orientés utilisateur final
+  (plus aucun `cargo run -p sobria-app` visible ; libellé « Application
+  de bureau requise »).
+- **Eyebrow home** : « Module M2 » → « Module M1 » (M2 hors périmètre v1.0).
+- **Suite e2e Playwright** migrée du « contrat no-mock » au « contrat
+  démo » (30 passed, 2 skipped documentés) ; en-tête de
+  `playwright.config.ts` réécrit.
+
+### Fixed — C37
+
+- **`leaflet` manquant de `web/package.json`** (utilisé par M12/M20,
+  installé localement sans `--save`) : `npm ci` aurait échoué en CI.
+  Ajouté avec `@types/leaflet`, lock régénéré.
+- **Hydratation morte en dev** : l'import runtime de `package.json` dans
+  le layout violait `server.fs.allow` (403) → version injectée
+  compile-time par `define`.
+
+
 ### Added — Claude Opus 4.8 + sync catalogue extension
 
 - **Claude Opus 4.8** ajouté au registre Rust `MODEL_REGISTRY`
@@ -1260,27 +1488,4 @@ Voir `briefs/chantiers/C09-RETROSPECTIVE.md` pour le détail des décisions mét
 - `datasheet.jsonld` (PROV-O + schema.org/Dataset, pretty-printed).
 - `MANIFEST.sha256` au format `sha256sum` standard.
 - `LayerRegistry::run_full_pipeline` appelle `assemble_gold` en fin de chaîne ; `PipelineReport.gold_artifacts: Option<GoldArtifacts>` expose les chemins.
-- Tests : 4 unitaires (assemble, sqlite, parquet, empty case) + 1 d'intégration end-to-end ComparIA + RTE IRIS → Gold final, vérifie 2 sources, 4 entités Silver, 4 lignes lineage, 3 lignes manifest.
-
-### Changed
-- Pivot stratégique sur les datasets officiels du défi data.gouv.fr (ComparIA + RTE IRIS).
-- 0 clé API bloquante en v1.0 (RTE eco2mix reste optionnel pour le live FR).
-- `schemars` activé avec la feature `chrono` (sérialisation de `DateTime<Utc>`).
-- `polars` bumpé 0.43 → 0.46 (compatibilité hashbrown 0.15+).
-- `rustfmt.toml` allégé en options stable-only.
-- Allows clippy ciblés (`missing_errors_doc`, `missing_panics_doc`, `doc_markdown`, `duration_suboptimal_units`, `needless_pass_by_value`, `float_cmp`) — discipline pédantique sans bruit cosmétique.
-
-### Removed
-- Sources Electricity Maps et MaxMind GeoLite2 (paywalls / licences virales).
-
-### Métriques finales du jalon
-- **3 264 lignes** de code Rust (sobria-ingest) + 759 lignes (sobria-core) + 635 lignes de tests d'intégration.
-- **~85 tests** automatiques (unit + intégration + property-based).
-- **2 sources Tier 1 du défi** opérationnelles (ComparIA + RTE IRIS).
-- **Pipeline Copper → Silver → Gold complet** sur des données synthétiques en CI.
-
----
-
-## [0.1.0] - À venir
-
-Première release publique : cadrage + S0 (revue biblio) + S1-S5 (foundation + 2 sources + Gold) terminés.
+- Tests : 4 unitaires (assemble, sqlite, parquet, empty case) + 1 d'intégration end-to-end 
