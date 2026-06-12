@@ -1,0 +1,73 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sobr.ia — Mode Équipe : déploiement Docker Compose pour PME (C40).
+#
+# ⚠️ Images non testées en CI à ce jour — voir C40.
+# Guide pas-à-pas : docs/operations/deploiement-equipe.md
+#
+# Démarrage (résumé) :
+#   1. Créer un fichier `.env` À CÔTÉ de ce fichier, contenant :
+#        SOBRIA_TEAM_ADMIN_PASSWORD=une-passphrase-longue-32-caracteres-mini
+#   2. docker compose up -d --build        (1ʳᵉ compilation : 10-25 min)
+#   3. Ouvrir https://<hôte>:8443/ — l'avertissement de certificat
+#      auto-signé est attendu (voir guide, Option A / Option B).
+#   4. Une fois l'init réussie, RETIRER la variable du .env puis
+#      `docker compose up -d` (recrée le conteneur sans le secret).
+#
+# Privacy : k-anonymat, opt-in salarié, rétention — appliqués côté serveur
+# (ADR-0015). Réglages : voir le guide, § « Régler la privacy ».
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: sobria-team
+
+services:
+  sobria-team:
+    # Aucune image publiée sur un registre à ce jour : build local depuis
+    # la racine du repo (le contexte doit contenir crates/ et web-team/).
+    build:
+      context: ../..
+      dockerfile: deploy/team/Dockerfile
+    # Tag aligné sur la version workspace (Cargo.toml). À bumper ensemble.
+    image: sobria/team-aggregator:0.9.0
+    container_name: sobria-team-aggregator
+    restart: unless-stopped
+
+    # Le certificat TLS auto-signé généré au premier `init` inclut ce
+    # hostname dans ses SANs. Mettez-y le nom sous lequel vos salariés
+    # joindront le serveur (ex. sobria.interne.exemple.fr).
+    hostname: "${SOBRIA_TEAM_HOSTNAME:-sobria-team}"
+
+    ports:
+      # OPTION A (cert auto-signé, défaut) : exposer 8443 sur le LAN.
+      # OPTION B (reverse proxy TLS type Caddy) : supprimer ce mapping et
+      # laisser le proxy joindre le service via le réseau Compose
+      # (voir guide, § Option B).
+      - "8443:8443"
+
+    environment:
+      # Username de l'admin initial (init uniquement ; défaut : admin).
+      SOBRIA_TEAM_ADMIN_USERNAME: "${SOBRIA_TEAM_ADMIN_USERNAME:-admin}"
+      # Mot de passe admin initial — requis UNIQUEMENT au premier démarrage
+      # (création de /data/team.sqlite). 8 caractères minimum (le binaire
+      # refuse en deçà), 32+ recommandés. À définir dans `.env`, JAMAIS en
+      # clair ici (ce fichier est commité). Lu par le binaire via l'env.
+      SOBRIA_TEAM_ADMIN_PASSWORD: "${SOBRIA_TEAM_ADMIN_PASSWORD:-}"
+      # Verbosité des logs — décommenter au besoin (cf. doc opérateur) :
+      # RUST_LOG: "sobria_team_aggregator=debug,tower_http=debug"
+      # RUST_LOG_FORMAT: "json"
+
+    volumes:
+      # TOUT l'état du serveur : team.sqlite (+ -wal/-shm), cert.pem, key.pem.
+      # Volume nommé (=> sobria-team_data) : survit aux `docker compose down`
+      # (sans -v !) et aux mises à jour d'image. Sauvegardes : voir guide §8.
+      - data:/data
+
+    # Hardening minimal : pas d'escalade de privilèges dans le conteneur
+    # (le process tourne déjà non-root, UID 10001).
+    security_opt:
+      - no-new-privileges:true
+
+    # Le HEALTHCHECK est défini dans l'image (curl -k /health toutes les 30 s).
+    # État visible via : docker compose ps  /  docker inspect (State.Health).
+
+volumes:
+  data:

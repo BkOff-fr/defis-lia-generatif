@@ -1,0 +1,24 @@
+# Dockerignore spécifique à deploy/team/Dockerfile (BuildKit, Docker >= 23 :
+# `<Dockerfile>.dockerignore` prime sur le .dockerignore racine).
+# Réduit le contexte envoyé au démon : seuls Cargo.toml, Cargo.lock, crates/,
+# web-team/ et deploy/team/entrypoint.sh sont réellement COPYés.
+.git
+.github
+.dvc
+data
+docs
+briefs
+research
+notebook
+schemas
+scripts
+web
+extension
+target
+**/target
+**/node_modules
+web-team/build
+**/.svelte-kit
+# Jamais de secrets dans le contexte.
+**/.env
+**/*.env
