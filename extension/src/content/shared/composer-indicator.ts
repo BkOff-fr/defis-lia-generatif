@@ -16,6 +16,13 @@ import { estimateTokens, estimateOutputTokens } from './tokens.js';
 import { getMethod } from './storage.js';
 import { findPreset } from '../../lib/presets.js';
 import type { EmpreinteMethod } from '../../lib/types.js';
+import {
+  FONT_UI,
+  FONT_DISPLAY,
+  FONT_MONO,
+  renderShadowFontFaces,
+  SHADOW_HOST_TYPO
+} from '../../lib/design-fonts.js';
 
 const HOST_ATTR = 'data-sobria-typing';
 const THROTTLE_MS = 80;
@@ -62,6 +69,7 @@ const RING_CIRCUMFERENCE = 87.96;
 function renderMarkup(): string {
   return `
 <style>
+${renderShadowFontFaces()}
 :host {
   all: initial;
   display: inline-flex;
@@ -77,7 +85,7 @@ function renderMarkup(): string {
     opacity 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
     transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: none;
-  font-family: 'Sobria Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  ${SHADOW_HOST_TYPO}
 }
 :host([data-active='1']) {
   opacity: 1;
@@ -124,8 +132,7 @@ function renderMarkup(): string {
   filter: none;
 }
 .grade {
-  font:
-    400 14px/1 'Sobria Instrument', 'Cormorant Garamond', Georgia, serif;
+  font: 400 14px/1 ${FONT_DISPLAY};
   font-style: italic;
   color: #c5f04a;
   position: relative;
@@ -137,7 +144,7 @@ function renderMarkup(): string {
 :host([data-unknown='1']) .grade {
   color: rgba(255, 255, 255, 0.5);
   font-style: normal;
-  font-family: 'Sobria Geist', system-ui, sans-serif;
+  font-family: ${FONT_UI};
   font-weight: 600;
   font-size: 13px;
 }
@@ -148,7 +155,7 @@ function renderMarkup(): string {
   transform: translateX(-50%);
   background: #0a0d0b;
   color: #f0ece3;
-  font: 500 10px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -162,7 +169,7 @@ function renderMarkup(): string {
 .bubble:hover .tooltip,
 .bubble:focus-within .tooltip { opacity: 1; }
 .tooltip .v {
-  font-family: 'Sobria Mono', ui-monospace, monospace;
+  font-family: ${FONT_MONO};
   color: #c5f04a;
 }
 :host([data-tone='amber']) .tooltip .v { color: #f5b769; }

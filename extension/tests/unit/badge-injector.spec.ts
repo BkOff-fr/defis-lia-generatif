@@ -170,7 +170,7 @@ describe('injectBadge — popout 4 onglets (design 38)', () => {
     const hero = badge.shadowRoot!.querySelector('.sb-hero');
     expect(hero).not.toBeNull();
     expect(hero?.textContent ?? '').toContain('2,14');
-    expect(hero?.textContent ?? '').toContain('IC 90');
+    expect(hero?.textContent ?? '').toContain('confiance 90');
     // Score B attendu pour 2.14 g
     expect(badge.shadowRoot!.querySelector('.gauge .gr')?.textContent).toBe('B');
     // Gauge SVG circle present

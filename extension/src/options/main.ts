@@ -8,6 +8,7 @@
 //   - À propos : version statique
 
 import './options.css';
+import { applyVersionLabels } from '../lib/registry-meta.js';
 import {
   getSitesEnabled,
   setSitesEnabled,
@@ -390,5 +391,6 @@ async function init(): Promise<void> {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  applyVersionLabels();
   init().catch((err) => console.error('[sobria options] init failed:', err));
 });

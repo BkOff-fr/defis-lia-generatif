@@ -7,3 +7,7 @@ playwright-report/
 *.log
 .vite/
 .DS_Store
+
+# Artefacts de packaging locaux (jamais versionnés)
+Sobria.zip
+dist-firefox - Copie/

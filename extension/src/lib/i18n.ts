@@ -46,8 +46,8 @@ const CATALOG: Catalog = {
 
   // Erreurs
   'error.unknown-model': {
-    fr: 'Modèle inconnu (registry Sobr.ia)',
-    en: 'Unknown model (Sobr.ia registry)'
+    fr: 'Modèle inconnu (hors registry Sobr.ia)',
+    en: 'Unknown model (outside Sobr.ia registry)'
   },
   'error.invalid-tokens': {
     fr: 'tokensIn et tokensOut doivent être ≥ 0',

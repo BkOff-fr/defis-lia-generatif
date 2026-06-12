@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="./options.css" />
   </head>
   <body>
-    <main class="options" data-sobria-version="0.7.0">
+    <main class="options" data-sobria-version>
       <header class="options__header">
         <div class="options__brand">
           <img class="options__mark" src="/icons/mark.svg" alt="" aria-hidden="true" />
           <h1 class="options__title"><em>Sobr.ia</em> · réglages</h1>
         </div>
-        <span class="options__version">v0.7.0</span>
+        <span class="options__version" data-sobria-version-display>v—</span>
       </header>
 
       <!-- Pairing app (C27.5) -->
@@ -282,11 +282,7 @@
       <!-- Méthodologie -->
       <section class="section">
         <h2 class="section__title">Méthodologie</h2>
-        <p class="section__intro">
-          Deux méthodologies embarquées en v0.7.0 : <strong>AFNOR SPEC 2314</strong> (référentiel
-          français) et <strong>EcoLogits 2026-01</strong> (peer-reviewed JOSS 2025). Le choix se
-          fait depuis la popup. Sources et formules détaillées dans l'app desktop /methodologies.
-        </p>
+        <p class="section__intro" data-sobria-methodology-intro></p>
         <div class="method-grid">
           <article class="method-card">
             <span class="method-card__eyebrow">AFNOR SPEC 2314</span>
@@ -320,7 +316,7 @@
         <h2 class="section__title">À propos</h2>
         <dl class="about-list">
           <dt>Version</dt>
-          <dd>0.7.0 (C27 — extension WebExtension MV3)</dd>
+          <dd data-sobria-about-version>—</dd>
           <dt>Licence</dt>
           <dd>MIT</dd>
           <dt>Source</dt>

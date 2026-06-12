@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Sobr.ia",
   "short_name": "Sobr.ia",
-  "version": "0.6.0",
-  "description": "Mesurez l'empreinte environnementale de vos prompts IA en direct. 100 % local, sans compte, sans cloud.",
+  "version": "0.9.0",
+  "description": "Mesurez l'empreinte environnementale de vos prompts IA en direct. 100 % local, ou self-hosted équipe (sans cloud Sobr.ia).",
   "author": "Sobr.ia contributors",
   "homepage_url": "https://sobr.ia",
   "browser_specific_settings": {
@@ -18,7 +18,6 @@
     "128": "icons/tile.svg"
   },
   "permissions": ["activeTab", "storage", "nativeMessaging"],
-  "optional_permissions": ["nativeMessaging"],
   "host_permissions": [
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",

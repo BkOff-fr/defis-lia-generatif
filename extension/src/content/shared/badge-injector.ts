@@ -13,6 +13,14 @@
 
 import type { Estimate, EmpreinteMethod, EquivalentIcon } from '../../lib/types.js';
 import type { DailyTotal } from '../../lib/messages.js';
+import { unsupportedModelTooltip } from '../../lib/registry-meta.js';
+import {
+  FONT_UI,
+  FONT_DISPLAY,
+  FONT_MONO,
+  renderShadowFontFaces,
+  SHADOW_HOST_TYPO
+} from '../../lib/design-fonts.js';
 
 /** Mapping gco2eq → grade score A-F (design 38 §"gauge"). */
 function pickGrade(gco2eq: number): { letter: 'A' | 'B' | 'C' | 'D' | 'E' | 'F'; ratio: number } {
@@ -45,17 +53,6 @@ function shortMethodLabel(method: EmpreinteMethod): string {
 
 const HOST_ATTR = 'data-sobria-badge';
 
-/** URL d'une ressource extension (fonts/icons), ou '' hors contexte extension. */
-function extensionUrl(path: string): string {
-  try {
-    const api = (globalThis as { chrome?: { runtime?: { getURL?: (p: string) => string } } }).chrome
-      ?.runtime?.getURL;
-    return api ? api(path) : '';
-  } catch {
-    return '';
-  }
-}
-
 /** Mark Sobr.ia simplifié inline (favicon simplifié, currentColor). */
 const MARK_SVG = `<svg viewBox="0 0 100 100" fill="none" aria-hidden="true" focusable="false">
   <path d="M 18 78 C 12 50, 32 18, 64 22 C 78 24, 86 36, 84 52 C 81 78, 52 88, 22 84" stroke="currentColor" stroke-width="9" stroke-linecap="round" fill="none"/>
@@ -78,19 +75,6 @@ const EQ_ICONS: Record<EquivalentIcon, string> = {
   led: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7l1 .7v1.6h6v-1.6l1-.7A7 7 0 0012 2z"/></svg>`,
   phone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>`
 };
-
-/** Construit le bloc @font-face si on est en contexte extension. */
-function renderFontFace(): string {
-  const geist = extensionUrl('fonts/geist-latin.woff2');
-  const instrument = extensionUrl('fonts/instrument-serif-italic-latin.woff2');
-  const mono = extensionUrl('fonts/jetbrains-mono-latin.woff2');
-  if (!geist) return '';
-  return `
-@font-face { font-family: 'Sobria Geist'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('${geist}') format('woff2'); }
-@font-face { font-family: 'Sobria Instrument'; font-style: italic; font-weight: 400; font-display: swap; src: url('${instrument}') format('woff2'); }
-@font-face { font-family: 'Sobria Mono'; font-style: normal; font-weight: 400 600; font-display: swap; src: url('${mono}') format('woff2'); }
-`;
-}
 
 /** Construit l'HTML interne du host shadow root selon design 38. */
 function renderBadgeMarkup(estimate: Estimate, session: DailyTotal | null): string {
@@ -139,15 +123,14 @@ function renderBadgeMarkup(estimate: Estimate, session: DailyTotal | null): stri
 
   return `
 <style>
-${renderFontFace()}
+${renderShadowFontFaces()}
 :host {
   all: initial;
   /* PAS de contain ici : la spec CSS impose qu un element avec containment
      devient le containing block des position:fixed descendants, ce qui empechait
      le popout de s ancrer au viewport (clipping observe dans ChatGPT). */
   display: inline-flex;
-  font-family: 'Sobria Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-variant-numeric: tabular-nums;
+  ${SHADOW_HOST_TYPO}
 }
 
 /* ─── Button (compact, dans la row d'actions) ─── */
@@ -160,7 +143,7 @@ ${renderFontFace()}
   border: 1px solid rgba(197, 240, 74, 0.2);
   border-radius: 999px;
   color: #c5f04a;
-  font: 500 11px/1 'Sobria Geist', system-ui, sans-serif;
+  font: 500 12px/1 ${FONT_UI};
   cursor: pointer;
   transition: all 200ms;
   position: relative;
@@ -170,12 +153,12 @@ ${renderFontFace()}
 .sb-btn .leaf-ic { flex-shrink: 0; width: 13px; height: 13px; display: inline-flex; }
 .sb-btn .leaf-ic svg { width: 100%; height: 100%; }
 .sb-btn .val {
-  font-family: 'Sobria Mono', ui-monospace, monospace;
+  font-family: ${FONT_MONO};
   font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
 }
 .sb-btn .by {
-  font: 400 9px 'Sobria Geist', sans-serif;
+  font: 400 12px ${FONT_UI};
   color: rgba(197, 240, 74, 0.5);
   letter-spacing: 0.04em;
   margin-left: 4px;
@@ -184,26 +167,11 @@ ${renderFontFace()}
   text-transform: uppercase;
 }
 .sb-btn .chev {
-  font-size: 9px;
+  font-size: 12px;
   color: rgba(197, 240, 74, 0.5);
   transition: transform 200ms;
 }
 .sb-btn.open .chev { transform: rotate(180deg); }
-.sb-btn::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 999px;
-  border: 1px solid rgba(197, 240, 74, 0.35);
-  opacity: 0;
-  animation: sbPulse 2.4s ease-out infinite;
-  pointer-events: none;
-}
-@keyframes sbPulse {
-  0% { transform: scale(0.92); opacity: 0.6; }
-  100% { transform: scale(1.12); opacity: 0; }
-}
-
 /* ─── Popout (cliquable, 4 onglets) ─── */
 /* Flow inline : pas de position:fixed → la conversation s'adapte
    (push down du contenu suivant) et scroll naturellement pour voir
@@ -217,7 +185,7 @@ ${renderFontFace()}
   background: #0a0d0b;
   border: 1px solid #1f2620;
   border-radius: 14px;
-  font-family: 'Sobria Geist', system-ui, sans-serif;
+  font-family: ${FONT_UI};
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(197, 240, 74, 0.08);
   color: #f0ece3;
   animation: sbSlide 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -244,13 +212,13 @@ ${renderFontFace()}
 }
 .sb-pop .head .rich-mark svg { width: 100%; height: 100%; }
 .sb-pop .head .eye {
-  font: 500 9px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: #a5a39a;
+  letter-spacing: 0.14em;
+  color: #b8b4ac;
 }
 .sb-pop .head .live {
-  font: 500 10px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   color: #c5f04a;
   display: inline-flex;
   align-items: center;
@@ -282,26 +250,26 @@ ${renderFontFace()}
   align-items: center;
 }
 .sb-hero .lab {
-  font: 500 9px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #a5a39a;
+  color: #b8b4ac;
   margin-bottom: 6px;
 }
 .sb-hero .big {
-  font: 400 44px/1 'Sobria Instrument', 'Cormorant Garamond', Georgia, serif;
+  font: 400 44px/1 ${FONT_DISPLAY};
   font-style: italic;
   color: #f0ece3;
   letter-spacing: -0.02em;
 }
 .sb-hero .big .u {
-  font: 400 13px 'Sobria Geist', sans-serif;
+  font: 400 13px ${FONT_UI};
   font-style: normal;
-  color: #a5a39a;
+  color: #b8b4ac;
   margin-left: 6px;
 }
 .sb-hero .ci {
-  font: 400 11px/1 'Sobria Mono', ui-monospace, monospace;
+  font: 400 12px/1 ${FONT_MONO};
   color: #c5f04a;
   margin-top: 6px;
 }
@@ -312,7 +280,7 @@ ${renderFontFace()}
 }
 .sb-hero .gauge svg { transform: rotate(-90deg); }
 .sb-hero .gauge .gr {
-  font: 400 26px 'Sobria Instrument', serif;
+  font: 400 26px ${FONT_DISPLAY};
   font-style: italic;
   position: absolute;
   inset: 0;
@@ -322,14 +290,14 @@ ${renderFontFace()}
 }
 .sb-hero .gauge .gl {
   position: absolute;
-  bottom: -14px;
+  bottom: -16px;
   left: 0;
   right: 0;
   text-align: center;
-  font: 500 9px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #a5a39a;
+  color: #b8b4ac;
 }
 
 /* Tabs */
@@ -339,11 +307,11 @@ ${renderFontFace()}
   padding: 0 18px;
 }
 .sb-tab {
-  padding: 11px 14px;
-  font: 500 11px 'Sobria Geist', sans-serif;
+  padding: 11px 12px;
+  font: 500 12px ${FONT_UI};
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #a5a39a;
+  color: #b8b4ac;
   cursor: pointer;
   border: none;
   background: none;
@@ -384,19 +352,19 @@ ${renderFontFace()}
 .eq .ic svg { width: 18px; height: 18px; }
 .eq .body-eq { flex: 1; min-width: 0; }
 .eq .nm {
-  font: 400 11px 'Sobria Geist', sans-serif;
-  color: #a5a39a;
+  font: 400 12px ${FONT_UI};
+  color: #b8b4ac;
   font-style: italic;
 }
 .eq .v {
-  font: 400 18px/1 'Sobria Instrument', serif;
+  font: 400 18px/1 ${FONT_DISPLAY};
   font-style: italic;
   color: #f0ece3;
   margin-top: 2px;
   letter-spacing: -0.01em;
 }
 .eq .v .u {
-  font: 400 10px 'Sobria Geist', sans-serif;
+  font: 400 12px ${FONT_UI};
   font-style: normal;
   color: #72706a;
   margin-left: 3px;
@@ -411,20 +379,20 @@ ${renderFontFace()}
   padding: 9px 12px;
 }
 .meta .k {
-  font: 500 9px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #a5a39a;
+  color: #b8b4ac;
 }
 .meta .v {
-  font: 400 16px 'Sobria Instrument', serif;
+  font: 400 16px ${FONT_DISPLAY};
   font-style: italic;
   color: #f0ece3;
   margin-top: 3px;
   letter-spacing: -0.01em;
 }
 .meta .v .u {
-  font: 400 9px 'Sobria Geist', sans-serif;
+  font: 400 12px ${FONT_UI};
   font-style: normal;
   color: #72706a;
   margin-left: 2px;
@@ -437,13 +405,13 @@ ${renderFontFace()}
   grid-template-columns: 120px 1fr 64px;
   gap: 12px;
   align-items: center;
-  font: 400 12px 'Sobria Geist', sans-serif;
-  color: #cfcfcf;
+  font: 400 12px ${FONT_UI};
+  color: #f0ece3;
 }
-.brk-row .k { color: #a5a39a; }
+.brk-row .k { color: #b8b4ac; }
 .brk-row .bar { height: 6px; background: rgba(255, 255, 255, 0.04); border-radius: 3px; overflow: hidden; }
 .brk-row .bar .fill { height: 100%; background: linear-gradient(90deg, #7a9a32, #c5f04a); border-radius: 3px; }
-.brk-row .v { font-family: 'Sobria Mono', monospace; color: #f0ece3; text-align: right; font-size: 11px; }
+.brk-row .v { font-family: ${FONT_MONO}; color: #f0ece3; text-align: right; font-size: 12px; }
 .brk-tot {
   margin-top: 12px;
   padding-top: 12px;
@@ -453,20 +421,20 @@ ${renderFontFace()}
   align-items: baseline;
 }
 .brk-tot .l {
-  font: 500 10px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #a5a39a;
+  color: #b8b4ac;
 }
 .brk-tot .v {
-  font: 400 20px 'Sobria Instrument', serif;
+  font: 400 20px ${FONT_DISPLAY};
   font-style: italic;
   color: #c5f04a;
 }
 .brk-tot .v .u {
-  font: 400 11px 'Sobria Geist', sans-serif;
+  font: 400 12px ${FONT_UI};
   font-style: normal;
-  color: #a5a39a;
+  color: #b8b4ac;
   margin-left: 3px;
 }
 
@@ -485,20 +453,20 @@ ${renderFontFace()}
   margin-bottom: 8px;
 }
 .spark-head .l {
-  font: 500 10px 'Sobria Geist', sans-serif;
+  font: 500 12px ${FONT_UI};
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #a5a39a;
+  color: #b8b4ac;
 }
 .spark-head .v {
-  font: 400 22px 'Sobria Instrument', serif;
+  font: 400 22px ${FONT_DISPLAY};
   font-style: italic;
   color: #c5f04a;
 }
 .spark-head .v .u {
-  font: 400 10px 'Sobria Geist', sans-serif;
+  font: 400 12px ${FONT_UI};
   font-style: normal;
-  color: #a5a39a;
+  color: #b8b4ac;
   margin-left: 3px;
 }
 .cum-row {
@@ -507,42 +475,42 @@ ${renderFontFace()}
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px dashed #1f2620;
-  font: 400 12px 'Sobria Geist', sans-serif;
-  color: #cfcfcf;
+  font: 400 12px ${FONT_UI};
+  color: #f0ece3;
 }
 .cum-row:last-child { border: none; }
-.cum-row .k { color: #a5a39a; }
-.cum-row .v { font-family: 'Sobria Mono', monospace; font-size: 11px; color: #f0ece3; }
+.cum-row .k { color: #b8b4ac; }
+.cum-row .v { font-family: ${FONT_MONO}; font-size: 12px; color: #f0ece3; }
 
 /* Méthode */
-.method { display: flex; flex-direction: column; gap: 12px; font: 400 12px/1.5 'Sobria Geist', sans-serif; color: #cfcfcf; }
+.method { display: flex; flex-direction: column; gap: 12px; font: 400 12px/1.5 ${FONT_UI}; color: #f0ece3; }
 .method .src {
   display: flex;
   gap: 10px;
   align-items: flex-start;
   padding: 10px 12px;
-  background: rgba(126, 182, 255, 0.04);
-  border: 1px dashed rgba(126, 182, 255, 0.2);
+  background: rgba(197, 240, 74, 0.04);
+  border: 1px dashed rgba(197, 240, 74, 0.2);
   border-radius: 8px;
 }
 .method .src .ic {
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  background: rgba(126, 182, 255, 0.08);
+  background: rgba(197, 240, 74, 0.08);
   display: grid;
   place-items: center;
-  color: #7eb6ff;
+  color: #c5f04a;
   flex-shrink: 0;
 }
 .method .src .ic svg { width: 14px; height: 14px; }
 .method .src .b { flex: 1; }
-.method .src .nm { font: 500 11px 'Sobria Geist', sans-serif; color: #f0ece3; margin-bottom: 2px; }
-.method .src .dt { font: 400 10px 'Sobria Mono', monospace; color: #7eb6ff; }
-.method .src .ds { font: 400 11px 'Sobria Geist', sans-serif; color: #a5a39a; margin-top: 3px; font-style: italic; }
+.method .src .nm { font: 500 12px ${FONT_UI}; color: #f0ece3; margin-bottom: 2px; }
+.method .src .dt { font: 400 12px ${FONT_MONO}; color: #c5f04a; }
+.method .src .ds { font: 400 12px ${FONT_UI}; color: #b8b4ac; margin-top: 3px; font-style: italic; }
 .method .formula {
-  font-family: 'Sobria Mono', monospace;
-  font-size: 11px;
+  font-family: ${FONT_MONO};
+  font-size: 12px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid #1f2620;
   border-radius: 8px;
@@ -560,8 +528,8 @@ ${renderFontFace()}
   display: flex;
   align-items: center;
   gap: 10px;
-  font: 400 10px 'Sobria Geist', sans-serif;
-  color: #a5a39a;
+  font: 400 12px ${FONT_UI};
+  color: #b8b4ac;
   font-style: italic;
 }
 .sb-foot .pill {
@@ -570,7 +538,7 @@ ${renderFontFace()}
   color: #c5f04a;
   padding: 3px 8px;
   border-radius: 99px;
-  font: 500 9px 'Sobria Mono', monospace;
+  font: 500 12px ${FONT_MONO};
   font-style: normal;
   letter-spacing: 0.02em;
 }
@@ -588,7 +556,7 @@ ${renderFontFace()}
   <div class="head">
     <span class="rich-mark">${MARK_RICH_SVG}</span>
     <span class="eye">Empreinte de cette réponse</span>
-    <span class="live">par Sobr.ia · LIVE</span>
+    <span class="live">par Sobr.ia</span>
     <button class="close" data-sobria-action="close" type="button" aria-label="Fermer le détail">×</button>
   </div>
 
@@ -596,7 +564,7 @@ ${renderFontFace()}
     <div>
       <div class="lab">CO₂ équivalent · cette réponse</div>
       <div class="big">${gco2}<span class="u">g CO₂eq</span></div>
-      <div class="ci">P5 ${p5} ─ P95 ${p95} · IC 90 %</div>
+      <div class="ci">fourchette ${p5} – ${p95} g (confiance 90 %)</div>
     </div>
     <div class="gauge">
       <svg width="90" height="90" viewBox="0 0 90 90">
@@ -673,7 +641,7 @@ ${renderFontFace()}
 
   <div class="sb-foot">
     <span class="pill">🔒 100 % local</span>
-    <span>Aucune donnée n'est envoyée. Calcul fait dans ton navigateur.</span>
+    <span>Aucune donnée n'est envoyée : tout est calculé dans votre navigateur.</span>
   </div>
 </div>
 `.trim();
@@ -916,10 +884,8 @@ export function injectUnsupportedBadge(
   host.style.verticalAlign = 'middle';
 
   const shadow = host.attachShadow({ mode: 'open' });
-  const fontFace = renderFontFace();
-  const tooltipText = options.modelLabel
-    ? `Modèle « ${options.modelLabel} » pas encore dans le registry Sobr.ia v0.7.0`
-    : 'Ce modèle n’est pas encore dans le registry Sobr.ia v0.7.0';
+  const fontFace = renderShadowFontFaces();
+  const tooltipText = unsupportedModelTooltip(options.modelLabel);
 
   shadow.innerHTML = `
 <style>
@@ -927,8 +893,7 @@ ${fontFace}
 :host {
   all: initial;
   display: inline-flex;
-  font-family: 'Sobria Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-variant-numeric: tabular-nums;
+  ${SHADOW_HOST_TYPO}
 }
 .sb-pill {
   display: inline-flex;
@@ -938,8 +903,8 @@ ${fontFace}
   background: rgba(255, 255, 255, 0.04);
   border: 1px dashed rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.55);
-  font: 500 11px/1 'Sobria Geist', system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.62);
+  font: 500 12px/1 ${FONT_UI};
   cursor: help;
   position: relative;
 }
@@ -960,8 +925,8 @@ ${fontFace}
   letter-spacing: 0.02em;
 }
 .by {
-  font: 400 9px 'Sobria Geist', sans-serif;
-  color: rgba(255, 255, 255, 0.35);
+  font: 400 12px ${FONT_UI};
+  color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.04em;
   margin-left: 4px;
   border-left: 1px solid rgba(255, 255, 255, 0.18);
@@ -975,7 +940,7 @@ ${fontFace}
   transform: translateX(-50%);
   background: #0a0d0b;
   color: #f0ece3;
-  font: 400 10px/1.4 'Sobria Geist', sans-serif;
+  font: 400 12px/1.4 ${FONT_UI};
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.08);

@@ -15,6 +15,11 @@ import {
 import { waitForNewMatching } from './shared/wait-for-bubble.js';
 import { estimate } from '../lib/empreinte/index.js';
 import { findPreset } from '../lib/presets.js';
+import { registryLabel } from '../lib/registry-meta.js';
+import {
+  collectModelLabels,
+  resolveModelFromLabels
+} from './shared/model-resolver.js';
 import type { EstimationSubmittedMessage } from '../lib/messages.js';
 
 const HOST = 'le-chat' as const;
@@ -38,17 +43,24 @@ const MODEL_NAME_TO_PRESET_ID: Record<string, string> = {
   'mistral large 2': 'mistral-large-2'
 };
 
+const LE_CHAT_MODEL_LABEL_SELECTORS = [
+  '[data-model]',
+  "button[aria-label*='Modèle' i]",
+  "button[aria-label*='model' i]",
+  'button[aria-haspopup]'
+] as const;
+
+function readModelLabelFromUi(): string {
+  const labels = collectModelLabels(LE_CHAT_MODEL_LABEL_SELECTORS).filter((l) =>
+    /mistral/i.test(l)
+  );
+  return resolveModelFromLabels(labels, MODEL_NAME_TO_PRESET_ID)?.label ?? '';
+}
+
 function extractModelId(): string | null {
-  const candidates = document.querySelectorAll("[data-model], button, [role='button']");
-  for (const el of Array.from(candidates)) {
-    const text = (el.textContent ?? '').toLowerCase();
-    const dataModel = el.getAttribute('data-model')?.toLowerCase() ?? '';
-    const hay = `${dataModel} ${text}`;
-    for (const [key, presetId] of Object.entries(MODEL_NAME_TO_PRESET_ID)) {
-      if (hay.includes(key)) return presetId;
-    }
-  }
-  return null;
+  const labels = collectModelLabels(LE_CHAT_MODEL_LABEL_SELECTORS);
+  const mistralLabels = labels.filter((l) => /mistral/i.test(l) || l.includes('-'));
+  return resolveModelFromLabels(mistralLabels, MODEL_NAME_TO_PRESET_ID)?.presetId ?? null;
 }
 
 function findBotActionsRow(): Element | null {
@@ -84,7 +96,7 @@ function tryInjectComposerIndicator(): void {
     console.info('[sobria] Le Chat désactivé via options — skip.');
     return;
   }
-  console.info('[sobria] content script Le Chat chargé (v0.7.0, design 38)');
+  console.info(`[sobria] content script Le Chat chargé (${registryLabel()}, design 38)`);
 
   tryInjectComposerIndicator();
 
@@ -104,7 +116,10 @@ function tryInjectComposerIndicator(): void {
             "button[aria-label*='Copier' i], button[aria-label*='Copy' i], [data-role='assistant']"
           );
           const actionsRow = findBotActionsRow();
-          if (actionsRow) injectUnsupportedBadge(actionsRow);
+          const label = readModelLabelFromUi();
+          if (actionsRow) {
+            injectUnsupportedBadge(actionsRow, label ? { modelLabel: label } : {});
+          }
           return;
         }
 

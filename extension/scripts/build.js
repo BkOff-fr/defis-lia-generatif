@@ -1,8 +1,9 @@
 // Sobr.ia extension — orchestrateur de build (C27.1).
 //
-// Lance Vite en 2 passes :
-//   1. main : popup + options + service-worker (ES modules, HTML entries)
-//   2. iife : 3 content scripts en format IIFE (contrainte MV3)
+// Lance Vite en 5 passes :
+//   1. main : popup + options (ES modules, HTML entries)
+//   2. sw   : service-worker IIFE monolithique (contrainte MV3 Chrome)
+//   3–5. iife : 3 content scripts (1 passe chacun)
 //
 // Usage :
 //   node scripts/build.js              # build Chrome → dist/
@@ -44,23 +45,27 @@ const CONTENT_SCRIPTS = ['chatgpt', 'claude', 'le-chat'];
 
 async function main() {
   if (isWatch) {
-    // Watch mode : seule la passe `main` est vraiment utile en dev (popup/options HMR).
-    // Les content scripts en watch nécessitent un rebuild manuel — acceptable v0.6.0.
-    console.log(`[build] watch mode (${targetLabel}) — passe main uniquement`);
-    await runVite({ SOBRIA_KIND: 'main' }, ['--watch']);
+    console.log(`[build] watch mode (${targetLabel}) — build complet initial puis watch popup/options`);
+    await runVite({ SOBRIA_KIND: 'main' });
+    await runVite({ SOBRIA_KIND: 'sw' });
+    for (const cs of CONTENT_SCRIPTS) {
+      await runVite({ SOBRIA_KIND: 'iife', SOBRIA_CONTENT: cs });
+    }
+    await runVite({ SOBRIA_KIND: 'main', SOBRIA_WATCH: '1' }, ['--watch']);
     return;
   }
 
-  const totalPasses = 1 + CONTENT_SCRIPTS.length;
-  console.log(
-    `[build] (${targetLabel}) 1/${totalPasses} passe main (popup + options + service-worker)`
-  );
+  const totalPasses = 2 + CONTENT_SCRIPTS.length;
+  console.log(`[build] (${targetLabel}) 1/${totalPasses} passe main (popup + options)`);
   await runVite({ SOBRIA_KIND: 'main' });
+
+  console.log(`[build] (${targetLabel}) 2/${totalPasses} passe sw (service-worker IIFE)`);
+  await runVite({ SOBRIA_KIND: 'sw' });
 
   // Rollup interdit IIFE multi-entry → 1 passe par content script.
   for (let i = 0; i < CONTENT_SCRIPTS.length; i++) {
     const cs = CONTENT_SCRIPTS[i];
-    const step = i + 2;
+    const step = i + 3;
     console.log(`[build] (${targetLabel}) ${step}/${totalPasses} passe iife (content-${cs})`);
     await runVite({ SOBRIA_KIND: 'iife', SOBRIA_CONTENT: cs });
   }

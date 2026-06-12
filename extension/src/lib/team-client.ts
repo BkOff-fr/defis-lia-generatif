@@ -43,6 +43,8 @@ export type EstimatePayload = {
   host: string;
   modelDisplayName: string;
   ts: string;
+  /** Étiquette projet de la conversation (C44) — optionnelle, ≤ 64 chars. */
+  project?: string;
 };
 
 async function joinUrl(path: string): Promise<string> {

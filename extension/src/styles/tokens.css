@@ -126,6 +126,11 @@
   --font-ui: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
+  --fs-body: 14px;
+  --lh-body: 20px;
+  --fs-caption: 12px;
+  --lh-caption: 16px;
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -164,8 +169,8 @@ body {
   background: var(--ink);
   color: var(--ivory);
   font-family: var(--font-ui);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'ss01', 'cv11';
   -webkit-font-smoothing: antialiased;

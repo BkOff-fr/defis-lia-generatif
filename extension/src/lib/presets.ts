@@ -1,7 +1,8 @@
 // Sobr.ia extension — registry de presets modèles (C27.2, étendu C34.2).
 //
 // Mirror du registry Rust `crates/sobria-estimator/src/model_presets.rs::MODEL_REGISTRY`.
-// Cohorte v0.9.0 = 33 presets : 25 actifs (2025-2026) + 8 conservés
+// Version affichée UI : `registry-meta.ts` (= `package.json`). Cohorte actuelle :
+// 33 presets : 25 actifs (2025-2026) + 8 conservés
 // `deprecated` (2024) pour parité tests historiques (cf.
 // `tests/unit/empreinte.spec.ts`) et reproductibilité de l'audit ledger.
 //

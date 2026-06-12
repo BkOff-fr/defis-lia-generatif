@@ -1,14 +1,16 @@
 // Sobr.ia extension — Vite config (C27.1).
 //
 // Build en N passes pour respecter les contraintes MV3 :
-//   - Pass `main`   : popup + options (HTML, ES modules) + service-worker (ES module bundled).
+//   - Pass `main`   : popup + options (HTML, ES modules).
+//   - Pass `sw`     : service-worker en IIFE monolithique (MV3 Chrome n'accepte pas
+//                     les `import` hors `"type": "module"` — on bundle tout en un fichier).
 //   - Pass `iife`   : 1 content script en format IIFE par passe. Rollup interdit
 //                     l'IIFE multi-entry → on enchaîne 3 builds depuis scripts/build.js.
 //
 // Variables d'environnement :
 //   - SOBRIA_TARGET  = 'chrome' (défaut) | 'firefox'  → dist/ vs dist-firefox/ et le
 //     manifest copié (manifest.json vs manifest.firefox.json).
-//   - SOBRIA_KIND    = 'main' (défaut) | 'iife'       → choisit la passe.
+//   - SOBRIA_KIND    = 'main' (défaut) | 'sw' | 'iife' → choisit la passe.
 //   - SOBRIA_CONTENT = 'chatgpt' | 'claude' | 'le-chat' (requis si SOBRIA_KIND=iife).
 //
 // Orchestrée par scripts/build.js (cf. package.json).
@@ -21,7 +23,7 @@ import { copyFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 type Target = 'chrome' | 'firefox';
-type Kind = 'main' | 'iife';
+type Kind = 'main' | 'sw' | 'iife';
 type Content = 'chatgpt' | 'claude' | 'le-chat';
 
 const target: Target = (process.env['SOBRIA_TARGET'] as Target) ?? 'chrome';
@@ -30,9 +32,10 @@ const outDir = target === 'firefox' ? 'dist-firefox' : 'dist';
 
 const mainEntries = {
   popup: resolve(__dirname, 'src/popup/index.html'),
-  options: resolve(__dirname, 'src/options/index.html'),
-  'service-worker': resolve(__dirname, 'src/background/service-worker.ts')
+  options: resolve(__dirname, 'src/options/index.html')
 };
+
+const serviceWorkerEntry = resolve(__dirname, 'src/background/service-worker.ts');
 
 function contentEntry(content: Content): { name: string; path: string } {
   const map: Record<Content, string> = {
@@ -44,6 +47,7 @@ function contentEntry(content: Content): { name: string; path: string } {
 }
 
 const isIife = kind === 'iife';
+const isServiceWorker = kind === 'sw';
 
 let iifeInput: { name: string; path: string } | undefined;
 if (isIife) {
@@ -57,14 +61,23 @@ if (isIife) {
 export default defineConfig({
   build: {
     outDir,
-    // emptyOutDir uniquement sur la passe main : les passes IIFE doivent ajouter au dossier.
-    emptyOutDir: !isIife,
+    // emptyOutDir uniquement sur la passe main : sw + iife ajoutent au dossier.
+    emptyOutDir: kind === 'main' && process.env['SOBRIA_WATCH'] !== '1',
     sourcemap: false,
     minify: 'esbuild',
     target: 'esnext',
     chunkSizeWarningLimit: 500,
-    rollupOptions:
-      isIife && iifeInput
+    rollupOptions: isServiceWorker
+      ? {
+          input: { 'service-worker': serviceWorkerEntry },
+          output: {
+            format: 'iife',
+            entryFileNames: 'service-worker.js',
+            inlineDynamicImports: true,
+            extend: true
+          }
+        }
+      : isIife && iifeInput
         ? {
             input: { [iifeInput.name]: iifeInput.path },
             output: {
@@ -77,16 +90,13 @@ export default defineConfig({
         : {
             input: mainEntries,
             output: {
-              entryFileNames: (chunkInfo) => {
-                if (chunkInfo.name === 'service-worker') return 'service-worker.js';
-                return 'assets/[name].js';
-              },
+              entryFileNames: 'assets/[name].js',
               chunkFileNames: 'assets/[name]-[hash].js',
               assetFileNames: 'assets/[name][extname]'
             }
           }
   },
-  plugins: isIife ? [] : [copyAssetsPlugin(target, outDir)]
+  plugins: kind === 'main' ? [copyAssetsPlugin(target, outDir)] : []
 });
 
 function copyAssetsPlugin(activeTarget: Target, finalOutDir: string): Plugin {

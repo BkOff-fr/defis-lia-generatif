@@ -21,6 +21,11 @@ import {
 import { waitForNewMatching } from './shared/wait-for-bubble.js';
 import { estimate } from '../lib/empreinte/index.js';
 import { findPreset } from '../lib/presets.js';
+import { registryLabel } from '../lib/registry-meta.js';
+import {
+  collectModelLabels,
+  resolveModelFromLabels
+} from './shared/model-resolver.js';
 import type { EstimationSubmittedMessage } from '../lib/messages.js';
 
 const HOST = 'chatgpt' as const;
@@ -34,12 +39,25 @@ const SELECTOR_SEND_BUTTON =
 
 // Ordre = specific-first : `text.includes(key)` matche le premier qui colle.
 const MODEL_NAME_TO_PRESET_ID: Record<string, string> = {
-  // 2026 (C34.2)
+  // 2026 (C34.2) — ordre specific-first
   'gpt-5.5 thinking': 'gpt-5-5-thinking',
   'gpt-5.5 pro': 'gpt-5-5-pro',
+  'chatgpt 5.5 thinking': 'gpt-5-5-thinking',
+  'chatgpt 5.5 pro': 'gpt-5-5-pro',
+  'chatgpt 5.5': 'gpt-5-5',
+  'chatgpt 5': 'gpt-5-5',
+  'gpt-5 thinking': 'gpt-5-5-thinking',
+  'gpt-5 pro': 'gpt-5-5-pro',
   'gpt-5.5': 'gpt-5-5',
+  'gpt-5': 'gpt-5-5',
+  'chatgpt-5': 'gpt-5-5',
+  'o3-pro': 'o3',
+  'o3-mini': 'o3',
   o3: 'o3',
-  // 2024 (deprecated mais encore visibles dans certaines interfaces)
+  // Libellés « ChatGPT 4o » (espace, pas tiret — très fréquent dans l'UI)
+  'chatgpt 4o mini': 'gpt-4o-mini',
+  'chatgpt 4o': 'gpt-4o',
+  // 2024 (deprecated mais encore visibles)
   'gpt-4o mini': 'gpt-4o-mini',
   'gpt-4o-mini': 'gpt-4o-mini',
   'gpt-4o': 'gpt-4o',
@@ -49,24 +67,35 @@ const MODEL_NAME_TO_PRESET_ID: Record<string, string> = {
   'o1-mini': 'gpt-4o-mini'
 };
 
-function extractModelId(): string | null {
-  const candidates = document.querySelectorAll(
-    "[data-testid='model-switcher-dropdown-button'], header button[aria-haspopup], button[aria-label*='Model']"
+const CHATGPT_MODEL_LABEL_SELECTORS = [
+  "[data-testid='model-switcher-dropdown-button']",
+  "[data-testid='model-switcher'] button",
+  "button[aria-label*='GPT' i]",
+  "button[aria-label*='model' i]",
+  "button[aria-label*='modèle' i]"
+] as const;
+
+function readModelLabelFromUi(): string {
+  const resolved = resolveModelFromLabels(
+    collectModelLabels(CHATGPT_MODEL_LABEL_SELECTORS),
+    MODEL_NAME_TO_PRESET_ID
   );
-  for (const el of Array.from(candidates)) {
-    const raw = (el.textContent ?? '').trim().toLowerCase();
-    if (!raw) continue;
-    for (const [key, presetId] of Object.entries(MODEL_NAME_TO_PRESET_ID)) {
-      if (raw.includes(key)) return presetId;
-    }
-  }
+  return resolved?.label ?? '';
+}
+
+function extractModelId(): string | null {
+  const fromUi = resolveModelFromLabels(
+    collectModelLabels(CHATGPT_MODEL_LABEL_SELECTORS),
+    MODEL_NAME_TO_PRESET_ID
+  );
+  if (fromUi) return fromUi.presetId;
+
   const urlModel = new URL(window.location.href).searchParams.get('model');
   if (urlModel) {
-    const mapped = MODEL_NAME_TO_PRESET_ID[urlModel.toLowerCase()];
-    if (mapped) return mapped;
+    const fromUrl = resolveModelFromLabels([urlModel], MODEL_NAME_TO_PRESET_ID);
+    if (fromUrl) return fromUrl.presetId;
   }
-  // Modèle inconnu → null (l'UI affichera « non pris en charge » au lieu de
-  // mentir avec une fausse valeur). Mieux que de fallback silencieux sur GPT-4o.
+
   return null;
 }
 
@@ -131,7 +160,7 @@ function tryInjectComposerIndicator(): void {
     console.info('[sobria] ChatGPT désactivé via options — skip.');
     return;
   }
-  console.info('[sobria] content script ChatGPT chargé (v0.7.0, design 38)');
+  console.info(`[sobria] content script ChatGPT chargé (${registryLabel()}, design 38)`);
 
   // Indicateur composer initial + re-injection sur changement de DOM.
   tryInjectComposerIndicator();
@@ -158,7 +187,10 @@ function tryInjectComposerIndicator(): void {
             "[data-testid='copy-turn-action-button'], article[data-testid^='conversation-turn']:last-of-type"
           );
           const actionsRow = findBotActionsRow();
-          if (actionsRow) injectUnsupportedBadge(actionsRow);
+          const label = readModelLabelFromUi();
+          if (actionsRow) {
+            injectUnsupportedBadge(actionsRow, label ? { modelLabel: label } : {});
+          }
           return;
         }
 

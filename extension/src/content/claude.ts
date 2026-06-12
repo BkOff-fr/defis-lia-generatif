@@ -15,6 +15,11 @@ import {
 import { waitForNewMatching } from './shared/wait-for-bubble.js';
 import { estimate } from '../lib/empreinte/index.js';
 import { findPreset } from '../lib/presets.js';
+import { registryLabel } from '../lib/registry-meta.js';
+import {
+  collectModelLabels,
+  resolveModelFromLabels
+} from './shared/model-resolver.js';
 import type { EstimationSubmittedMessage } from '../lib/messages.js';
 
 const HOST = 'claude' as const;
@@ -43,18 +48,28 @@ const MODEL_NAME_TO_PRESET_ID: Record<string, string> = {
   'claude 3 haiku': 'claude-3-5-sonnet'
 };
 
+const CLAUDE_MODEL_LABEL_SELECTORS = [
+  "button[aria-label*='Claude' i]",
+  "button[aria-label*='Opus' i]",
+  "button[aria-label*='Sonnet' i]",
+  "button[aria-label*='Haiku' i]",
+  "button[data-testid*='model' i]",
+  'nav button',
+  'header button'
+] as const;
+
+function readModelLabelFromUi(): string {
+  const labels = collectModelLabels(CLAUDE_MODEL_LABEL_SELECTORS).filter((l) =>
+    /claude|opus|sonnet|haiku/i.test(l)
+  );
+  return resolveModelFromLabels(labels, MODEL_NAME_TO_PRESET_ID)?.label ?? '';
+}
+
 function extractModelId(): string | null {
-  const candidates = document.querySelectorAll("button, [role='button']");
-  for (const el of Array.from(candidates)) {
-    const text = (el.textContent ?? '').toLowerCase();
-    if (!text.includes('claude')) continue;
-    for (const [key, presetId] of Object.entries(MODEL_NAME_TO_PRESET_ID)) {
-      if (text.includes(key)) return presetId;
-    }
-  }
-  // Modèle inconnu (Opus 4.x, futurs Claude…) → null pour afficher
-  // « non pris en charge » au lieu de mentir avec Sonnet 3.5.
-  return null;
+  const labels = collectModelLabels(CLAUDE_MODEL_LABEL_SELECTORS).filter((l) =>
+    /claude|opus|sonnet|haiku/i.test(l)
+  );
+  return resolveModelFromLabels(labels, MODEL_NAME_TO_PRESET_ID)?.presetId ?? null;
 }
 
 function findBotActionsRow(): Element | null {
@@ -92,7 +107,7 @@ function tryInjectComposerIndicator(): void {
     console.info('[sobria] Claude désactivé via options — skip.');
     return;
   }
-  console.info('[sobria] content script Claude chargé (v0.7.0, design 38)');
+  console.info(`[sobria] content script Claude chargé (${registryLabel()}, design 38)`);
 
   tryInjectComposerIndicator();
 
@@ -112,7 +127,10 @@ function tryInjectComposerIndicator(): void {
             "button[aria-label*='Copier' i], button[aria-label*='Copy' i], [data-is-streaming='false']"
           );
           const actionsRow = findBotActionsRow();
-          if (actionsRow) injectUnsupportedBadge(actionsRow);
+          const label = readModelLabelFromUi();
+          if (actionsRow) {
+            injectUnsupportedBadge(actionsRow, label ? { modelLabel: label } : {});
+          }
           return;
         }
 

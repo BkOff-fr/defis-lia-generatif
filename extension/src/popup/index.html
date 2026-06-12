@@ -3,93 +3,136 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sobr.ia — bilan</title>
+    <title>Sobr.ia — bilan du jour</title>
     <link rel="stylesheet" href="./popup.css" />
   </head>
   <body>
-    <main class="popup" data-sobria-version="0.7.0">
+    <main class="popup" data-sobria-version>
       <!-- Header brand -->
       <header class="popup__header">
         <div class="popup__brand">
           <img class="popup__mark" src="/icons/mark.svg" alt="" aria-hidden="true" />
           <span class="popup__wordmark">Sobr<em>.</em>ia</span>
         </div>
-        <span class="popup__version">v0.7.0</span>
+        <span class="popup__version" data-sobria-version-display>v—</span>
       </header>
 
-      <!-- Section "Dernier prompt" -->
-      <section class="card" id="last-prompt-card" aria-labelledby="last-prompt-title">
-        <header class="card__head">
-          <span class="card__eyebrow">Dernier prompt</span>
-          <span class="card__meta" id="last-prompt-ts">—</span>
-        </header>
-        <div class="card__body" id="last-prompt-body">
-          <div class="empty-state">
-            <p>Aucun prompt mesuré pour l'instant.</p>
-            <p class="empty-state__hint">Va sur ChatGPT, Claude ou Le Chat et envoie un prompt.</p>
-          </div>
+      <!-- Niveau 1 — LE chiffre du jour -->
+      <section class="hero" aria-labelledby="hero-title">
+        <h1 class="hero__eyebrow" id="hero-title">Aujourd'hui</h1>
+
+        <div class="hero__filled" id="hero-filled" hidden>
+          <p class="hero__metric">
+            <span class="hero__value" id="hero-value">0</span>
+            <span class="hero__unit">g CO₂eq</span>
+          </p>
+          <p class="hero__sub" id="hero-sub"></p>
+        </div>
+
+        <div class="hero__empty" id="hero-empty">
+          <p class="hero__empty-title">Aucune mesure pour le moment.</p>
+          <p class="hero__empty-hint">
+            Écrivez un prompt sur ChatGPT, Claude ou Le Chat : la mesure démarre toute seule.
+          </p>
         </div>
       </section>
 
-      <!-- Section "Aujourd'hui" -->
-      <section class="card" id="today-card" aria-labelledby="today-title">
-        <header class="card__head">
-          <span class="card__eyebrow">Aujourd'hui</span>
-          <span class="card__meta" id="today-count">0 prompt</span>
-        </header>
-        <div class="card__body today-grid">
-          <div class="today-stat">
-            <span class="today-stat__label">CO₂eq</span>
-            <span class="today-stat__value" id="today-gco2">0<span class="u">g</span></span>
-          </div>
-          <div class="today-stat">
-            <span class="today-stat__label">Eau</span>
-            <span class="today-stat__value" id="today-water">0<span class="u">mL</span></span>
-          </div>
-          <div class="today-stat">
-            <span class="today-stat__label">Énergie</span>
-            <span class="today-stat__value" id="today-energy">0<span class="u">Wh</span></span>
-          </div>
-        </div>
+      <!-- Niveau 2 — état d'association, une ligne -->
+      <section class="link" id="link-row" data-state="loading" role="status">
+        <span class="link__dot" aria-hidden="true"></span>
+        <span class="link__label" id="link-label">Vérification…</span>
+        <button type="button" class="btn btn--link-action" id="link-action" hidden>Associer</button>
       </section>
 
-      <!-- Toggle méthodologie -->
-      <section class="card method-card" aria-labelledby="method-title">
-        <header class="card__head">
-          <span class="card__eyebrow" id="method-title">Méthodologie</span>
-        </header>
-        <div class="method-toggle" role="radiogroup" aria-labelledby="method-title">
-          <button
-            type="button"
-            class="method-toggle__opt"
-            data-method="afnor_sobria"
-            role="radio"
-            aria-checked="false"
-          >
-            <span class="method-toggle__name">AFNOR</span>
-            <span class="method-toggle__sub">SPEC 2314 · FR</span>
-          </button>
-          <button
-            type="button"
-            class="method-toggle__opt"
-            data-method="ecologits"
-            role="radio"
-            aria-checked="false"
-          >
-            <span class="method-toggle__name">EcoLogits</span>
-            <span class="method-toggle__sub">2026-01 · JOSS</span>
+      <!-- C44 — projet de la conversation active (visible uniquement sur un
+           site suivi, et seulement si le Mode Équipe est enrôlé). -->
+      <section class="project" id="project-row" hidden>
+        <label class="project__label" for="project-select">Projet de cette conversation</label>
+        <div class="project__controls">
+          <select class="project__select" id="project-select" aria-describedby="project-hint">
+            <option value="">Hors projet</option>
+          </select>
+          <button type="button" class="btn btn--ghost" id="project-add" title="Nouveau projet">
+            +
           </button>
         </div>
+        <input
+          class="project__input"
+          id="project-input"
+          type="text"
+          maxlength="64"
+          placeholder="Nom du nouveau projet…"
+          hidden
+        />
+        <p class="project__hint" id="project-hint">
+          S'applique à toute la conversation — les prochaines mesures partent étiquetées vers
+          votre serveur d'équipe.
+        </p>
       </section>
 
-      <!-- Actions -->
+      <!-- Replié — détails du jour -->
+      <details class="more">
+        <summary class="more__summary">
+          <span>Détails du jour</span>
+          <span class="more__chev" aria-hidden="true">▾</span>
+        </summary>
+        <div class="more__body">
+          <div class="more__block" id="last-block" hidden>
+            <h2 class="more__label">Dernier prompt</h2>
+            <p class="last" id="last-body"></p>
+          </div>
+
+          <div class="more__grid">
+            <div class="stat">
+              <span class="stat__k">Eau</span>
+              <span class="stat__v" id="stat-water">—</span>
+            </div>
+            <div class="stat">
+              <span class="stat__k">Énergie</span>
+              <span class="stat__v" id="stat-energy">—</span>
+            </div>
+            <div class="stat">
+              <span class="stat__k">Prompts</span>
+              <span class="stat__v" id="stat-count">0</span>
+            </div>
+          </div>
+
+          <div class="more__block">
+            <h2 class="more__label" id="method-title">Méthode de calcul</h2>
+            <div class="method-toggle" role="radiogroup" aria-labelledby="method-title">
+              <button
+                type="button"
+                class="method-toggle__opt"
+                data-method="afnor_sobria"
+                role="radio"
+                aria-checked="false"
+              >
+                <span class="method-toggle__name">AFNOR</span>
+                <span class="method-toggle__sub">Référentiel français</span>
+              </button>
+              <button
+                type="button"
+                class="method-toggle__opt"
+                data-method="ecologits"
+                role="radio"
+                aria-checked="false"
+              >
+                <span class="method-toggle__name">EcoLogits</span>
+                <span class="method-toggle__sub">Recherche publiée</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Niveau 3 — une rangée d'actions -->
       <footer class="popup__actions">
         <button
           type="button"
           class="btn btn--secondary"
           id="open-app-btn"
           disabled
-          title="Disponible après l'installation de l'app Sobr.ia desktop (C27.5)"
+          title="Disponible quand l'app Sobr.ia desktop est installée et associée"
         >
           Voir dans Sobr.ia
         </button>

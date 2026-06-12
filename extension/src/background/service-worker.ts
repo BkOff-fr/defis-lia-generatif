@@ -15,8 +15,10 @@ import {
   clearPairingState
 } from '../content/shared/storage.js';
 import { getTeamState } from '../content/shared/team-storage.js';
+import { resolveProjectForUrl } from '../content/shared/projects.js';
 import { pushEstimation } from '../lib/team-client.js';
 import { BridgeClient } from './native-messaging.js';
+import { registryLabel } from '../lib/registry-meta.js';
 import type {
   SobriaMessage,
   EstimationSubmittedResponse,
@@ -32,7 +34,7 @@ import type {
 } from '../lib/messages.js';
 
 self.addEventListener('install', () => {
-  console.info('[sobria] service worker installé (v0.7.0)');
+  console.info(`[sobria] service worker installé (${registryLabel()})`);
 });
 
 self.addEventListener('activate', () => {
@@ -79,7 +81,13 @@ async function computePairingStatus(): Promise<PairingStatus> {
   };
 }
 
-async function handleMessage(message: SobriaMessage): Promise<AnyResponse> {
+async function handleMessage(
+  message: SobriaMessage,
+  // C44 — URL de l'onglet émetteur (content script) : sert uniquement à
+  // résoudre l'étiquette projet de la conversation. `undefined` pour les
+  // messages venant du popup/options.
+  senderUrl?: string
+): Promise<AnyResponse> {
   switch (message.type) {
     case 'estimation_submitted': {
       await appendToDailyTotal({
@@ -127,11 +135,16 @@ async function handleMessage(message: SobriaMessage): Promise<AnyResponse> {
       }
 
       if (dispatchTeam) {
+        // C44 — étiquette projet de la conversation : résolue depuis l'URL
+        // de l'onglet émetteur (sender), mapping local choisi dans le popup.
+        // Best-effort : sans affectation, l'estimation part « hors projet ».
+        const project = await resolveProjectForUrl(senderUrl).catch(() => null);
         pushEstimation({
           estimate: message.estimate,
           host: message.host,
           modelDisplayName: message.modelDisplayName,
-          ts
+          ts,
+          ...(project !== null ? { project } : {})
         }).catch((err) => console.warn('[sobria] forward team échec:', err));
       }
       return { ok: true };
@@ -213,9 +226,9 @@ async function handleMessage(message: SobriaMessage): Promise<AnyResponse> {
   }
 }
 
-chrome.runtime.onMessage.addListener((rawMessage, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
   const message = rawMessage as SobriaMessage;
-  handleMessage(message)
+  handleMessage(message, sender.tab?.url)
     .then((response) => sendResponse(response))
     .catch((err: unknown) => {
       console.error('[sobria] handleMessage error :', err);
