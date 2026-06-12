@@ -46,8 +46,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # Même commande que CLAUDE.md §10 et que la vérification locale.
+      # --all-features est un no-op ici (aucune crate ne déclare de
+      # features) — on teste exactement ce qui est vérifié.
       - name: cargo test
-        run: cargo test --workspace --all-features --no-fail-fast
+        run: cargo test --workspace --no-fail-fast
 
   rust-coverage:
     name: Rust — couverture (informatif)
