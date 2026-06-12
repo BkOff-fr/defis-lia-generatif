@@ -1,0 +1,23 @@
+# Générateur de fixtures du mode démo web (C37).
+#
+# Hors workspace (table [workspace] vide) : outil de développement, pas une
+# crate produit. Usage :
+#   cd tools/fixturegen
+#   OUT_DIR_FIXTURES=../../web/src/lib/demo/fixtures cargo run --release
+# puis minifier les JSON (cf. briefs/chantiers/C37-mode-demo-web.md §4).
+[package]
+name = "fixturegen"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+sobria-core = { path = "../../crates/sobria-core" }
+sobria-estimator = { path = "../../crates/sobria-estimator" }
+serde_json = "1"
+chrono = "0.4"
+
+[profile.release]
+opt-level = 1
