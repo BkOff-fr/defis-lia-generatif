@@ -6,10 +6,12 @@
 
 **Projet** : Sobr.ia
 **Auteur** : Thibault (étudiant, contributeur Sobr.ia)
-**Date** : Mai 2026
+**Date** : Mai 2026 — **dernière mise à jour : 2026-06-12**
 **Lien dépôt** : <https://github.com/BkOff-fr/defis-lia-generatif>
 **Licence code** : MIT
-**Statut** : v0.3 — 13 modules livrés et testés
+**Statut** : v0.9.0 (taguée 2026-05-20) — 13 modules app livrés et testés,
+plus extension navigateur MV3 (Chrome + Firefox), Mode Équipe self-hosted,
+site vitrine et mode démo web (cf. §6 bis)
 
 ---
 
@@ -119,10 +121,15 @@ Agrégation :
 | embodied_g_per_request | LogNormal | Gupta 2022, amorti |
 | WUE_l_per_kwh | Uniform [0.0, 5.0] | Mytton 2021 |
 
-Le détail de calibration par modèle (8 modèles : GPT-4o, Claude 3.5
-Sonnet, Mistral Large 2, Mistral Medium 3, Llama 3.1 70B, Llama 3.1 8B,
-Gemini 2.0 Flash, GPT-4o-mini) est documenté dans
-[`docs/methodology/MODEL-PRESETS.md`](methodology/MODEL-PRESETS.md).
+Le détail de calibration par modèle (registre v0.9.0 : **34 presets, dont
+26 actifs** — catalogue 2026 : Claude 4.x, GPT-5.5, Gemini 3.x, Llama 4,
+Mistral Large 3, DeepSeek V4, Grok 4, Qwen 3.6, Phi-4 reasoning — et
+**8 presets dépréciés** — les anciens modèles de la candidature initiale
+(GPT-4o, Claude 3.5 Sonnet, Llama 3.1…), conservés pour la
+reproductibilité de l'audit ledger) est documenté dans
+[`docs/methodology/MODEL-PRESETS.md`](methodology/MODEL-PRESETS.md), la
+source de vérité étant le code
+([`crates/sobria-estimator/src/model_presets.rs`](../crates/sobria-estimator/src/model_presets.rs)).
 
 ### 3.3 Reproductibilité
 
@@ -342,22 +349,23 @@ Le PDF inclut :
 
 ### 5.1 Code
 
-- **9 crates Rust** : ~15 000 lignes de code, ~250 tests unitaires.
+- **11 crates Rust** : ~43 000 lignes de code, 770 tests.
 - **Frontend SvelteKit 2 + Svelte 5 runes + TypeScript strict** :
-  13 routes, design system custom (ink/lime/ivory + Instrument Serif +
+  20 routes, design system custom (ink/lime/ivory + Instrument Serif +
   Geist + JetBrains Mono).
 - **clippy `-D warnings`** propre sur tout le workspace.
 - **`cargo deny`** + **`cargo audit`** dans la CI : 0 vulnérabilité.
 
 ### 5.2 Tests
 
-- **250+ tests unitaires** Rust.
+- **770 tests Rust** (727 `#[test]` + 43 `#[tokio::test]`, comptés sur
+  `crates/` au 2026-06-12).
 - **Tests property-based** (proptest) sur les invariants Monte-Carlo
   (P5 ≤ P50 ≤ P95, valeurs finies).
 - **Tests d'intégration** : 1 test E2E qui exécute le pipeline complet
   Copper → Silver → Gold avec ComparIA + RTE IRIS.
-- **Tests Playwright** : 13 tests "no-mock contract" (un par module
-  frontend) qui valident que sans Tauri runtime, l'erreur typée
+- **Tests Playwright** : 18 fichiers de spec, dont les contrats "no-mock"
+  qui valident que sans Tauri runtime, l'erreur typée
   `tauri_unavailable` s'affiche correctement.
 
 ### 5.3 Sécurité
@@ -398,15 +406,38 @@ Le PDF inclut :
 
 ---
 
+## 6 bis. Périmètre livré depuis la rédaction initiale (v0.3 → v0.9.0)
+
+Les versions v0.4.0 à v0.9.0 (taguée 2026-05-20, voir
+[CHANGELOG.md](../CHANGELOG.md)) ont livré, au-delà des 13 modules app :
+
+- **Extension navigateur MV3 (Chrome + Firefox)** — capture en conditions
+  réelles sur les interfaces ChatGPT, Claude et Le Chat, avec pairing à
+  l'application (v0.6.0, [ADR-0005](adr/ADR-0005-webextension-mv3.md),
+  [ADR-0013](adr/ADR-0013-extension-pairing-team-mode.md)).
+- **Mode Équipe self-hosted** (v0.7.0+) — agrégation d'équipe
+  auto-hébergée (crate `sobria-team-aggregator`), opt-in et **k-anonymat**
+  ([ADR-0015](adr/ADR-0015-privacy-mode-equipe.md)), **politiques de
+  visibilité** choisies au déploiement (anonymous / opt_in / identified
+  avec attestation, [ADR-0016](adr/ADR-0016-politique-visibilite-deploiement.md)).
+- **Site vitrine** (`site/`) — présentation publique du projet.
+- **Mode démo web** — l'app SvelteKit est consultable hors Tauri avec
+  bannière démo et données d'exemple.
+- **Catalogue modèles 2026** (v0.9.0, chantier C34) — registre porté à
+  **34 presets (26 actifs + 8 dépréciés)** avec modalités vision / audio /
+  reasoning et overhead de contexte.
+
+---
+
 ## 7. Roadmap post-candidature (v1.1+)
 
 | Module | Description | Effort estimé |
 |---|---|---|
-| **M11 Extension navigateur** | Chrome + Firefox MV3, capture vie réelle | 3-4 semaines |
+| **M11 Extension navigateur** | Chrome + Firefox MV3, capture vie réelle | ✅ **Livré** (v0.6.0, 2026-05-16) |
 | **M16 Forecaster UI** | Backend prêt — manque UI Chart.js sliders live | 1 semaine |
 | **M18 Batch CSV UI** | Backend prêt — manque drag-and-drop frontend | 3-5 jours |
 | **M21 Alertes système** | Notifications OS (winrt/macOS/Linux) | 1 semaine |
-| **M19 Équipe** | Auth backend + partage multi-utilisateurs | 4-6 semaines |
+| **M19 Équipe** | Auth backend + partage multi-utilisateurs | ✅ **Livré** (Mode Équipe self-hosted, v0.7.0+, ADR-0015/0016) |
 | **M2 Workbench** | Éditeur multi-prompts interactif | 2-3 semaines |
 | **M24 Apprendre** | 10 mini-cours markdown sur prompting frugal | 2 semaines |
 | **M23 Marchés publics** | Cahier des charges type + critères AO | partenariat institutionnel |
@@ -465,8 +496,9 @@ local-first, c'est une combinaison unique.
 
 1. Onboarding, choix « 🔬 Chercheur·se ».
 2. Bundle pré-coché : M1, M3, M7, M8, M9, M14, M17.
-3. Va sur `/m9` (Référentiel modèles) → consulte les fiches détaillées
-   des 8 modèles avec triplets P5/P50/P95 et sources documentaires.
+3. Va sur `/modeles` (Référentiel modèles) → consulte les fiches
+   détaillées des 26 modèles actifs du registre (34 presets au total)
+   avec triplets P5/P50/P95 et sources documentaires.
 4. Va sur `/comparer` (Comparer) → benchmark 4 modèles sur un prompt
    identique, voit le classement par CO₂eq / énergie / eau.
 5. Crée un projet sur `/m17` (Empreinte projet) : « Étude Q1 2026
@@ -534,7 +566,9 @@ traçabilité cryptographique de ce choix.**
 ## Annexes
 
 - [Cahier des charges v1.4](CAHIER-DES-CHARGES-v1.0.md)
-- [12 ADR architecturaux](adr/) (dont [ADR-0012 multi-méthodologie](adr/ADR-0012-multi-methodology-engine.md))
+- [16 ADR architecturaux](adr/) (dont [ADR-0012 multi-méthodologie](adr/ADR-0012-multi-methodology-engine.md),
+  [ADR-0015 privacy Mode Équipe](adr/ADR-0015-privacy-mode-equipe.md) et
+  [ADR-0016 politiques de visibilité](adr/ADR-0016-politique-visibilite-deploiement.md))
 - [Méthodologie complète](methodology/)
 - [Notebook de validation Quarto](../notebook/validation.qmd)
 - [Catalogue des sources](sources/)
