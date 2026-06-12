@@ -11,10 +11,10 @@
 //!
 //! ## C34.2 — Catalogue 2026
 //!
-//! Étendu en v0.9.0 (chantier C34.2) avec :
-//! - 17 nouveaux presets 2025-2026 (Claude 4.x, GPT-5.5, Gemini 3.x,
-//!   Llama 4, Mistral Large 3, DeepSeek V4, Grok 4, Qwen 3.6, Phi-4
-//!   reasoning).
+//! Étendu en v0.9.0 (chantier C34.2, complété ensuite — le compte exact
+//! vit dans le doc-comment de [`MODEL_REGISTRY`]) avec :
+//! - les presets 2025-2026 (Claude 4.x, GPT-5.5, Gemini 3.x, Llama 4,
+//!   Mistral Large 3, DeepSeek V4, Grok 4, Qwen 3.6, Phi-4 reasoning).
 //! - Anciens presets 2024 marqués `deprecated: true` (conservés pour
 //!   reproductibilité historique audit ledger).
 //! - Nouveaux enums : [`ModelFamily`], [`ArchitectureKind`],
@@ -482,8 +482,9 @@ const LLAMA_VISION: VisionPricing = VisionPricing::LlamaPatches {
 
 /// Liste de tous les presets connus.
 ///
-/// **Cohorte v0.9.0** : 25 presets, dont 17 sortis 2025-2026 et 8 deprecated
-/// 2024 (conservés pour reproductibilité de l'audit ledger historique).
+/// **Cohorte courante** : 34 presets — 26 actifs et 8 `deprecated`
+/// (le catalogue v1, conservé pour reproductibilité de l'audit ledger
+/// historique). Compte verrouillé par `registry_count_matches_docstring`.
 pub static MODEL_REGISTRY: &[ModelPreset] = &[
     // ════════════════════════════════════════════════════════════════════════
     // ANTHROPIC (7 presets, 7 en 2025-2026)
@@ -1730,6 +1731,21 @@ mod tests {
             MODEL_REGISTRY.len() >= 25,
             "registry doit avoir >= 25 presets, a {}",
             MODEL_REGISTRY.len()
+        );
+    }
+
+    #[test]
+    fn registry_count_matches_docstring() {
+        // La docstring de MODEL_REGISTRY publie des comptes exacts ; ils
+        // ont déjà dérivé une fois (« 25 presets » pour 34 réels, audit
+        // 2026-06-12). Tout ajout de preset doit mettre à jour la
+        // docstring ET ces deux constantes.
+        let total = MODEL_REGISTRY.len();
+        let deprecated = MODEL_REGISTRY.iter().filter(|p| p.deprecated).count();
+        assert_eq!(total, 34, "docstring MODEL_REGISTRY à resynchroniser");
+        assert_eq!(
+            deprecated, 8,
+            "docstring MODEL_REGISTRY à resynchroniser (dépréciés)"
         );
     }
 
