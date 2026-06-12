@@ -7,6 +7,33 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — C46 CI réparée + gate a11y réel
+
+- **Suite a11y réelle** (`web/tests/a11y/`) : audit axe-core (WCAG 2A/AA)
+  des 5 pages clés en mode démo, gate sur les violations
+  critical/serious — le job CI « a11y » pointait vers un répertoire
+  inexistant depuis sa création.
+- **`<html lang="fr">`** : le placeholder `%lang%` n'était jamais
+  substitué et partait tel quel en prod (défaut a11y détecté par l'audit).
+- **Port e2e dédié** (`SOBRIA_E2E_PORT`, `--strictPort`) :
+  `reuseExistingServer` pouvait silencieusement tester le dev server d'un
+  AUTRE projet ouvert sur 5173.
+- **CI** : tests unitaires extension ajoutés au job (90 tests, jamais
+  exécutés en CI auparavant) ; couverture tarpaulin passée en informatif
+  avec artefact publié — le gate `--fail-under 80` n'avait jamais produit
+  une seule mesure en 41 runs.
+
+### Fixed — C46 Violations a11y réelles (premier passage du gate axe)
+
+- **Contraste AA** : `--ivory-3`/`--ivory-4` recalés (4,63→5,5:1 et
+  2,9→4,9:1 sur le panneau le plus clair) — l'ancien ivory-4 était
+  documenté « décoratif seulement » mais portait du texte utile dans
+  ~30 composants (jusqu'à 33 nœuds non conformes sur /comparer).
+- **ARIA** : nom accessible sur le combobox datacenter, `role="img"` sur
+  les icônes Oui/Non du tableau vendors, `role="listitem"` sur les
+  lignes de méthodologies (le `role="list"` parent était orphelin —
+  violation critical).
+
 ### Fixed — C46 Stabilisation pré-commit (audit 2026-06-12)
 
 - **Route détail employé inopérante** : `/admin/users/{id}/analytics`
@@ -26,6 +53,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   description antérieure au Mode Équipe → aligné sur 0.9.0 ; typo
   « sou self-hosted » corrigée côté Chrome ; artefacts de packaging
   locaux (`Sobria.zip`, copies de `dist-firefox`) ignorés par git.
+
+### Added — Docs de clôture (post-C45)
+
+- **ADR-0017** : le « contrat démo web » (C37) enfin formalisé —
+  fixtures du moteur réel, jamais dans l'app de bureau, transparence
+  permanente, couverture partielle assumée.
+- **`briefs/COMMIT-PLAN-C43-C45.md`** : addendum au plan de commits
+  (lots 9-16) avec rappel des vérifications avant commit.
+- `/equipe` : lien ADR-0016 câblé (était en texte nu).
 
 ### Added — C45 Manifeste immersif « Le poids invisible »
 
