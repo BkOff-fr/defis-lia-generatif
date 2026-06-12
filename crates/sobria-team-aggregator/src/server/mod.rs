@@ -13,7 +13,9 @@ pub mod tls;
 
 use std::sync::{Arc, Mutex};
 
+use axum::http::{header, Method};
 use axum::Router;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use crate::storage::Storage;
@@ -54,4 +56,26 @@ pub fn build_router(state: ServerState) -> Router {
         .fallback(get(embedded_web::handler))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
+        .layer(extension_cors())
+}
+
+/// CORS pour le service worker de l'extension (MV3) : son `fetch` part
+/// d'une origine `chrome-extension://…` / `moz-extension://…` hors
+/// `host_permissions`, donc sans ces en-têtes Chrome bloque la réponse et
+/// l'envoi best-effort échoue en silence (extension/src/lib/team-client.ts).
+/// L'API est protégée par jeton Bearer (jamais de cookies) : on ne reflète
+/// que les schémas d'extensions navigateur, aucun site web n'est autorisé.
+fn extension_cors() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::predicate(|origin, _| {
+            [
+                b"chrome-extension://".as_slice(),
+                b"moz-extension://".as_slice(),
+                b"safari-web-extension://".as_slice(),
+            ]
+            .iter()
+            .any(|scheme| origin.as_bytes().starts_with(scheme))
+        }))
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
 }

@@ -40,6 +40,7 @@ fn prepare(paths: &DataPaths) -> Result<(ServerState, RustlsConfig)> {
 /// Lance le serveur en bindant `bind:port` (bloquant jusqu'à interruption).
 pub async fn run(paths: &DataPaths, bind: &str, port: u16) -> Result<()> {
     let (state, tls) = prepare(paths)?;
+    spawn_retention_task(state.clone());
     let app = build_router(state);
     let addr: SocketAddr = format!("{bind}:{port}")
         .parse()
@@ -56,6 +57,7 @@ pub async fn run(paths: &DataPaths, bind: &str, port: u16) -> Result<()> {
 /// Variante test : utilise un listener déjà bindé (port arbitraire).
 pub async fn run_with_listener(listener: TcpListener, paths: &DataPaths) -> Result<()> {
     let (state, tls) = prepare(paths)?;
+    spawn_retention_task(state.clone());
     let app = build_router(state);
 
     // axum_server attend un `std::net::TcpListener` en non-blocking.
@@ -70,4 +72,50 @@ pub async fn run_with_listener(listener: TcpListener, paths: &DataPaths) -> Resu
         .await
         .context("axum_server serve from_tcp_rustls")?;
     Ok(())
+}
+
+// ─── Rétention des estimations (ADR-0015 « Conséquences ») ─────────────────
+
+/// Purge au boot puis toutes les 24 h les estimations plus vieilles que
+/// `config.retention_days` (défaut 730 j, plancher 30 — cf.
+/// `commands::config::RUNTIME_KEYS`). Best-effort : un échec est loggé,
+/// jamais fatal pour le serveur.
+fn spawn_retention_task(state: crate::server::ServerState) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(24 * 3600));
+        loop {
+            tick.tick().await;
+            match run_retention_purge(&state) {
+                Ok((days, 0)) => tracing::debug!(retention_days = days, "rétention: rien à purger"),
+                Ok((days, n)) => {
+                    tracing::info!(retention_days = days, purged = n, "rétention: purge effectuée");
+                },
+                Err(e) => tracing::warn!(error = %e, "rétention: purge échouée (non-fatal)"),
+            }
+        }
+    });
+}
+
+/// Lit `retention_days` (défaut/plancher via l'allow-list CLI) et purge.
+fn run_retention_purge(
+    state: &crate::server::ServerState,
+) -> anyhow::Result<(i64, u64)> {
+    use crate::commands::config::RUNTIME_KEYS;
+
+    let spec = RUNTIME_KEYS
+        .iter()
+        .find(|k| k.key == "retention_days")
+        .expect("retention_days présent dans RUNTIME_KEYS");
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| anyhow::anyhow!("storage mutex poisoned"))?;
+    let days = storage
+        .get_config("retention_days")?
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(spec.default)
+        .max(spec.floor);
+    let cutoff = chrono::Utc::now() - chrono::Duration::days(days);
+    let purged = crate::storage::estimations::purge_older_than(storage.connection(), cutoff)?;
+    Ok((days, purged))
 }

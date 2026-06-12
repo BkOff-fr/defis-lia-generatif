@@ -75,6 +75,35 @@ pub enum Command {
         #[command(subcommand)]
         action: AdminAction,
     },
+
+    /// Lit/écrit la configuration runtime (k-anonymat, rétention — ADR-0015).
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigAction {
+    /// Liste les clés runtime autorisées (valeur effective, défaut, plancher).
+    List,
+    /// Lit la valeur effective d'une clé.
+    Get {
+        /// Nom de la clé (cf. `config list`).
+        key: String,
+    },
+    /// Écrit une clé (entier validé contre le plancher, ou politique).
+    Set {
+        /// Nom de la clé (cf. `config list`).
+        key: String,
+        /// Nouvelle valeur (entier, ou `anonymous|opt_in|identified`).
+        value: String,
+        /// Attestation OBLIGATOIRE pour `visibility_policy identified` :
+        /// déclare que le CSE (L2312-38) et les salariés (L1222-4) ont
+        /// été informés — cf. ADR-0016.
+        #[arg(long)]
+        attest: Option<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -133,6 +162,56 @@ pub fn run() -> Result<()> {
         } => run_serve(&paths, &bind, port, regen_cert),
         Command::Code { action } => run_code(&paths, action),
         Command::Admin { action } => run_admin(&paths, action),
+        Command::Config { action } => run_config(&paths, action),
+    }
+}
+
+fn run_config(paths: &DataPaths, action: ConfigAction) -> Result<()> {
+    match action {
+        ConfigAction::List => {
+            println!(
+                "{:<18} {:>10} {:>8} {:>9}  description",
+                "clé", "effectif", "défaut", "plancher"
+            );
+            for spec in commands::config::RUNTIME_KEYS {
+                let value = commands::config::get(paths, spec.key)?;
+                println!(
+                    "{:<18} {:>10} {:>8} {:>9}  {}",
+                    spec.key, value, spec.default, spec.floor, spec.description
+                );
+            }
+            let (pol, attest) = commands::config::get_policy(paths)?;
+            println!(
+                "{:<18} {:>10} {:>8} {:>9}  Politique de visibilité (ADR-0016){}",
+                "visibility_policy",
+                pol,
+                "opt_in",
+                "—",
+                attest
+                    .map(|a| format!(" — attestation du {}", a.set_at))
+                    .unwrap_or_default()
+            );
+            Ok(())
+        },
+        ConfigAction::Get { key } => {
+            if key == commands::config::POLICY_KEY_NAME {
+                let (pol, _) = commands::config::get_policy(paths)?;
+                println!("{pol}");
+            } else {
+                println!("{}", commands::config::get(paths, &key)?);
+            }
+            Ok(())
+        },
+        ConfigAction::Set { key, value, attest } => {
+            if key == commands::config::POLICY_KEY_NAME {
+                let pol = commands::config::set_policy(paths, &value, attest.as_deref())?;
+                println!("visibility_policy = {pol}");
+            } else {
+                let v = commands::config::set(paths, &key, &value)?;
+                println!("{key} = {v}");
+            }
+            Ok(())
+        },
     }
 }
 

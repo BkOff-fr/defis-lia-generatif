@@ -22,5 +22,6 @@ pub fn router() -> Router<ServerState> {
         .route("/refresh", post(refresh::handle))
         .route("/estimations", post(estimations::handle))
         .route("/me/usage", get(me::handle))
+        .route("/me/sharing", get(me::sharing_get).put(me::sharing_put))
         .nest("/admin", admin::router())
 }

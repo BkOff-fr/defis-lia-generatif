@@ -117,6 +117,7 @@ mod tests {
                 water_ml: 0.0,
                 energy_wh: 0.0,
                 region: None,
+                project: None,
                 raw_payload_json: "{}",
                 received_at: ts,
             },

@@ -13,7 +13,7 @@ use crate::error::AggregatorResult;
 ///
 /// - v1 (C28.1) : tables auth + estimations.
 /// - v2 (C29.4) : alertes seuils (`alert_thresholds`, `alert_triggers`).
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// DDL complet v1.
 ///
@@ -141,12 +141,38 @@ CREATE INDEX IF NOT EXISTS idx_alert_triggers_ts
     ON alert_triggers(triggered_at);
 ";
 
+/// DDL incrémental v2 → v3 (C38 — ADR-0015 privacy Mode Équipe).
+///
+/// - `users.share_identified` : consentement OPT-IN du salarié à apparaître
+///   nommément dans les vues admin (classements, totaux). Défaut 0 : seuls
+///   les agrégats k-anonymes sont visibles côté admin.
+/// - `config.k_anonymity_min` : seuil k (nombre minimal d'utilisateurs
+///   actifs dans la fenêtre) en dessous duquel les analytics équipe sont
+///   bloqués. Plancher dur appliqué côté code : `max(3, valeur)`.
+pub const DDL_V3_PRIVACY: &str = r"
+ALTER TABLE users ADD COLUMN share_identified INTEGER NOT NULL DEFAULT 0;
+INSERT OR IGNORE INTO config (key, value) VALUES ('k_anonymity_min', '5');
+";
+
+/// DDL incrémental v3 → v4 (C44 — ADR-0016 politique + dimension projet).
+///
+/// - `estimations.project` : étiquette projet optionnelle (taguée par
+///   conversation côté extension). NULL = hors projet.
+/// - `config.visibility_policy` : `anonymous` | `opt_in` (défaut) |
+///   `identified` (exige une attestation, cf. ADR-0016).
+pub const DDL_V4_PROJECTS: &str = r"
+ALTER TABLE estimations ADD COLUMN project TEXT;
+CREATE INDEX IF NOT EXISTS idx_estimations_project ON estimations(project);
+INSERT OR IGNORE INTO config (key, value) VALUES ('visibility_policy', 'opt_in');
+";
+
 /// Applique le schéma cible sur la connexion et pose `PRAGMA user_version`.
 ///
 /// Migrations idempotentes et progressives :
 ///
-/// - `current == 0` (DB neuve) → applique `DDL_V1` puis `DDL_V2_ALERTS`.
-/// - `current == 1` (DB C28) → applique uniquement `DDL_V2_ALERTS` (C29.4).
+/// - `current == 0` (DB neuve) → applique `DDL_V1`, `DDL_V2_ALERTS`, `DDL_V3_PRIVACY`.
+/// - `current == 1` (DB C28) → applique `DDL_V2_ALERTS` puis `DDL_V3_PRIVACY`.
+/// - `current == 2` (DB C29) → applique uniquement `DDL_V3_PRIVACY` (C38).
 /// - `current >= SCHEMA_VERSION` → no-op (compat ascendante).
 pub fn install(conn: &Connection) -> AggregatorResult<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")?;
@@ -161,6 +187,12 @@ pub fn install(conn: &Connection) -> AggregatorResult<()> {
     }
     if current < 2 {
         conn.execute_batch(DDL_V2_ALERTS)?;
+    }
+    if current < 3 {
+        conn.execute_batch(DDL_V3_PRIVACY)?;
+    }
+    if current < 4 {
+        conn.execute_batch(DDL_V4_PROJECTS)?;
     }
     conn.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     Ok(())
@@ -179,6 +211,57 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
         assert_eq!(v, SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn migration_v3_adds_share_identified_with_default_zero() {
+        let conn = Connection::open_in_memory().unwrap();
+        install(&conn).unwrap();
+        // La colonne existe, défaut 0, et le k par défaut est posé.
+        conn.execute(
+            "INSERT INTO users (id, fingerprint, password_hash, created_at)
+             VALUES ('u-1', 'fp', 'h', '2026-06-12T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+        let share: i64 = conn
+            .query_row(
+                "SELECT share_identified FROM users WHERE id = 'u-1'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(share, 0);
+        let k: String = conn
+            .query_row(
+                "SELECT value FROM config WHERE key = 'k_anonymity_min'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(k, "5");
+    }
+
+    #[test]
+    fn migration_v4_adds_project_and_policy_default() {
+        let conn = Connection::open_in_memory().unwrap();
+        install(&conn).unwrap();
+        let cols: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('estimations') WHERE name='project'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(cols, 1);
+        let policy: String = conn
+            .query_row(
+                "SELECT value FROM config WHERE key = 'visibility_policy'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(policy, "opt_in");
     }
 
     #[test]

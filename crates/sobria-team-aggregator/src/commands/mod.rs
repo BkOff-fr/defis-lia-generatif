@@ -7,5 +7,6 @@
 
 pub mod admin;
 pub mod code;
+pub mod config;
 pub mod init;
 pub mod serve;

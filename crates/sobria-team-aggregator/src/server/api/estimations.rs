@@ -41,6 +41,10 @@ pub struct EstimatePayload {
     /// on l'accepte pour compat future).
     #[serde(default)]
     pub region: Option<String>,
+    /// Étiquette projet (C44) — taguée par conversation côté extension.
+    /// Normalisée : trim + 64 chars max, vide → None.
+    #[serde(default)]
+    pub project: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -106,6 +110,14 @@ pub async fn handle(
     .unwrap_or_else(|_| "{}".to_string());
 
     let id = Ulid::new().to_string();
+    // C44 — normalisation de l'étiquette projet : trim, 64 chars max,
+    // vide → None (NULL en base = « hors projet »).
+    let project_norm = payload
+        .project
+        .as_deref()
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .map(|p| p.chars().take(64).collect::<String>());
     let new_estimation = estimations::NewEstimation {
         id: &id,
         user_id: &user.claims.sub,
@@ -120,6 +132,7 @@ pub async fn handle(
         water_ml: payload.estimate.water_ml,
         energy_wh: payload.estimate.energy_wh,
         region: payload.region.as_deref(),
+        project: project_norm.as_deref(),
         raw_payload_json: &raw,
         received_at: now,
     };

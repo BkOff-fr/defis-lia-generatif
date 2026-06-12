@@ -28,7 +28,7 @@ axum-server = { version = "0.7", default-features = false, features = ["tls-rust
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-pemfile = "2"
-tower-http = { version = "0.5", features = ["trace"] }
+tower-http = { version = "0.5", features = ["trace", "cors"] }
 
 # TLS auto-cert (cert auto-signé via rcgen, backend ring)
 rcgen = { version = "0.13", default-features = false, features = ["crypto", "ring", "pem"] }

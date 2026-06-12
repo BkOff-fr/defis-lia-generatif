@@ -26,6 +26,8 @@ pub struct NewEstimation<'a> {
     pub water_ml: f64,
     pub energy_wh: f64,
     pub region: Option<&'a str>,
+    /// Étiquette projet (C44) — taguée par conversation côté extension.
+    pub project: Option<&'a str>,
     pub raw_payload_json: &'a str,
     pub received_at: DateTime<Utc>,
 }
@@ -60,8 +62,8 @@ pub fn insert(conn: &Connection, e: &NewEstimation<'_>) -> AggregatorResult<()> 
         "INSERT INTO estimations
             (id, user_id, ts, method, model_id, tokens_in, tokens_out,
              gco2eq_p50, gco2eq_p5, gco2eq_p95, water_ml, energy_wh,
-             region, raw_payload_json, received_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+             region, project, raw_payload_json, received_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
             e.id,
             e.user_id,
@@ -76,6 +78,7 @@ pub fn insert(conn: &Connection, e: &NewEstimation<'_>) -> AggregatorResult<()> 
             e.water_ml,
             e.energy_wh,
             e.region,
+            e.project,
             e.raw_payload_json,
             e.received_at.to_rfc3339(),
         ],
@@ -153,6 +156,16 @@ pub fn list_for_window(
 }
 
 /// Totaux pour un utilisateur (toute période confondue).
+/// Purge les estimations plus anciennes que `cutoff` (rétention ADR-0015).
+/// Retourne le nombre de lignes supprimées.
+pub fn purge_older_than(conn: &Connection, cutoff: DateTime<Utc>) -> AggregatorResult<u64> {
+    let n = conn.execute(
+        "DELETE FROM estimations WHERE ts < ?1",
+        params![cutoff.to_rfc3339()],
+    )?;
+    Ok(n as u64)
+}
+
 pub fn totals_for_user(conn: &Connection, user_id: &str) -> AggregatorResult<UsageTotals> {
     let mut totals = UsageTotals::default();
     conn.query_row(
@@ -201,6 +214,7 @@ mod tests {
             water_ml: 1.5,
             energy_wh: 0.42,
             region: Some("FR"),
+            project: None,
             raw_payload_json: "{}",
             received_at: Utc::now(),
         }
@@ -225,5 +239,47 @@ mod tests {
         let s = Storage::open_in_memory().unwrap();
         let t = totals_for_user(s.connection(), "u-unknown").unwrap();
         assert_eq!(t, UsageTotals::default());
+    }
+
+    #[test]
+    fn purge_older_than_deletes_only_old_rows() {
+        use chrono::TimeZone;
+        let s = Storage::open_in_memory().unwrap();
+        crate::storage::users::insert(s.connection(), "u-1", None, "fp", "h", None, Utc::now())
+            .unwrap();
+        let mk = |id: &str, ts: chrono::DateTime<Utc>| {
+            let e = NewEstimation {
+                id,
+                user_id: "u-1",
+                ts,
+                method: "afnor_sobria",
+                model_id: "m",
+                tokens_in: 1,
+                tokens_out: 1,
+                gco2eq_p50: 0.1,
+                gco2eq_p5: None,
+                gco2eq_p95: None,
+                water_ml: 0.0,
+                energy_wh: 0.0,
+                region: None,
+                project: None,
+                raw_payload_json: "{}",
+                received_at: ts,
+            };
+            insert(s.connection(), &e).unwrap();
+        };
+        mk("old-1", Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap());
+        mk("old-2", Utc.with_ymd_and_hms(2024, 6, 1, 0, 0, 0).unwrap());
+        mk("new-1", Utc.with_ymd_and_hms(2026, 6, 1, 0, 0, 0).unwrap());
+
+        let cutoff = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+        assert_eq!(purge_older_than(s.connection(), cutoff).unwrap(), 2);
+        let left: i64 = s
+            .connection()
+            .query_row("SELECT COUNT(*) FROM estimations", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(left, 1);
+        // Idempotent.
+        assert_eq!(purge_older_than(s.connection(), cutoff).unwrap(), 0);
     }
 }

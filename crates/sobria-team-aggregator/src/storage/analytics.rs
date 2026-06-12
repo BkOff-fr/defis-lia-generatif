@@ -39,9 +39,10 @@ pub struct ModelTop {
     pub gco2eq_g: f64,
 }
 
-/// Top utilisateur (par gCO₂eq cumulé décroissant). Le dashboard peut
-/// anonymiser via un toggle UI ; côté serveur on expose fingerprint +
-/// display_name pour permettre les deux vues.
+/// Top utilisateur (par gCO₂eq cumulé décroissant). N'apparaît QUE pour
+/// les employés en partage identifié actif (`users.share_identified`,
+/// ADR-0015 §3) — l'anonymisation est appliquée côté serveur, jamais
+/// déléguée à l'UI.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UserTop {
     pub user_id: String,
@@ -49,6 +50,122 @@ pub struct UserTop {
     pub display_name: Option<String>,
     pub count: u64,
     pub gco2eq_g: f64,
+}
+
+/// Agrégat par projet (C44). `project` NULL → « hors projet ».
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProjectBreakdown {
+    /// Étiquette projet ; `None` = hors projet ; la ligne « autres
+    /// projets » (repli k-anonymat) porte `folded = true`.
+    pub project: Option<String>,
+    pub contributors: u64,
+    pub count: u64,
+    pub gco2eq_g: f64,
+    pub energy_wh: f64,
+    pub water_ml: f64,
+    pub folded: bool,
+}
+
+/// Agrégats par projet sur la fenêtre. Si `k` est fourni (modes
+/// anonymous/opt_in, ADR-0016), les projets comptant moins de k
+/// contributeurs distincts sont fondus dans une ligne « autres projets »
+/// (`folded = true`) — un projet d'une personne est une personne.
+pub fn project_breakdown(
+    conn: &Connection,
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+    k: Option<u32>,
+) -> AggregatorResult<Vec<ProjectBreakdown>> {
+    let mut stmt = conn.prepare(
+        "SELECT project,
+                COUNT(DISTINCT user_id),
+                COUNT(*),
+                COALESCE(SUM(gco2eq_p50), 0.0),
+                COALESCE(SUM(energy_wh), 0.0),
+                COALESCE(SUM(water_ml), 0.0)
+         FROM estimations
+         WHERE ts BETWEEN ?1 AND ?2
+         GROUP BY project
+         ORDER BY SUM(gco2eq_p50) DESC",
+    )?;
+    let rows: Vec<ProjectBreakdown> = stmt
+        .query_map(params![from.to_rfc3339(), to.to_rfc3339()], |row| {
+            Ok(ProjectBreakdown {
+                project: row.get(0)?,
+                contributors: row.get::<_, i64>(1)?.max(0) as u64,
+                count: row.get::<_, i64>(2)?.max(0) as u64,
+                gco2eq_g: row.get(3)?,
+                energy_wh: row.get(4)?,
+                water_ml: row.get(5)?,
+                folded: false,
+            })
+        })?
+        .collect::<Result<_, _>>()?;
+
+    let Some(k) = k else { return Ok(rows) };
+    let k = u64::from(k);
+    let mut kept = Vec::new();
+    let mut folded = ProjectBreakdown {
+        project: None,
+        contributors: 0,
+        count: 0,
+        gco2eq_g: 0.0,
+        energy_wh: 0.0,
+        water_ml: 0.0,
+        folded: true,
+    };
+    let mut folded_users = std::collections::HashSet::new();
+    for r in rows {
+        if r.contributors >= k {
+            kept.push(r);
+        } else {
+            // contributors par projet ne s'additionne pas (recouvrements
+            // possibles) : on garde le max comme borne basse honnête.
+            folded_users.insert(r.project.clone());
+            folded.contributors = folded.contributors.max(r.contributors);
+            folded.count += r.count;
+            folded.gco2eq_g += r.gco2eq_g;
+            folded.energy_wh += r.energy_wh;
+            folded.water_ml += r.water_ml;
+        }
+    }
+    if folded.count > 0 {
+        kept.push(folded);
+    }
+    Ok(kept)
+}
+
+/// Top N users NOMINATIF intégral — réservé à la politique `identified`
+/// (ADR-0016) : le handler ne l'appelle jamais dans les autres modes.
+pub fn top_users_all(
+    conn: &Connection,
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+    n: u32,
+) -> AggregatorResult<Vec<UserTop>> {
+    let mut stmt = conn.prepare(
+        "SELECT u.id, u.fingerprint, u.display_name,
+                COUNT(e.id),
+                COALESCE(SUM(e.gco2eq_p50), 0.0)
+         FROM estimations e
+         JOIN users u ON u.id = e.user_id
+         WHERE e.ts BETWEEN ?1 AND ?2
+         GROUP BY u.id, u.fingerprint, u.display_name
+         ORDER BY SUM(e.gco2eq_p50) DESC
+         LIMIT ?3",
+    )?;
+    let rows = stmt
+        .query_map(params![from.to_rfc3339(), to.to_rfc3339(), n], |row| {
+            Ok(UserTop {
+                user_id: row.get(0)?,
+                fingerprint: row.get(1)?,
+                display_name: row.get(2)?,
+                count: row.get::<_, i64>(3)?.max(0) as u64,
+                gco2eq_g: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
 }
 
 /// Répartition par méthodologie (AFNOR vs EcoLogits).
@@ -156,36 +273,93 @@ pub fn top_models(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-/// Top N utilisateurs par gCO₂eq décroissant (jointure `users` pour
-/// l'affichage). Toujours global équipe — un user qui regarde son propre
-/// classement passe par `/me/usage`.
-pub fn top_users(
+/// Nombre d'utilisateurs distincts ACTIFS (≥ 1 estimation) dans la fenêtre.
+///
+/// Sert de base au contrôle k-anonymat (ADR-0015 §2) : les agrégats équipe
+/// ne sont servis que si cette valeur atteint le seuil `k_anonymity_min`.
+pub fn active_user_count(
+    conn: &Connection,
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+) -> AggregatorResult<u64> {
+    let n: i64 = conn.query_row(
+        "SELECT COUNT(DISTINCT user_id) FROM estimations WHERE ts BETWEEN ?1 AND ?2",
+        params![from.to_rfc3339(), to.to_rfc3339()],
+        |r| r.get(0),
+    )?;
+    Ok(n.max(0) as u64)
+}
+
+/// Classement « participants » conforme ADR-0015 §3 : seuls les employés
+/// en partage identifié actif apparaissent nommément ; tous les autres
+/// sont fondus dans une ligne agrégée anonyme.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct TopUsersShared {
+    /// Participants ayant activé `share_identified`, tri gCO₂eq décroissant.
+    pub identified: Vec<UserTop>,
+    /// Nombre d'employés actifs NON identifiés (fenêtre).
+    pub anonymous_users: u64,
+    /// Estimations cumulées de ces employés anonymes.
+    pub anonymous_count: u64,
+    /// gCO₂eq cumulé de ces employés anonymes.
+    pub anonymous_gco2eq_g: f64,
+}
+
+/// Top N des participants en partage actif + agrégat anonyme du reste.
+/// Toujours global équipe — un user qui regarde son propre usage passe
+/// par `/me/usage`.
+pub fn top_users_shared(
     conn: &Connection,
     from: DateTime<Utc>,
     to: DateTime<Utc>,
     n: u32,
-) -> AggregatorResult<Vec<UserTop>> {
+) -> AggregatorResult<TopUsersShared> {
     let mut stmt = conn.prepare(
         "SELECT u.id, u.fingerprint, u.display_name,
                 COUNT(e.id),
                 COALESCE(SUM(e.gco2eq_p50), 0.0)
          FROM estimations e
          JOIN users u ON u.id = e.user_id
-         WHERE e.ts BETWEEN ?1 AND ?2
+         WHERE e.ts BETWEEN ?1 AND ?2 AND u.share_identified = 1
          GROUP BY u.id, u.fingerprint, u.display_name
-         ORDER BY 5 DESC
+         ORDER BY SUM(e.gco2eq_p50) DESC
          LIMIT ?3",
     )?;
-    let rows = stmt.query_map(params![from.to_rfc3339(), to.to_rfc3339(), n], |row| {
-        Ok(UserTop {
-            user_id: row.get(0)?,
-            fingerprint: row.get(1)?,
-            display_name: row.get(2)?,
-            count: row.get::<_, i64>(3)?.max(0) as u64,
-            gco2eq_g: row.get(4)?,
-        })
-    })?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let identified = stmt
+        .query_map(params![from.to_rfc3339(), to.to_rfc3339(), n], |row| {
+            Ok(UserTop {
+                user_id: row.get(0)?,
+                fingerprint: row.get(1)?,
+                display_name: row.get(2)?,
+                count: row.get::<_, i64>(3)?.max(0) as u64,
+                gco2eq_g: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let (anonymous_users, anonymous_count, anonymous_gco2eq_g) = conn.query_row(
+        "SELECT COUNT(DISTINCT e.user_id),
+                COUNT(e.id),
+                COALESCE(SUM(e.gco2eq_p50), 0.0)
+         FROM estimations e
+         JOIN users u ON u.id = e.user_id
+         WHERE e.ts BETWEEN ?1 AND ?2 AND u.share_identified = 0",
+        params![from.to_rfc3339(), to.to_rfc3339()],
+        |r| {
+            Ok((
+                r.get::<_, i64>(0)?.max(0) as u64,
+                r.get::<_, i64>(1)?.max(0) as u64,
+                r.get::<_, f64>(2)?,
+            ))
+        },
+    )?;
+
+    Ok(TopUsersShared {
+        identified,
+        anonymous_users,
+        anonymous_count,
+        anonymous_gco2eq_g,
+    })
 }
 
 /// Répartition par méthodologie (afnor_sobria vs ecologits) sur la fenêtre.
@@ -254,6 +428,7 @@ mod tests {
                 water_ml: 1.0,
                 energy_wh: 0.1,
                 region: Some("FR"),
+                project: None,
                 raw_payload_json: "{}",
                 received_at: ts,
             };
@@ -322,16 +497,89 @@ mod tests {
     }
 
     #[test]
-    fn top_users_returns_users_with_display_names() {
+    fn top_users_shared_hides_everyone_by_default() {
         let s = Storage::open_in_memory().unwrap();
         seed(&s);
         let (from, to) = window();
-        let tops = top_users(s.connection(), from, to, 10).unwrap();
+        // Personne n'a opté pour le partage → zéro nominatif, tout en agrégat.
+        let tops = top_users_shared(s.connection(), from, to, 10).unwrap();
+        assert!(tops.identified.is_empty());
+        assert_eq!(tops.anonymous_users, 2);
+        assert_eq!(tops.anonymous_count, 5);
+        assert!((tops.anonymous_gco2eq_g - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn top_users_shared_shows_only_opt_in_users() {
+        use crate::storage::users::set_share_identified;
+        let s = Storage::open_in_memory().unwrap();
+        seed(&s);
+        let (from, to) = window();
+        set_share_identified(s.connection(), "u-1", true).unwrap();
+        let tops = top_users_shared(s.connection(), from, to, 10).unwrap();
+        // u-1 (Alice, 0.9 g) identifiée ; u-2 reste agrégé anonymement.
+        assert_eq!(tops.identified.len(), 1);
+        assert_eq!(tops.identified[0].user_id, "u-1");
+        assert_eq!(tops.identified[0].display_name.as_deref(), Some("Alice"));
+        assert!((tops.identified[0].gco2eq_g - 0.9).abs() < 1e-9);
+        assert_eq!(tops.anonymous_users, 1);
+        assert_eq!(tops.anonymous_count, 2);
+        assert!((tops.anonymous_gco2eq_g - 1.1).abs() < 1e-9);
+    }
+
+    #[test]
+    fn active_user_count_counts_distinct_users_in_window() {
+        let s = Storage::open_in_memory().unwrap();
+        seed(&s);
+        let (from, to) = window();
+        assert_eq!(active_user_count(s.connection(), from, to).unwrap(), 2);
+        // Fenêtre vide → 0.
+        let empty_from = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+        let empty_to = Utc.with_ymd_and_hms(2025, 1, 2, 0, 0, 0).unwrap();
+        assert_eq!(
+            active_user_count(s.connection(), empty_from, empty_to).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn project_breakdown_folds_below_k() {
+        let s = Storage::open_in_memory().unwrap();
+        seed(&s);
+        // Tag les estimations : alpha (u-1 + u-2 = 2 contributeurs),
+        // solo (u-1 seul), e-5 reste hors projet.
+        for (id, p) in [("e-1", "alpha"), ("e-4", "alpha"), ("e-2", "solo"), ("e-3", "solo")] {
+            s.connection()
+                .execute(
+                    "UPDATE estimations SET project = ?1 WHERE id = ?2",
+                    rusqlite::params![p, id],
+                )
+                .unwrap();
+        }
+        let (from, to) = window();
+        // Sans k : 3 lignes (alpha, solo, NULL).
+        let all = project_breakdown(s.connection(), from, to, None).unwrap();
+        assert_eq!(all.len(), 3);
+        // k=2 : alpha (2 contributeurs) reste ; solo (1) et hors-projet (1)
+        // sont fondus dans « autres » (folded).
+        let gated = project_breakdown(s.connection(), from, to, Some(2)).unwrap();
+        assert_eq!(gated.len(), 2);
+        let alpha = gated.iter().find(|p| p.project.as_deref() == Some("alpha")).unwrap();
+        assert_eq!(alpha.contributors, 2);
+        assert!((alpha.gco2eq_g - 0.7).abs() < 1e-9); // e-1 0.2 + e-4 0.5
+        let folded = gated.iter().find(|p| p.folded).unwrap();
+        assert_eq!(folded.count, 3); // e-2, e-3, e-5
+        assert!((folded.gco2eq_g - 1.3).abs() < 1e-9);
+    }
+
+    #[test]
+    fn top_users_all_is_nominative_regardless_of_sharing() {
+        let s = Storage::open_in_memory().unwrap();
+        seed(&s);
+        let (from, to) = window();
+        let tops = top_users_all(s.connection(), from, to, 10).unwrap();
         assert_eq!(tops.len(), 2);
-        // u-2 = 0.5+0.6 = 1.1 ; u-1 = 0.9 → u-2 1er.
-        assert_eq!(tops[0].user_id, "u-2");
-        assert_eq!(tops[0].display_name, None);
-        assert_eq!(tops[1].user_id, "u-1");
+        assert_eq!(tops[0].user_id, "u-2"); // 1.1 g > 0.9 g
         assert_eq!(tops[1].display_name.as_deref(), Some("Alice"));
     }
 

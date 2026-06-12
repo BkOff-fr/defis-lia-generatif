@@ -584,7 +584,82 @@ Format JSON disponible via `RUST_LOG_FORMAT=json`.
 
 ## Voir aussi
 
+- `deploiement-equipe.md` — déploiement Docker / Compose (kit PME, C40),
+  avec `modeles-communication.md` (emails CSE / salariés).
 - ADR-0013 — décision d'architecture (extension + pairing + mode équipe).
 - `briefs/chantiers/C28-mode-equipe-self-hosted.md` — brief du chantier.
 - README `crates/sobria-team-aggregator/`.
 - CLAUDE.md §7 (privacy by design).
+
+## Privacy et conformité (ADR-0015 — C38)
+
+Le serveur applique **côté serveur** (jamais seulement dans l'UI) :
+
+1. **k-anonymat** : les analytics équipe ne sont servis que si le nombre
+   d'utilisateurs actifs sur la fenêtre interrogée atteint le seuil
+   `k_anonymity_min` (défaut 5, plancher 3). En dessous, le dashboard
+   affiche une carte explicative à la place des chiffres.
+2. **Identification opt-in** : par défaut, aucun employé n'apparaît
+   nommément dans les vues admin. Chaque salarié contrôle son propre
+   partage depuis son espace « Mon usage » (toggle « Partage identifié »).
+   Aucune commande ni route admin ne peut écrire ce consentement.
+3. **Rétention** : les estimations plus anciennes que `retention_days`
+   (défaut 730 j, plancher 30) sont purgées au démarrage puis toutes les
+   24 h.
+
+### Configuration runtime
+
+```bash
+sobria-team-aggregator --data-dir ./team-data config list
+sobria-team-aggregator --data-dir ./team-data config get k_anonymity_min
+sobria-team-aggregator --data-dir ./team-data config set k_anonymity_min 8
+sobria-team-aggregator --data-dir ./team-data config set retention_days 365
+```
+
+Les valeurs sous plancher sont refusées ; les clés internes
+(`jwt_signing_key`, …) ne sont pas accessibles par cette commande.
+
+### Politique de visibilité (ADR-0016 — C44)
+
+Votre organisation choisit le régime de visibilité des employés :
+
+```bash
+# Lire la politique courante (défaut : opt_in)
+sobria-team-aggregator --data-dir ./team-data config get visibility_policy
+
+# Anonyme strict : agrégats k-anonymes uniquement, aucune identification
+sobria-team-aggregator --data-dir ./team-data config set visibility_policy anonymous
+
+# Opt-in (défaut) : chaque salarié contrôle son identification
+sobria-team-aggregator --data-dir ./team-data config set visibility_policy opt_in
+
+# Nominatif : vues par employé — ATTESTATION OBLIGATOIRE
+sobria-team-aggregator --data-dir ./team-data config set visibility_policy identified \
+  --attest "CSE informé-consulté le 2026-06-10 ; salariés informés par email le 2026-06-11"
+```
+
+Le mode `identified` est **refusé sans `--attest`** : l'attestation
+(texte, date) est stockée en base et visible dans le dashboard. Les
+agrégats par **projet** suivent la même politique (repli « autres
+projets » sous le seuil k hors mode nominatif). Le changement est
+immédiat (lu à chaque requête).
+
+### Obligations du déployeur (France)
+
+Le serveur minimise par construction, mais l'organisation qui le déploie
+reste responsable de :
+
+- l'**information-consultation du CSE** avant mise en service d'un
+  dispositif de collecte lié à l'activité des salariés (C. trav.
+  L2312-38) ;
+- l'**information individuelle préalable** des salariés (L1222-4) —
+  l'écran « Mon usage » documente ce qui est collecté et ce qui ne l'est
+  jamais, mais ne remplace pas l'information formelle ;
+- l'inscription au **registre des traitements** (RGPD art. 30) avec la
+  finalité « pilotage budgétaire et environnemental de l'usage IA »
+  (jamais l'évaluation individuelle des salariés) ;
+- la fixation d'une **durée de rétention** proportionnée
+  (`retention_days`).
+
+> Ces éléments sont fournis à titre d'aide opérationnelle et ne
+> constituent pas un conseil juridique.
