@@ -1,5 +1,27 @@
 ---
 const year = new Date().getFullYear();
+const githubUrl = 'https://github.com/BkOff-fr/defis-lia-generatif';
+
+const produit = [
+  { href: '/', label: 'Présentation' },
+  { href: '/manifeste/', label: 'Le manifeste' },
+  { href: '/produit/', label: 'Produit' },
+  { href: '/equipe/', label: 'Équipe' },
+  { href: '/methode/', label: 'Méthode' },
+  { href: '/telecharger/', label: 'Télécharger' },
+];
+
+const ressources = [
+  { href: '/docs/', label: 'Docs' },
+  { href: '/candidature/', label: 'Candidature data.gouv.fr' },
+  { href: '/adrs/', label: 'ADRs' },
+];
+
+const communaute = [
+  { href: githubUrl, label: 'GitHub', external: true },
+  { href: `${githubUrl}/issues`, label: 'Signaler un problème', external: true },
+  { href: `${githubUrl}/releases`, label: 'Releases', external: true },
+];
 
 const adrs = [
   { id: '0009', label: 'Architecture médaillon', href: '/adrs/adr-0009-medallion-architecture/' },
@@ -10,9 +32,9 @@ const adrs = [
     href: '/adrs/adr-0013-extension-pairing-team-mode/',
   },
   {
-    id: '0014',
-    label: 'Dual-track local + cloud',
-    href: '/adrs/adr-0014-dual-track-local-cloud/',
+    id: '0015',
+    label: 'Privacy Mode Équipe',
+    href: '/adrs/adr-0015-privacy-mode-equipe/',
   },
 ];
 ---
@@ -37,29 +59,49 @@ const adrs = [
     <div>
       <h3 class="text-ivory text-base mb-3 font-sans">Produit</h3>
       <ul class="space-y-1.5">
-        <li><a href="/#download" class="hover:text-ivory">Télécharger</a></li>
-        <li><a href="/telecharger/" class="hover:text-ivory">Versions</a></li>
-        <li><a href="/cloud/" class="hover:text-ivory">Mode Équipe / Cloud</a></li>
+        {
+          produit.map((item) => (
+            <li>
+              <a href={item.href} class="hover:text-ivory">
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
       </ul>
     </div>
 
     <div>
-      <h3 class="text-ivory text-base mb-3 font-sans">Documentation</h3>
+      <h3 class="text-ivory text-base mb-3 font-sans">Ressources</h3>
       <ul class="space-y-1.5">
-        <li><a href="/docs/" class="hover:text-ivory">Guide</a></li>
-        <li><a href="/adrs/" class="hover:text-ivory">Tous les ADRs</a></li>
-        <li>
-          <a href="/candidature/" class="hover:text-ivory">Candidature data.gouv.fr</a>
-        </li>
+        {
+          ressources.map((item) => (
+            <li>
+              <a href={item.href} class="hover:text-ivory">
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
       </ul>
     </div>
 
     <div>
-      <h3 class="text-ivory text-base mb-3 font-sans">Légal</h3>
+      <h3 class="text-ivory text-base mb-3 font-sans">Communauté</h3>
       <ul class="space-y-1.5">
-        <li>Licence MIT (code)</li>
-        <li>CC-BY-4.0 (docs)</li>
-        <li>Etalab 2.0 (datasets)</li>
+        {
+          communaute.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                rel={item.external ? 'noopener external' : undefined}
+                class="hover:text-ivory"
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
       </ul>
     </div>
   </div>
@@ -83,8 +125,8 @@ const adrs = [
     </ul>
   </div>
 
-  <div class="border-t border-ivory-4/30 text-xs text-center py-4">
-    &copy; {year} — Sobr.ia · Candidature défi data.gouv.fr « Impact environnemental de l'IA générative
-    »
+  <div class="border-t border-ivory-4/30 text-xs text-center py-4 px-6">
+    &copy; {year} — Sobr.ia · Code MIT · Docs CC-BY 4.0 · Datasets Etalab 2.0 · Candidature défi data.gouv.fr
+    « Impact environnemental de l'IA générative »
   </div>
 </footer>

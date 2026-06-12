@@ -1,0 +1,273 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const validations = [
+  {
+    ref: 'Luccioni 2023',
+    detail: "BLOOM 176B — empreinte d'inférence mesurée sur cluster instrumenté",
+  },
+  {
+    ref: 'Patterson 2021',
+    detail: "Google — consommation d'entraînement et d'inférence de grands modèles",
+  },
+  {
+    ref: 'EcoLogits 2024',
+    detail: 'Data for Good — méthodologie de référence des modèles via API',
+  },
+];
+---
+
+<BaseLayout
+  title="La méthode — Sobr.ia"
+  description="Double moteur AFNOR SPEC 2314 + EcoLogits, Monte-Carlo 10 000 tirages reproductible (seed 42), intervalles P5-P95 systématiques, validation croisée ±15 %, 34 modèles avec calibration affichée, 28 datacenters sourcés, données ComparIA + RTE IRIS."
+>
+  <div class="max-w-5xl mx-auto px-6 py-16">
+    <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+    <p class="text-xs uppercase tracking-widest text-ivory-3">Sobr.ia · méthode scientifique</p>
+    <h1 class="mt-2 font-display text-5xl text-ivory">
+      Des chiffres que vous pouvez <span class="italic text-lime-signature">vérifier</span>.
+    </h1>
+    <p class="mt-4 text-ivory-2 max-w-2xl">
+      Chaque formule est sourcée dans le code, chaque hypothèse porte une distribution
+      d'incertitude, chaque résultat est reproductible à partir d'un seed. Quand un chiffre est
+      extrapolé, Sobr.ia le dit.
+    </p>
+    <p class="mt-4 text-xs text-ivory-3 font-mono">
+      AFNOR SPEC 2314 · EcoLogits · Monte-Carlo 10 000 tirages · seed 42
+    </p>
+
+    <!-- ── 01 · Double moteur ───────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="moteurs">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">01</span> · Double moteur
+      </p>
+      <h2 id="moteurs" class="mt-2 font-display text-3xl text-ivory">
+        Deux méthodologies, exécutées <span class="italic">en parallèle</span>.
+      </h2>
+      <p class="mt-4 text-sm text-ivory-2 max-w-2xl leading-relaxed">
+        Plutôt que de décréter une vérité unique, Sobr.ia fait tourner deux moteurs sur chaque
+        estimation et affiche leurs écarts — l'incertitude méthodologique devient visible au lieu
+        d'être cachée (<a
+          href="/adrs/adr-0012-multi-methodology-engine/"
+          class="text-lime-signature underline underline-offset-4">ADR-0012</a
+        >).
+      </p>
+      <div class="mt-8 grid gap-4 md:grid-cols-2">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <h3 class="font-sans text-lg text-ivory">AFNOR SPEC 2314</h3>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            L'implémentation Sobr.ia du référentiel français d'évaluation de l'impact
+            environnemental de l'IA : énergie par token (prefill + decode), PUE, intensité carbone
+            du mix, empreinte matérielle amortie.
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <h3 class="font-sans text-lg text-ivory">EcoLogits — reproduit</h3>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Le port Rust de la méthodologie EcoLogits (Data for Good), celle qui alimente aussi
+            ComparIA. Notre réimplémentation est validée contre la référence — c'est l'alignement
+            officiel du défi, pas une méthodologie parallèle.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── 02 · Incertitude ─────────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="incertitude">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">02</span> · Incertitude
+      </p>
+      <h2 id="incertitude" class="mt-2 font-display text-3xl text-ivory">
+        Monte-Carlo reproductible, P5–P95 <span class="italic">systématique</span>.
+      </h2>
+      <div class="mt-8 grid gap-4 sm:grid-cols-3">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <p class="font-mono text-3xl text-lime-signature">10 000</p>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            tirages par estimation : chaque hypothèse est échantillonnée selon sa distribution
+            documentée, pas figée à une valeur arbitraire.
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <p class="font-mono text-3xl text-lime-signature">P5–P95</p>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            intervalle affiché sur chaque résultat. Un chiffre sans incertitude est une opinion ;
+            Sobr.ia n'en publie pas.
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <p class="font-mono text-3xl text-lime-signature">seed 42</p>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            seed reproductible (variable <code class="font-mono text-xs">SOBRIA_SEED</code>) : deux
+            exécutions identiques produisent exactement les mêmes chiffres, vérifiables par
+            quiconque.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── 03 · Validation croisée ──────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="validation">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">03</span> · Validation croisée
+      </p>
+      <h2 id="validation" class="mt-2 font-display text-3xl text-ivory">
+        Confronté à la littérature, tolérance <span class="italic">±15&nbsp;%</span>.
+      </h2>
+      <p class="mt-4 text-sm text-ivory-2 max-w-2xl leading-relaxed">
+        Le moteur est confronté à des résultats publiés : il doit les reproduire à ±15 %, et des
+        tests de plausibilité tournent en intégration continue pour bloquer toute dérive d'ordre de
+        grandeur.
+      </p>
+      <ul class="mt-6 space-y-3">
+        {
+          validations.map((v) => (
+            <li class="rounded-lg border border-ivory-4/30 bg-ink-2 px-5 py-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span class="font-mono text-sm text-lime-signature shrink-0">{v.ref}</span>
+              <span class="text-sm text-ivory-2">{v.detail}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="mt-4 text-xs text-ivory-3">
+        Détail des cas et des plages :
+        <a
+          href="/docs/methodology/validation-croisee/"
+          class="underline underline-offset-4 hover:text-ivory"
+          >méthodologie de validation croisée</a
+        >.
+      </p>
+    </section>
+
+    <!-- ── 04 · Calibration affichée ────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="calibration">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">04</span> · Honnêteté assumée
+      </p>
+      <h2 id="calibration" class="mt-2 font-display text-3xl text-ivory">
+        34 modèles — et leur calibration <span class="italic text-lime-signature">affichée</span>.
+      </h2>
+      <p class="mt-4 text-sm text-ivory-2 max-w-2xl leading-relaxed">
+        Personne ne mesure directement la consommation d'un modèle fermé. Plutôt que de prétendre à
+        une précision uniforme, chaque modèle du catalogue porte un statut de calibration, visible
+        dans l'app :
+      </p>
+      <div class="mt-6 grid gap-4 sm:grid-cols-3">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-mono text-xs text-lime-signature uppercase tracking-wider">validated</p>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Validé contre une étude de référence à ±15 %.
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-mono text-xs text-amber uppercase tracking-wider">indicative</p>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Calibré par ordre de grandeur depuis des mesures ouvertes (HF AI Energy Score,
+            EcoLogits).
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-mono text-xs text-coral uppercase tracking-wider">extrapolated</p>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Extrapolé depuis un modèle ouvert comparable — typiquement les modèles fermés.
+          </p>
+        </article>
+      </div>
+      <p class="mt-5 text-sm text-ivory-3 max-w-2xl">
+        Oui, cela signifie qu'une partie du catalogue est extrapolée. C'est l'état de l'art pour les
+        modèles fermés — la différence, c'est que Sobr.ia vous le dit.
+      </p>
+    </section>
+
+    <!-- ── 05 · Datacenters ─────────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="datacenters">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">05</span> · Datacenters
+      </p>
+      <h2 id="datacenters" class="mt-2 font-display text-3xl text-ivory">
+        28 datacenters de référence, <span class="italic">sourcés</span>.
+      </h2>
+      <p class="mt-4 text-sm text-ivory-2 max-w-2xl leading-relaxed">
+        Un catalogue documenté de 28 datacenters européens (13 pays) : PUE et WUE issus des rapports
+        de durabilité publics des opérateurs, intensité carbone des mix nationaux via Electricity
+        Maps. Chaque ligne cite sa source — sélection orientée représentativité, pas exhaustivité.
+      </p>
+      <p class="mt-4 text-xs text-ivory-3">
+        Le catalogue complet :
+        <a
+          href="/docs/sources/catalogue-datacenters/"
+          class="underline underline-offset-4 hover:text-ivory">28 datacenters européens</a
+        >.
+      </p>
+    </section>
+
+    <!-- ── 06 · Données du défi ─────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="donnees">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">06</span> · Données ouvertes
+      </p>
+      <h2 id="donnees" class="mt-2 font-display text-3xl text-ivory">
+        ComparIA + RTE IRIS, via un pipeline <span class="italic">reproductible</span>.
+      </h2>
+      <div class="mt-8 grid gap-4 md:grid-cols-2">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <h3 class="font-sans text-lg text-ivory">ComparIA</h3>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Le comparateur d'IA de Beta.gouv / Ministère de la Culture : des millions de
+            conversations réelles avec empreinte EcoLogits intégrée, sous Licence Ouverte Etalab
+            2.0. Dataset officiel du défi data.gouv.fr.
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <h3 class="font-sans text-lg text-ivory">RTE IRIS</h3>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            La consommation électrique industrielle à la maille IRIS (ODRÉ) : l'ancrage territorial
+            français de Sobr.ia, pour situer l'empreinte de l'IA dans la géographie réelle des
+            consommations.
+          </p>
+        </article>
+      </div>
+      <div class="mt-6 rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+        <h3 class="font-sans text-lg text-ivory">Pipeline médaillon Copper → Silver → Gold</h3>
+        <p class="mt-2 text-sm text-ivory-2 leading-relaxed max-w-3xl">
+          Toute donnée externe traverse trois couches : brut immuable, daté et hashé (<span
+            class="font-mono text-xs">Copper</span
+          >), Parquet validé à schéma versionné (<span class="font-mono text-xs">Silver</span>),
+          référentiel consommé par l'app (<span class="font-mono text-xs">Gold</span>). L'ensemble
+          est orchestré par DVC :
+          <code class="font-mono text-xs text-lime-signature">dvc repro</code> reconstruit le référentiel
+          à l'identique (<a
+            href="/adrs/adr-0009-medallion-architecture/"
+            class="text-lime-signature underline underline-offset-4">ADR-0009</a
+          >).
+        </p>
+      </div>
+    </section>
+
+    <!-- ── 07 · Tout est ouvert ─────────────────────────────────────────── -->
+    <section class="mt-20 rounded-lg border border-lime-signature/40 bg-lime-signature/5 p-8">
+      <h2 class="font-display text-3xl text-ivory">
+        Tout est <span class="italic text-lime-signature">relisible</span>.
+      </h2>
+      <p class="mt-3 text-sm text-ivory-2 leading-relaxed max-w-3xl">
+        Code sous licence MIT, documentation CC-BY 4.0, datasets publiés sous Licence Ouverte Etalab
+        2.0. La méthodologie complète, les ADRs et le dossier de candidature au défi data.gouv.fr «
+        Impact environnemental de l'IA générative » sont publics.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a
+          href="/candidature/"
+          class="inline-flex items-center gap-2 rounded-md bg-lime-signature text-ink px-5 py-2.5 text-sm font-sans font-medium hover:bg-lime-deep transition-colors"
+        >
+          Lire la candidature
+        </a>
+        <a
+          href="/docs/"
+          class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory px-5 py-2.5 text-sm font-sans hover:border-lime-signature hover:text-lime-signature transition-colors"
+        >
+          Parcourir la documentation
+        </a>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

@@ -1,0 +1,699 @@
+---
+// C45 — Le manifeste Sobr.ia : « Le poids invisible ».
+//
+// Sept scènes, une idée par écran, type géant, défilement natif
+// (aucun scroll-hijack). Amélioration progressive stricte : sans
+// JavaScript la page est complète et lisible ; le mouvement est une
+// couche optionnelle (IntersectionObserver + rAF courts), entièrement
+// désactivée sous `prefers-reduced-motion`.
+//
+// Tous les chiffres sont les valeurs réelles du moteur Monte-Carlo
+// (fixtures seed 42 — C37/C40) : le manifeste est factuel, c'est sa force.
+//
+// DA + storyboard : briefs/chantiers/C45-manifeste-immersif.md.
+// ⚠ v1 écrite sans rendu écran (env indisponible) — itération visuelle
+// à faire sur captures avant mise en avant.
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
+
+const title = 'Le manifeste — Sobr.ia';
+const description =
+  'Chaque prompt a un poids. Personne ne le voit. Le manifeste Sobr.ia : mesurer, douter, choisir, compter sans surveiller, ouvrir.';
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <a class="back" href="/">← Sobr.ia</a>
+
+    <nav class="rail" id="rail" aria-label="Progression du manifeste">
+      {
+        ['Invisible', 'Mesurer', 'Douter', 'Choisir', 'Ensemble', 'Ouvrir', 'Commencer'].map(
+          (label, i) => (
+            <span class={`dot${i === 0 ? ' on' : ''}`} data-i={i} title={label} />
+          )
+        )
+      }
+    </nav>
+
+    <main id="scenes">
+      <!-- 0 — INVISIBLE -->
+      <section class="scene" data-scene="0">
+        <span class="word" aria-hidden="true">Invisible</span>
+        <div class="inner">
+          <h1 class="decl">
+            <span class="line">Chaque prompt</span>
+            <span class="line">a un poids.</span>
+            <span class="line em">Personne ne le voit.</span>
+          </h1>
+          <p class="body">
+            Une question posée à une IA traverse un datacenter, consomme de l'électricité, de
+            l'eau — et n'affiche jamais sa facture.
+          </p>
+        </div>
+        <div class="marquee" aria-hidden="true">
+          <div class="marquee__track">
+            <span>le poids invisible&nbsp;•&nbsp;</span><span>le poids invisible&nbsp;•&nbsp;</span>
+            <span>le poids invisible&nbsp;•&nbsp;</span><span>le poids invisible&nbsp;•&nbsp;</span>
+            <span>le poids invisible&nbsp;•&nbsp;</span><span>le poids invisible&nbsp;•&nbsp;</span>
+          </div>
+        </div>
+        <span class="cue" aria-hidden="true">↓</span>
+      </section>
+
+      <!-- 1 — MESURER -->
+      <section class="scene" data-scene="1">
+        <span class="word" aria-hidden="true">Mesurer</span>
+        <div class="inner">
+          <h2 class="decl">
+            <span class="line">On ne réduit pas</span>
+            <span class="line">ce qu'on ne</span>
+            <span class="line em">mesure pas.</span>
+          </h2>
+          <p class="metric" aria-label="0,45 gramme de CO2 équivalent pour un prompt moyen">
+            <span class="metric__value" id="counter" data-target="0.45">0,45</span>
+            <span class="metric__unit">g CO₂eq</span>
+          </p>
+          <p class="body">
+            Un prompt moyen sur un modèle courant. Calculé en local, par 10 000 tirages
+            Monte-Carlo — pas une estimation de coin de table.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2 — DOUTER -->
+      <section class="scene" data-scene="2">
+        <span class="word" aria-hidden="true">Douter</span>
+        <div class="inner">
+          <h2 class="decl">
+            <span class="line">Un chiffre sans</span>
+            <span class="line">intervalle est un</span>
+            <span class="line em">mensonge confortable.</span>
+          </h2>
+          <div class="range" role="img" aria-label="Intervalle d'incertitude : de 0,31 à 0,67 gramme, médiane 0,45">
+            <span class="range__tick range__tick--p5"><b>0,31</b> P5</span>
+            <span class="range__bar"><i id="rangeFill"></i><em class="range__mid"></em></span>
+            <span class="range__tick range__tick--p95"><b>0,67</b> P95</span>
+          </div>
+          <p class="body">
+            Sobr.ia ne vous donne jamais un chiffre seul : toujours la fourchette dans laquelle la
+            vérité a 90&nbsp;% de chances de se trouver.
+          </p>
+        </div>
+      </section>
+
+      <!-- 3 — CHOISIR -->
+      <section class="scene" data-scene="3">
+        <span class="word" aria-hidden="true">Choisir</span>
+        <div class="inner">
+          <h2 class="decl">
+            <span class="line">Le même travail.</span>
+            <span class="line">Cent fois</span>
+            <span class="line em">plus léger.</span>
+          </h2>
+          <div class="swap" id="swap">
+            <span class="swap__from">Claude Opus 4.8 · <b>7,2&nbsp;g</b></span>
+            <span class="swap__arrow" aria-hidden="true">→</span>
+            <span class="swap__to">Phi-4 Reasoning · <b>59,7&nbsp;mg</b></span>
+            <span class="swap__delta">−99&nbsp;%</span>
+          </div>
+          <p class="body">
+            Après chaque mesure, Sobr.ia propose des alternatives plus sobres — recalculées par le
+            même moteur, mêmes tokens, même méthodologie. Mesurer n'est que la moitié du chemin.
+          </p>
+        </div>
+      </section>
+
+      <!-- 4 — ENSEMBLE -->
+      <section class="scene" data-scene="4">
+        <span class="word" aria-hidden="true">Ensemble</span>
+        <div class="inner">
+          <h2 class="decl">
+            <span class="line">Compter</span>
+            <span class="line">sans</span>
+            <span class="line em">surveiller.</span>
+          </h2>
+          <div class="kfold" id="kfold" aria-label="Cinq personnes fondues dans un agrégat k-anonyme">
+            <span class="kfold__av">A</span>
+            <span class="kfold__av">B</span>
+            <span class="kfold__av">C</span>
+            <span class="kfold__av">D</span>
+            <span class="kfold__av">E</span>
+            <span class="kfold__agg">k&nbsp;=&nbsp;5</span>
+          </div>
+          <p class="body">
+            Votre équipe mesurée en agrégats k-anonymes, appliqués côté serveur. Personne
+            n'apparaît nommément sans l'avoir décidé — et votre organisation choisit sa politique,
+            attestation à l'appui.
+          </p>
+        </div>
+      </section>
+
+      <!-- 5 — OUVRIR -->
+      <section class="scene" data-scene="5">
+        <span class="word" aria-hidden="true">Ouvrir</span>
+        <div class="inner">
+          <h2 class="decl">
+            <span class="line">Pas de boîte noire.</span>
+            <span class="line">Du code, des sources,</span>
+            <span class="line em">des intervalles.</span>
+          </h2>
+          <p class="body">
+            Chaque formule est sourcée, chaque tirage rejouable (seed 42), chaque dataset public.
+            Vous pouvez vérifier — c'est le but.
+          </p>
+        </div>
+        <div class="marquee marquee--alt" aria-hidden="true">
+          <div class="marquee__track">
+            <span>MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed 42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span>
+            <span>MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed 42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span>
+            <span>MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed 42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 — COMMENCER -->
+      <section class="scene scene--last" data-scene="6">
+        <span class="word" aria-hidden="true">Commencer</span>
+        <div class="inner">
+          <h2 class="decl">
+            <span class="line">Votre premier</span>
+            <span class="line">prompt mesuré.</span>
+            <span class="line em">30 secondes.</span>
+          </h2>
+          <div class="actions">
+            <a class="btn btn--primary" href="/telecharger#extension">Installer l'extension</a>
+            <a class="btn" href="/telecharger#app">Télécharger l'app</a>
+            <a class="btn" href="/equipe">Mode Équipe</a>
+          </div>
+          <p class="body body--meta">100 % local · open source MIT · AFNOR SPEC 2314 · v0.9.0</p>
+        </div>
+      </section>
+    </main>
+
+    <Footer />
+
+    <style>
+      /* ── Base — palette Sobr.ia, type fluide ───────────────────────── */
+      :root {
+        --ink: #0a0d0b;
+        --ivory: #f0ece3;
+        --ivory-2: #b8b4ac;
+        --ivory-3: #83817a;
+        --lime: #c5f04a;
+        --amber: #f5b769;
+        --serif: 'Instrument Serif', Georgia, serif;
+        --sans: 'Geist', system-ui, sans-serif;
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+      }
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--ink);
+        color: var(--ivory);
+        font-family: var(--sans);
+        overflow-x: hidden;
+      }
+
+      .back {
+        position: fixed;
+        top: 20px;
+        left: 24px;
+        z-index: 40;
+        color: var(--ivory-2);
+        text-decoration: none;
+        font: 500 13px/1 var(--sans);
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(10, 13, 11, 0.6);
+        backdrop-filter: blur(8px);
+      }
+      .back:hover {
+        color: var(--lime);
+        border-color: rgba(197, 240, 74, 0.4);
+      }
+
+      /* ── Rail de progression ──────────────────────────────────────── */
+      .rail {
+        position: fixed;
+        right: 22px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 40;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+        transition: all 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .dot.on {
+        background: var(--lime);
+        box-shadow: 0 0 10px rgba(197, 240, 74, 0.5);
+        transform: scale(1.35);
+      }
+      @media (max-width: 720px) {
+        .rail {
+          display: none;
+        }
+      }
+
+      /* ── Scènes ───────────────────────────────────────────────────── */
+      .scene {
+        position: relative;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: 12vh 6vw;
+        overflow: hidden;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .inner {
+        position: relative;
+        z-index: 2;
+        max-width: 880px;
+        text-align: center;
+      }
+
+      /* Mot-scène géant en fond — parallaxe scroll-driven si supportée */
+      .word {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        z-index: 1;
+        font: 400 clamp(96px, 22vw, 340px) / 1 var(--serif);
+        font-style: italic;
+        color: rgba(240, 236, 227, 0.045);
+        user-select: none;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      @supports (animation-timeline: view()) {
+        .word {
+          animation: drift linear both;
+          animation-timeline: view();
+        }
+        @keyframes drift {
+          from {
+            transform: translateY(12vh);
+          }
+          to {
+            transform: translateY(-12vh);
+          }
+        }
+      }
+
+      /* Déclaration — lignes révélées au scroll */
+      .decl {
+        font: 400 clamp(40px, 7vw, 104px) / 1.04 var(--serif);
+        letter-spacing: -0.02em;
+        margin-bottom: 4vh;
+      }
+      .decl .line {
+        display: block;
+        opacity: 0;
+        transform: translateY(0.6em);
+        clip-path: inset(0 0 100% 0);
+        transition:
+          opacity 600ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          clip-path 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .scene.on .decl .line {
+        opacity: 1;
+        transform: none;
+        clip-path: inset(0 0 -10% 0);
+      }
+      .scene.on .decl .line:nth-child(2) {
+        transition-delay: 90ms;
+      }
+      .scene.on .decl .line:nth-child(3) {
+        transition-delay: 180ms;
+      }
+      .decl .em {
+        font-style: italic;
+        color: var(--lime);
+      }
+
+      .body {
+        font: 400 clamp(15px, 1.3vw, 19px) / 1.6 var(--sans);
+        color: var(--ivory-2);
+        max-width: 56ch;
+        margin: 0 auto;
+        opacity: 0;
+        transition: opacity 700ms 350ms ease;
+      }
+      .scene.on .body {
+        opacity: 1;
+      }
+      .body--meta {
+        margin-top: 3vh;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ivory-3);
+      }
+
+      /* ── Éléments vivants par scène ───────────────────────────────── */
+      .metric {
+        margin: 0 0 3vh;
+        font-variant-numeric: tabular-nums;
+      }
+      .metric__value {
+        font: 400 clamp(64px, 10vw, 150px) / 1 var(--serif);
+        color: var(--lime);
+      }
+      .metric__unit {
+        font: 500 clamp(16px, 1.6vw, 24px) / 1 var(--sans);
+        color: var(--ivory-2);
+        margin-left: 10px;
+      }
+
+      .range {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        justify-content: center;
+        margin-bottom: 3vh;
+        font: 500 13px/1.3 var(--mono);
+        color: var(--ivory-2);
+      }
+      .range__tick b {
+        display: block;
+        font-size: 18px;
+        color: var(--ivory);
+      }
+      .range__bar {
+        position: relative;
+        width: min(380px, 40vw);
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: visible;
+      }
+      .range__bar i {
+        position: absolute;
+        inset: 0;
+        border-radius: 3px;
+        background: linear-gradient(90deg, rgba(197, 240, 74, 0.25), var(--lime), rgba(197, 240, 74, 0.25));
+        transform: scaleX(0);
+        transform-origin: center;
+        transition: transform 900ms 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .scene.on .range__bar i {
+        transform: scaleX(1);
+      }
+      .range__mid {
+        position: absolute;
+        left: 50%;
+        top: -5px;
+        width: 2px;
+        height: 16px;
+        background: var(--ivory);
+        transform: translateX(-50%);
+      }
+
+      .swap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 18px;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 3vh;
+        font: 400 clamp(15px, 1.6vw, 22px) / 1.3 var(--sans);
+      }
+      .swap__from {
+        color: var(--ivory-3);
+        text-decoration: line-through;
+        text-decoration-color: rgba(245, 183, 105, 0.6);
+        text-decoration-thickness: 2px;
+      }
+      .swap__arrow {
+        color: var(--ivory-3);
+      }
+      .swap__to b {
+        color: var(--lime);
+      }
+      .swap__delta {
+        font: 400 clamp(28px, 4vw, 56px) / 1 var(--serif);
+        font-style: italic;
+        color: var(--lime);
+        margin-left: 8px;
+        opacity: 0;
+        transform: scale(0.8);
+        transition:
+          opacity 500ms 500ms ease,
+          transform 600ms 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .scene.on .swap__delta {
+        opacity: 1;
+        transform: none;
+      }
+
+      .kfold {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 3vh;
+      }
+      .kfold__av {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        font: 500 14px/1 var(--mono);
+        color: var(--ivory-2);
+        transition:
+          transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          opacity 600ms ease;
+      }
+      .scene.on .kfold__av {
+        opacity: 0;
+        transform: translateX(var(--fold, 0)) scale(0.4);
+      }
+      .scene.on .kfold__av:nth-child(1) { --fold: 104px; transition-delay: 250ms; }
+      .scene.on .kfold__av:nth-child(2) { --fold: 52px; transition-delay: 330ms; }
+      .scene.on .kfold__av:nth-child(3) { --fold: 0px; transition-delay: 410ms; }
+      .scene.on .kfold__av:nth-child(4) { --fold: -52px; transition-delay: 490ms; }
+      .scene.on .kfold__av:nth-child(5) { --fold: -104px; transition-delay: 570ms; }
+      .kfold__agg {
+        position: absolute;
+        opacity: 0;
+        font: 400 clamp(28px, 3.4vw, 44px) / 1 var(--serif);
+        font-style: italic;
+        color: var(--lime);
+        transition: opacity 500ms 800ms ease;
+      }
+      .kfold {
+        position: relative;
+      }
+      .scene.on .kfold__agg {
+        opacity: 1;
+      }
+
+      /* ── Marquees (pattern Pacôme) ────────────────────────────────── */
+      .marquee {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 8vh;
+        overflow: hidden;
+        z-index: 1;
+        font: 400 clamp(14px, 1.4vw, 18px) / 1 var(--mono);
+        color: var(--ivory-3);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        opacity: 0.7;
+        mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+      }
+      .marquee--alt {
+        bottom: 10vh;
+        color: rgba(197, 240, 74, 0.55);
+      }
+      .marquee__track {
+        display: inline-flex;
+        white-space: nowrap;
+        animation: slide 26s linear infinite;
+      }
+      @keyframes slide {
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      .cue {
+        position: absolute;
+        bottom: 3vh;
+        left: 50%;
+        transform: translateX(-50%);
+        color: var(--ivory-3);
+        animation: bob 2.2s ease-in-out infinite;
+        z-index: 2;
+      }
+      @keyframes bob {
+        0%,
+        100% {
+          transform: translate(-50%, 0);
+        }
+        50% {
+          transform: translate(-50%, 8px);
+        }
+      }
+
+      /* ── CTA finale ───────────────────────────────────────────────── */
+      .actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 1vh;
+      }
+      .btn {
+        padding: 13px 22px;
+        border-radius: 999px;
+        font: 600 14px/1 var(--sans);
+        text-decoration: none;
+        color: var(--ivory);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        transition: all 200ms ease;
+      }
+      .btn:hover {
+        border-color: var(--lime);
+        color: var(--lime);
+      }
+      .btn--primary {
+        background: var(--lime);
+        border-color: var(--lime);
+        color: var(--ink);
+      }
+      .btn--primary:hover {
+        filter: brightness(1.08);
+        color: var(--ink);
+      }
+      .scene--last {
+        background: radial-gradient(ellipse 70% 50% at 50% 60%, rgba(197, 240, 74, 0.06), transparent);
+      }
+
+      /* ── Reduced motion : tout statique, tout visible ─────────────── */
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .decl .line,
+        .body,
+        .swap__delta,
+        .range__bar i,
+        .kfold__agg {
+          opacity: 1 !important;
+          transform: none !important;
+          clip-path: none !important;
+          transition: none !important;
+        }
+        .scene.on .kfold__av,
+        .kfold__av {
+          opacity: 1 !important;
+          transform: none !important;
+        }
+        .marquee__track,
+        .cue,
+        .word {
+          animation: none !important;
+        }
+      }
+      /* Sans JS : .on jamais posé → on force l'état final via :target-less
+         fallback. Les media queries ne savent pas détecter JS ; on duplique
+         donc la règle sous .no-anim posé par défaut et retiré par le JS. */
+      html.no-js .decl .line,
+      html.no-js .body,
+      html.no-js .swap__delta,
+      html.no-js .range__bar i,
+      html.no-js .kfold__agg,
+      html.no-js .kfold__av {
+        opacity: 1;
+        transform: none;
+        clip-path: none;
+        transition: none;
+      }
+    </style>
+
+    <script is:inline>
+      // Marque l'absence de JS par défaut — retirée immédiatement si JS
+      // s'exécute (progressive enhancement : sans JS, tout est visible).
+      document.documentElement.classList.add('no-js');
+    </script>
+    <script>
+      document.documentElement.classList.remove('no-js');
+
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const scenes = Array.from(document.querySelectorAll<HTMLElement>('.scene'));
+      const dots = Array.from(document.querySelectorAll<HTMLElement>('#rail .dot'));
+
+      // Reveal des scènes + rail de progression.
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            const el = e.target as HTMLElement;
+            if (e.isIntersecting) {
+              el.classList.add('on');
+              const i = Number(el.dataset.scene ?? 0);
+              dots.forEach((d, di) => d.classList.toggle('on', di === i));
+              if (!reduced) runSceneEffect(i, el);
+            }
+          }
+        },
+        { threshold: 0.45 }
+      );
+      scenes.forEach((s) => io.observe(s));
+
+      const done = new Set<number>();
+
+      /** Effets uniques par scène (compteur…), joués une seule fois. */
+      function runSceneEffect(i: number, _el: HTMLElement): void {
+        if (done.has(i)) return;
+        done.add(i);
+        if (i === 1) animateCounter();
+      }
+
+      /** Compteur 0 → 0,45 g (valeur moteur, fixtures seed 42). */
+      function animateCounter(): void {
+        const el = document.getElementById('counter');
+        if (!el) return;
+        const target = Number(el.dataset.target ?? '0');
+        const t0 = performance.now();
+        const dur = 1100;
+        const fmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
+        const tick = (t: number) => {
+          const p = Math.min(1, (t - t0) / dur);
+          const eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = fmt.format(target * eased);
+          if (p < 1) requestAnimationFrame(tick);
+          else el.textContent = fmt.format(target);
+        };
+        requestAnimationFrame(tick);
+      }
+    </script>
+  </body>
+</html>

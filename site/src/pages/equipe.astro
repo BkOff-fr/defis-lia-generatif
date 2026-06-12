@@ -1,0 +1,289 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const MAILTO = encodeURI(
+  'mailto:contact@sobria.brilliantstudio.co?subject=Sobr.ia Cloud manage — etre prevenu',
+);
+---
+
+<BaseLayout
+  title="Mode Équipe self-hosted — Sobr.ia"
+  description="Le Mode Équipe Sobr.ia agrège les mesures de votre organisation sur un serveur que vous hébergez. Trois politiques de visibilité : anonyme strict, opt-in (défaut), nominatif avec attestation. k-anonymat appliqué côté serveur."
+>
+  <div class="max-w-5xl mx-auto px-6 py-16">
+    <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+    <p class="text-xs uppercase tracking-widest text-ivory-3">Sobr.ia · Mode Équipe self-hosted</p>
+    <h1 class="mt-2 font-display text-5xl text-ivory">
+      Votre organisation choisit sa
+      <span class="italic text-lime-signature">politique de visibilité</span>.
+    </h1>
+    <p class="mt-4 text-ivory-2 max-w-2xl">
+      Le Mode Équipe agrège les mesures de vos collaborateurs sur un serveur que vous hébergez —
+      aucune donnée chez nous. Ce que l'administrateur peut voir n'est pas un réglage d'affichage :
+      c'est une politique appliquée côté serveur, k-anonymat compris.
+    </p>
+    <div class="mt-7 flex flex-wrap items-center gap-3">
+      <a
+        href="/docs/operations/deploiement-equipe/"
+        class="inline-flex items-center gap-2 rounded-md bg-lime-signature text-ink px-5 py-2.5 text-sm font-sans font-medium hover:bg-lime-deep transition-colors"
+      >
+        Déployer en 30 minutes
+      </a>
+      <a
+        href="/telecharger/#equipe"
+        class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory px-5 py-2.5 text-sm font-sans hover:border-lime-signature hover:text-lime-signature transition-colors"
+      >
+        Télécharger le serveur
+      </a>
+    </div>
+    <p class="mt-4 text-xs text-ivory-3 font-mono">
+      self-hosted · Docker ou binaire ~15 MB · SQLite · open source MIT
+    </p>
+
+    <!-- ── 01 · Les trois politiques ────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="politiques">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">01</span> · Trois politiques, un choix explicite
+      </p>
+      <h2 id="politiques" class="mt-2 font-display text-3xl text-ivory">
+        De l'anonymat strict au nominatif <span class="italic">encadré</span>.
+      </h2>
+      <div class="mt-8 grid gap-4 md:grid-cols-3">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6 flex flex-col">
+          <span
+            class="self-start inline-flex items-center rounded-full border border-blue/40 bg-blue/10 text-blue px-2.5 py-0.5 text-xs"
+          >
+            Le plus protecteur
+          </span>
+          <h3 class="mt-4 font-sans text-xl text-ivory">Anonyme strict</h3>
+          <p class="mt-3 text-sm text-ivory-2 leading-relaxed">
+            L'administrateur ne voit que des agrégats k-anonymes : totaux, séries et classements ne
+            s'affichent que si au moins <span class="font-mono">k</span> personnes y contribuent (k&nbsp;=&nbsp;5
+            par défaut). Aucune vue individuelle, pour personne.
+          </p>
+        </article>
+
+        <article
+          class="rounded-lg border border-lime-signature/40 bg-lime-signature/5 p-6 flex flex-col"
+        >
+          <span
+            class="self-start inline-flex items-center rounded-full border border-lime-signature/40 bg-lime-signature/15 text-lime-signature px-2.5 py-0.5 text-xs"
+          >
+            Défaut
+          </span>
+          <h3 class="mt-4 font-sans text-xl text-ivory">Opt-in</h3>
+          <p class="mt-3 text-sm text-ivory-2 leading-relaxed">
+            Le k-anonymat s'applique à tous, et chaque salarié contrôle en plus son identification :
+            il peut choisir d'apparaître nommément, et révoquer ce choix à tout moment. Personne
+            d'autre ne peut le faire à sa place.
+          </p>
+        </article>
+
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6 flex flex-col">
+          <span
+            class="self-start inline-flex items-center rounded-full border border-amber/40 bg-amber/10 text-amber px-2.5 py-0.5 text-xs"
+          >
+            Attestation exigée
+          </span>
+          <h3 class="mt-4 font-sans text-xl text-ivory">Nominatif</h3>
+          <p class="mt-3 text-sm text-ivory-2 leading-relaxed">
+            Réservé aux organisations qui attestent avoir informé leur CSE et leurs salariés.
+            L'attestation n'est pas une case décorative : le serveur l'exige pour activer ce mode.
+            Jamais proposé par défaut.
+          </p>
+        </article>
+      </div>
+      <p class="mt-5 text-sm text-ivory-3 max-w-2xl">
+        Le k-anonymat est appliqué côté serveur, pas un réglage d'affichage : une réponse sous le
+        seuil est bloquée à la source (<a
+          href="/adrs/adr-0015-privacy-mode-equipe/"
+          class="text-lime-signature underline underline-offset-4">ADR-0015</a
+        >). La politique de visibilité est formalisée dans l'ADR-0016.
+      </p>
+    </section>
+
+    <!-- ── 02 · Tableau comparatif ──────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="comparatif">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">02</span> · Comparatif
+      </p>
+      <h2 id="comparatif" class="mt-2 font-display text-3xl text-ivory">
+        Les trois modes, <span class="italic">côte à côte</span>.
+      </h2>
+      <div class="mt-8 overflow-x-auto rounded-lg border border-ivory-4/30">
+        <table class="w-full text-sm text-left">
+          <thead>
+            <tr class="bg-ink-2 text-ivory">
+              <th scope="col" class="px-4 py-3 font-sans font-medium">&nbsp;</th>
+              <th scope="col" class="px-4 py-3 font-sans font-medium">Anonyme strict</th>
+              <th scope="col" class="px-4 py-3 font-sans font-medium text-lime-signature">
+                Opt-in (défaut)
+              </th>
+              <th scope="col" class="px-4 py-3 font-sans font-medium">Nominatif</th>
+            </tr>
+          </thead>
+          <tbody class="text-ivory-2">
+            <tr class="border-t border-ivory-4/30">
+              <th scope="row" class="px-4 py-3 font-sans font-normal text-ivory"
+                >Agrégats d'équipe k-anonymes</th
+              >
+              <td class="px-4 py-3"><span class="text-lime-signature">✓</span></td>
+              <td class="px-4 py-3"><span class="text-lime-signature">✓</span></td>
+              <td class="px-4 py-3"><span class="text-lime-signature">✓</span></td>
+            </tr>
+            <tr class="border-t border-ivory-4/30">
+              <th scope="row" class="px-4 py-3 font-sans font-normal text-ivory"
+                >Vue individuelle par employé</th
+              >
+              <td class="px-4 py-3 text-ivory-3">Jamais</td>
+              <td class="px-4 py-3">Uniquement les salariés qui l'ont activée</td>
+              <td class="px-4 py-3">Oui, pour tous</td>
+            </tr>
+            <tr class="border-t border-ivory-4/30">
+              <th scope="row" class="px-4 py-3 font-sans font-normal text-ivory"
+                >Contrôle par le salarié</th
+              >
+              <td class="px-4 py-3 text-ivory-3">Rien à contrôler : aucune donnée nominative</td>
+              <td class="px-4 py-3">Activation individuelle, révocable à tout moment</td>
+              <td class="px-4 py-3">Information préalable obligatoire (CSE + salariés)</td>
+            </tr>
+            <tr class="border-t border-ivory-4/30">
+              <th scope="row" class="px-4 py-3 font-sans font-normal text-ivory"
+                >Attestation CSE exigée par le serveur</th
+              >
+              <td class="px-4 py-3 text-ivory-3">Non requise</td>
+              <td class="px-4 py-3 text-ivory-3">Non requise</td>
+              <td class="px-4 py-3 text-amber">Oui — bloquante à l'activation</td>
+            </tr>
+            <tr class="border-t border-ivory-4/30">
+              <th scope="row" class="px-4 py-3 font-sans font-normal text-ivory">Pour qui</th>
+              <td class="px-4 py-3">Exigence sociale forte, grandes équipes</td>
+              <td class="px-4 py-3">Le bon point de départ pour la plupart des organisations</td>
+              <td class="px-4 py-3">Structures avec dialogue social déjà formalisé</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 03 · Vues et exports ─────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="vues">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">03</span> · Lire l'empreinte de l'organisation
+      </p>
+      <h2 id="vues" class="mt-2 font-display text-3xl text-ivory">
+        Par employé, par <span class="italic text-lime-signature">projet</span>, vers vos rapports.
+      </h2>
+      <div class="mt-8 grid gap-4 md:grid-cols-3">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <h3 class="font-sans text-base text-ivory">Vue par employé</h3>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Disponible selon la politique de visibilité choisie — et seulement selon elle. En
+            anonyme strict, cette vue n'existe pas, par construction.
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <h3 class="font-sans text-base text-ivory">Vue par projet</h3>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Les mesures sont taguées par conversation via l'extension navigateur : chacun rattache
+            ses conversations à un projet. L'empreinte IA se lit alors par projet — souvent plus
+            utile (et moins intrusif) que par personne.
+          </p>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+          <h3 class="font-sans text-base text-ivory">Exports CSRD &amp; CSV</h3>
+          <p class="mt-2 text-sm text-ivory-2 leading-relaxed">
+            Export CSRD (PDF) pour le reporting extra-financier, CSV pour vos analyses, et
+            traçabilité PROV-O (JSON-LD) pour l'auditabilité.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── 04 · Déploiement ─────────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="deploiement">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">04</span> · Déployer
+      </p>
+      <h2 id="deploiement" class="mt-2 font-display text-3xl text-ivory">
+        Docker, ~30 minutes, kit CSE <span class="italic">inclus</span>.
+      </h2>
+      <ul class="mt-8 grid gap-4 sm:grid-cols-2 text-sm text-ivory-2">
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">Kit Docker fourni</strong> : compose, TLS auto-signé par défaut
+            ou reverse proxy Caddy + Let's Encrypt. Objectif : serveur opérationnel en ~30 minutes.
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">Frugal par construction</strong> : binaire standalone ~15 MB, un
+            seul fichier SQLite, moins de 256 Mo de RAM pour 10 à 100 salariés.
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">Kit emails CSE / salariés inclus</strong> : information-consultation
+            du CSE et annonce aux salariés, prêtes à adapter (à faire valider par votre juriste ou DPO).
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">Rétention configurable</strong> : les estimations plus anciennes
+            que la durée choisie sont purgées automatiquement. La minimisation des données est un réglage
+            de premier rang.
+          </span>
+        </li>
+      </ul>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a
+          href="/docs/operations/deploiement-equipe/"
+          class="inline-flex items-center gap-2 rounded-md bg-lime-signature text-ink px-5 py-2.5 text-sm font-sans font-medium hover:bg-lime-deep transition-colors"
+        >
+          Guide de déploiement Docker
+        </a>
+        <a
+          href="/docs/operations/team-aggregator/"
+          class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory px-5 py-2.5 text-sm font-sans hover:border-lime-signature hover:text-lime-signature transition-colors"
+        >
+          Guide opérateur complet
+        </a>
+        <a
+          href="/docs/operations/modeles-communication/"
+          class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory px-5 py-2.5 text-sm font-sans hover:border-lime-signature hover:text-lime-signature transition-colors"
+        >
+          Kit emails CSE / salariés
+        </a>
+      </div>
+    </section>
+
+    <!-- ── Note cloud managé ────────────────────────────────────────────── -->
+    <section
+      class="mt-20 rounded-lg border border-ivory-4/30 bg-ink-2 p-7"
+      aria-labelledby="cloud-note"
+    >
+      <h2 id="cloud-note" class="font-display text-2xl text-ivory">
+        Et l'offre cloud managée ? <span class="italic">À l'étude.</span>
+      </h2>
+      <p class="mt-3 text-sm text-ivory-2 leading-relaxed max-w-3xl">
+        Pour les organisations qui ne peuvent pas héberger, une offre cloud managée est à l'étude (<a
+          href="/adrs/adr-0014-dual-track-local-cloud/"
+          class="text-lime-signature underline underline-offset-4">ADR-0014</a
+        >) — elle ne sortira pas avant que la souveraineté (hébergeur EU) et le consentement RGPD
+        soient garantis. Le Mode Équipe self-hosted reste la voie recommandée.
+      </p>
+      <p class="mt-4 text-sm">
+        <a href={MAILTO} class="text-lime-signature underline underline-offset-4"
+          >Être prévenu par email</a
+        >
+        <span class="text-ivory-3 text-xs">
+          — votre client mail s'ouvre, aucun formulaire, aucun tracker.</span
+        >
+      </p>
+    </section>
+  </div>
+</BaseLayout>

@@ -2,12 +2,14 @@
 import SearchBar from '$components/docs/SearchBar.svelte';
 
 const navItems = [
-  { href: '/#pour-qui', label: 'Pour qui' },
-  { href: '/docs/', label: 'Doc' },
-  { href: '/#download', label: 'Télécharger' },
-  { href: '/candidature/', label: 'Candidature' },
+  { href: '/produit/', label: 'Produit' },
+  { href: '/equipe/', label: 'Équipe' },
+  { href: '/methode/', label: 'Méthode' },
+  { href: '/docs/', label: 'Docs' },
 ];
 const githubUrl = 'https://github.com/BkOff-fr/defis-lia-generatif';
+const currentPath = Astro.url.pathname;
+const isActive = (href: string) => currentPath === href || currentPath === href.replace(/\/$/, '');
 ---
 
 <header class="sticky top-0 z-50 backdrop-blur-md bg-ink/80 border-b border-ivory-4/30">
@@ -24,7 +26,15 @@ const githubUrl = 'https://github.com/BkOff-fr/defis-lia-generatif';
       {
         navItems.map((item) => (
           <li>
-            <a href={item.href} class="text-ivory-2 hover:text-ivory transition-colors">
+            <a
+              href={item.href}
+              aria-current={isActive(item.href) ? 'page' : undefined}
+              class={
+                isActive(item.href)
+                  ? 'text-lime-signature'
+                  : 'text-ivory-2 hover:text-ivory transition-colors'
+              }
+            >
               {item.label}
             </a>
           </li>
@@ -37,9 +47,15 @@ const githubUrl = 'https://github.com/BkOff-fr/defis-lia-generatif';
       <a
         href={githubUrl}
         rel="noopener external"
-        class="text-sm border border-ivory-4 hover:border-lime-signature hover:text-lime-signature rounded-md px-3 py-1.5 transition-colors hidden sm:inline-flex"
+        class="text-sm text-ivory-2 hover:text-ivory transition-colors hidden lg:inline-flex"
       >
-        GitHub ★
+        GitHub
+      </a>
+      <a
+        href="/telecharger/"
+        class="text-sm bg-lime-signature text-ink font-medium rounded-md px-3 py-1.5 hover:bg-lime-deep transition-colors hidden sm:inline-flex"
+      >
+        Télécharger
       </a>
     </div>
   </nav>

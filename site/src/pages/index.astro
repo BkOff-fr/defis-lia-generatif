@@ -27,15 +27,15 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
-    <title>Sobr.ia — Le poids invisible de tes prompts</title>
+    <title>Sobr.ia — Le poids invisible de vos prompts</title>
     <meta
       name="description"
-      content="Mesure, suis, arbitre l'empreinte de tes prompts IA. Extension navigateur, dashboard d'équipe, suivi personnel, carte des datacenters européens. 100 % local, open source."
+      content="Mesurez, suivez, arbitrez l'empreinte de vos prompts IA. Extension navigateur, dashboard d'équipe, suivi personnel, carte des datacenters européens. 100 % local, open source."
     />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <meta property="og:title" content="Sobr.ia — Le poids invisible de tes prompts" />
+    <meta property="og:title" content="Sobr.ia — Le poids invisible de vos prompts" />
     <meta
       property="og:description"
       content="Extension navigateur, dashboard d'équipe, suivi personnel, carte des datacenters européens. Sobr.ia est l'outil ouvert pour quantifier — et réduire — l'empreinte de l'IA générative."
@@ -49,7 +49,7 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
     <meta property="og:site_name" content="Sobr.ia" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Sobr.ia — Le poids invisible de tes prompts" />
+    <meta name="twitter:title" content="Sobr.ia — Le poids invisible de vos prompts" />
     <meta name="twitter:image" content={ogImage} />
 
     <meta name="theme-color" content="#0a0d0b" />
@@ -867,6 +867,90 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
         color: var(--ivory-3);
         margin-left: 4px;
       }
+      .tb-anon .tb-av {
+        background: var(--surface-2, rgba(255, 255, 255, 0.07));
+        color: var(--ivory-2);
+      }
+      .tb-anon .tb-nm {
+        color: var(--ivory-2);
+        font-style: italic;
+      }
+      .tb-optin {
+        font: 500 11px/1 var(--font-mono, monospace);
+        color: var(--lime);
+        font-style: normal;
+        margin-left: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .tb-knote {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--ivory-3);
+      }
+      .ch-reduce .inner {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 56px;
+        align-items: center;
+      }
+      @media (max-width: 900px) {
+        .ch-reduce .inner {
+          grid-template-columns: 1fr;
+        }
+      }
+      .reduce-demo {
+        background: rgba(197, 240, 74, 0.05);
+        border: 1px solid rgba(197, 240, 74, 0.22);
+        border-radius: 18px;
+        padding: 22px;
+      }
+      .rd-head {
+        font-size: 13px;
+        color: var(--ivory-2);
+        margin-bottom: 16px;
+      }
+      .rd-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      @media (max-width: 640px) {
+        .rd-cards {
+          grid-template-columns: 1fr;
+        }
+      }
+      .rd-card {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+      }
+      .rd-name {
+        font-size: 13px;
+        color: var(--ivory);
+        font-weight: 500;
+      }
+      .rd-delta {
+        font-family: var(--font-display, serif);
+        font-size: 30px;
+        line-height: 1;
+        color: var(--lime);
+      }
+      .rd-abs {
+        font-size: 12px;
+        color: var(--ivory-3);
+      }
+      .rd-foot {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--ivory-3);
+        font-style: italic;
+      }
+
       .tb-rows {
         display: flex;
         flex-direction: column;
@@ -1301,13 +1385,14 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
     </div>
     <div class="progress" id="progress"></div>
     <div class="rail" id="rail">
-      <div class="dot on" data-i="0"><span class="lab">00 · Hero</span></div>
+      <div class="dot on" data-i="0"><span class="lab">00 · Sobr.ia</span></div>
       <div class="dot" data-i="1"><span class="lab">01 · Calcul live</span></div>
-      <div class="dot" data-i="2"><span class="lab">02 · Équipes</span></div>
+      <div class="dot" data-i="2"><span class="lab">02 · Équipe</span></div>
       <div class="dot" data-i="3"><span class="lab">03 · Suivi perso</span></div>
       <div class="dot" data-i="4"><span class="lab">04 · Datacenters</span></div>
       <div class="dot" data-i="5"><span class="lab">05 · Extension</span></div>
-      <div class="dot" data-i="6"><span class="lab">06 · Action</span></div>
+      <div class="dot" data-i="6"><span class="lab">06 · Réduire</span></div>
+      <div class="dot" data-i="7"><span class="lab">07 · Commencer</span></div>
     </div>
 
     <nav class="nav">
@@ -1324,9 +1409,9 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
           Sobr<i>.</i>ia
         </a>
         <div class="links">
-          <a href="/" class="on">Produit</a>
-          <a href="/cloud">Cloud</a>
-          <a href="/telecharger">Télécharger</a>
+          <a href="/produit">Produit</a>
+          <a href="/equipe">Équipe</a>
+          <a href="/methode">Méthode</a>
           <a href="/docs/">Docs</a>
         </div>
         <div class="grow"></div>
@@ -1350,19 +1435,25 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       <section class="chap ch-0" data-chap="0">
         <div class="inner">
           <div>
-            <div class="kicker"><span class="num">00 / 06</span> La boîte à outils</div>
+            <div class="kicker"><span class="num">00 / 07</span> La boîte à outils</div>
             <h1 class="giant rise lit">
-              Mesure, suis, <i>arbitre</i>.<br />Ton IA, ton équipe,<br />ton territoire.
+              Mesurez, suivez, <i>arbitrez</i>.<br />Votre IA, votre équipe,<br />votre territoire.
             </h1>
             <p class="body-l rise lit d1" style="margin-top:28px">
-              Extension navigateur, dashboard d'équipe, suivi personnel, carte des datacenters
-              européens. Sobr.ia est l'outil ouvert pour quantifier — et réduire — l'empreinte de
-              l'IA générative.
+              Extension navigateur, application locale, dashboard d'équipe k-anonyme, carte des
+              datacenters européens. Sobr.ia est l'outil ouvert pour quantifier — et réduire —
+              l'empreinte de l'IA générative.
             </p>
             <div class="hero-feats rise lit d2" style="margin-top:32px">
-              <span>↳ Calcul live</span><span>·</span><span>Dashboard équipe</span><span>·</span
-              ><span>Suivi perso</span><span>·</span><span>186 datacenters cartographiés</span>
+              <span>↳ Calcul live</span><span>·</span><span>Équipe sans surveillance</span><span
+                >·</span
+              ><span>Suivi perso</span><span>·</span><span>28 datacenters documentés</span>
             </div>
+            <p class="rise lit d3" style="margin-top:22px">
+              <a href="/manifeste" style="color:var(--lime);text-decoration:none;border-bottom:1px dashed rgba(197,240,74,0.4)"
+                >Lire le manifeste — « Le poids invisible » →</a
+              >
+            </p>
           </div>
         </div>
       </section>
@@ -1371,11 +1462,11 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
         <div class="ch-1-bignum" id="bignum">2,14</div>
         <div class="inner">
           <div>
-            <div class="kicker"><span class="num">01 / 06</span> Le chiffre invisible</div>
-            <h2 class="huge rise">Tape <i>quelque chose</i>.</h2>
+            <div class="kicker"><span class="num">01 / 07</span> Le chiffre invisible</div>
+            <h2 class="huge rise">Tapez <i>quelque chose</i>.</h2>
             <p class="body-l rise d1" style="margin-top:18px">
-              Le poids carbone de ton prompt apparaît derrière l'étoile. Modifie le texte, change le
-              modèle — la valeur évolue en temps réel.
+              Le poids carbone de votre prompt apparaît derrière l'étoile. Modifiez le texte,
+              changez le modèle — la valeur évolue en temps réel.
             </p>
           </div>
           <div class="prompt-lab rise d2">
@@ -1420,17 +1511,18 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       <section class="chap ch-2" data-chap="2">
         <div class="inner">
           <div>
-            <div class="kicker"><span class="num">02 / 06</span> Pour ton équipe</div>
+            <div class="kicker"><span class="num">02 / 07</span> Pour votre équipe</div>
             <h2 class="huge rise">Une vue <i>collective</i>.<br />Sans flicage.</h2>
             <p class="body-l rise d1" style="margin-top:18px">
-              Dashboard partagé · agrégats anonymisés par défaut · export CSRD en un clic. Tu vois
-              où l'équipe consomme, qui surchauffe, ce que tu peux optimiser.
+              Serveur self-hosted chez vous, agrégats d'équipe <b>k-anonymes par construction</b> : en
+              dessous du seuil d'activité, le serveur refuse de répondre. Personne n'apparaît nommément
+              sans avoir activé, lui-même, le partage.
             </p>
             <ul class="feat-list rise d2">
-              <li><b>Bilan hebdo automatique</b> pour chaque membre</li>
-              <li><b>Export PDF & CSV</b> pour rapports extra-financiers</li>
-              <li><b>Privacy-first</b> : agrégation locale, pseudonymes opt-in</li>
-              <li><b>Comparateur de modèles</b> partagé en workspace</li>
+              <li><b>k-anonymat côté serveur</b> — pas un réglage d'affichage, une garantie</li>
+              <li><b>Identification opt-in</b> contrôlée par chaque salarié, révocable</li>
+              <li><b>Export CSRD & CSV</b> pour vos rapports extra-financiers</li>
+              <li><b>Docker en 30 minutes</b> — kit CSE et salariés inclus</li>
             </ul>
           </div>
           <div class="team-board rise d2">
@@ -1449,30 +1541,20 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
             </div>
             <div class="tb-rows">
               <div class="tb-row">
-                <span class="tb-av">CB</span><span class="tb-nm">Claire B.</span><span
-                  class="tb-bar"><i style="--w:92%"></i></span
-                ><span class="tb-val">468<small>g</small></span>
+                <span class="tb-av">AV</span><span class="tb-nm"
+                  >Alice V. <em class="tb-optin">partage activé</em></span
+                ><span class="tb-bar"><i style="--w:62%"></i></span><span class="tb-val"
+                  >468<small>g</small></span
+                >
               </div>
-              <div class="tb-row">
-                <span class="tb-av">JL</span><span class="tb-nm">Jean L.</span><span class="tb-bar"
-                  ><i style="--w:74%"></i></span
-                ><span class="tb-val">372<small>g</small></span>
+              <div class="tb-row tb-anon">
+                <span class="tb-av">6</span><span class="tb-nm">participants anonymes</span><span
+                  class="tb-bar"><i style="--w:88%"></i></span
+                ><span class="tb-val">1,9<small>kg</small></span>
               </div>
-              <div class="tb-row">
-                <span class="tb-av">MN</span><span class="tb-nm">Marie N.</span><span class="tb-bar"
-                  ><i style="--w:58%"></i></span
-                ><span class="tb-val">298<small>g</small></span>
-              </div>
-              <div class="tb-row">
-                <span class="tb-av">PT</span><span class="tb-nm">Paul T.</span><span class="tb-bar"
-                  ><i style="--w:44%"></i></span
-                ><span class="tb-val">221<small>g</small></span>
-              </div>
-              <div class="tb-row">
-                <span class="tb-av">SR</span><span class="tb-nm">Sara R.</span><span class="tb-bar"
-                  ><i style="--w:29%"></i></span
-                ><span class="tb-val">146<small>g</small></span>
-              </div>
+            </div>
+            <div class="tb-knote">
+              Seuil k-anonymat : 5 actifs minimum — en dessous, le serveur n'affiche rien.
             </div>
           </div>
         </div>
@@ -1484,7 +1566,7 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
             <div class="up-head">
               <div>
                 <div class="up-title">Cette semaine · objectif <b>50 g/jour</b></div>
-                <div class="up-sub">Tu es à <b id="upPct">62%</b> de ton budget hebdo</div>
+                <div class="up-sub">Vous êtes à <b id="upPct">62%</b> de votre budget hebdo</div>
               </div>
               <div class="up-ring">
                 <svg viewBox="0 0 36 36" width="54" height="54">
@@ -1544,16 +1626,16 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
             </div>
           </div>
           <div>
-            <div class="kicker"><span class="num">03 / 06</span> Suivi personnel</div>
-            <h2 class="huge rise">Tes habitudes,<br /><i>en clair</i>.</h2>
+            <div class="kicker"><span class="num">03 / 07</span> Suivi personnel</div>
+            <h2 class="huge rise">Vos habitudes,<br /><i>en clair</i>.</h2>
             <p class="body-l rise d1" style="margin-top:18px">
-              Chaque session loggée en local. Pics, objectifs, équivalents — visibles sans effort.
-              Si tu dépasses, une notification douce. Pas plus.
+              Chaque session enregistrée en local. Pics, objectifs, équivalents — visibles sans
+              effort. Si vous dépassez, une notification douce. Pas plus.
             </p>
             <ul class="feat-list rise d2">
-              <li><b>Historique illimité</b>, stocké uniquement chez toi</li>
+              <li><b>Historique illimité</b>, stocké uniquement chez vous</li>
               <li><b>Objectifs personnalisables</b> hebdo / mensuel / annuel</li>
-              <li><b>Bilan mensuel PDF</b> exportable pour ton suivi RSE</li>
+              <li><b>Bilan mensuel PDF</b> exportable pour votre suivi RSE</li>
               <li><b>Comparaison avant/après</b> changement de modèle ou habitude</li>
             </ul>
           </div>
@@ -1563,11 +1645,12 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       <section class="chap ch-4" data-chap="4">
         <div class="inner">
           <div>
-            <div class="kicker"><span class="num">04 / 06</span> Recherche &amp; datacenters</div>
-            <h2 class="huge rise">186 datacenters<br /><i>cartographiés</i>.</h2>
+            <div class="kicker"><span class="num">04 / 07</span> Recherche &amp; datacenters</div>
+            <h2 class="huge rise">Les datacenters,<br /><i>cartographiés</i>.</h2>
             <p class="body-l rise d1" style="margin-top:18px">
-              On indexe les sites cloud européens : opérateur, capacité, PUE, mix CO₂ horaire.
-              Sobr.ia infère lequel a traité ton prompt selon la latence et la zone.
+              28 datacenters de référence documentés — opérateur, PUE, WUE, intensité carbone
+              locale, profil 24 h — et les régions cloud européennes indexées. Chaque chiffre est
+              sourcé, chaque source est cliquable.
             </p>
             <ul class="feat-list rise d2">
               <li>Sources <b>RTE, ENTSO-E, ElectricityMap, ADEME</b></li>
@@ -1695,7 +1778,7 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
             </svg>
             <div class="dc-detail" id="dcDetail">
               <div class="dc-title">Survole un point</div>
-              <div class="dc-sub">10 régions cloud · 186 sites total</div>
+              <div class="dc-sub">10 régions cloud · 28 datacenters de référence</div>
             </div>
           </div>
         </div>
@@ -1704,9 +1787,9 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       <section class="chap ch-5" data-chap="5">
         <div class="inner">
           <div>
-            <div class="kicker"><span class="num">05 / 06</span> En direct dans ton chat</div>
+            <div class="kicker"><span class="num">05 / 07</span> En direct dans votre chat</div>
             <h2 class="large rise">
-              Une mesure <i>par message</i>.<br />Sans <i>quitter ton chat</i>.
+              Une mesure <i>par message</i>.<br />Sans <i>quitter votre chat</i>.
             </h2>
             <p class="body-l rise d1" style="margin-top:22px">
               L'extension Sobr.ia s'injecte dans ChatGPT, Claude, Mistral. Sous chaque réponse : un
@@ -1716,7 +1799,7 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
               class="body-l rise d2"
               style="margin-top:12px;color:var(--ivory-3);font-style:italic"
             >
-              Aucune donnée n'est envoyée. Tout est calculé dans ton navigateur.
+              Aucune donnée n'est envoyée. Tout est calculé dans votre navigateur.
             </p>
           </div>
           <div class="live-card rise d3">
@@ -1741,20 +1824,59 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
         </div>
       </section>
 
-      <section class="chap ch-6" data-chap="6">
+      <section class="chap ch-reduce" data-chap="6">
+        <div class="inner">
+          <div>
+            <div class="kicker"><span class="num">06 / 07</span> Agir, pas seulement compter</div>
+            <h2 class="huge rise">Mesurer,<br />puis <i>réduire</i>.</h2>
+            <p class="body-l rise d1" style="margin-top:18px">
+              Sous chaque estimation, Sobr.ia propose jusqu'à trois alternatives plus sobres —
+              recalculées par le vrai moteur Monte-Carlo, mêmes tokens, même méthodologie. Un clic
+              pour comparer, un autre pour se fixer un budget.
+            </p>
+            <p class="body-l rise d2" style="margin-top:12px;color:var(--ivory-3)">
+              Un thermomètre ne suffit pas. Sobr.ia est un levier.
+            </p>
+          </div>
+          <div class="reduce-demo rise d2" aria-label="Exemple d'alternatives plus sobres">
+            <div class="rd-head">Votre prompt sur <b>Claude Opus 4.8</b> · 7,2 g CO₂eq</div>
+            <div class="rd-cards">
+              <div class="rd-card">
+                <span class="rd-name">Phi-4 Reasoning</span>
+                <span class="rd-delta">−99 %</span>
+                <span class="rd-abs">59,7 mg · 14 Mds params</span>
+              </div>
+              <div class="rd-card">
+                <span class="rd-name">Mistral Medium 3.5</span>
+                <span class="rd-delta">−93 %</span>
+                <span class="rd-abs">0,67 g · 128 Mds params</span>
+              </div>
+              <div class="rd-card">
+                <span class="rd-name">Claude Opus 4</span>
+                <span class="rd-delta">−25 %</span>
+                <span class="rd-abs">7,18 g · même famille</span>
+              </div>
+            </div>
+            <div class="rd-foot">Chiffres réels du moteur (seed 42) — pas une maquette.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chap ch-6" data-chap="7">
         <div class="inner">
           <div class="kicker" style="justify-content:center">
-            <span class="num">06 / 06</span> Maintenant
+            <span class="num">07 / 07</span> Maintenant
           </div>
-          <h2 class="huge rise">Mesure ton <i>premier</i><br />prompt. 30 secondes.</h2>
+          <h2 class="huge rise">Mesurez votre <i>premier</i><br />prompt. 30 secondes.</h2>
           <div class="actions rise d1">
             <a href="/telecharger" class="btn primary">Installer l'extension</a>
-            <a href="/cloud" class="btn ghost">Voir les plans cloud</a>
+            <a href="/telecharger" class="btn ghost">Télécharger l'app</a>
+            <a href="/equipe" class="btn ghost">Mode Équipe self-hosted</a>
           </div>
           <div class="meta rise d2">
             <span>100 % local</span><span>·</span><span>open source · MIT</span><span>·</span><span
               >AFNOR SPEC 2314</span
-            ><span>·</span><span>v0.8.0</span>
+            ><span>·</span><span>v0.9.0</span>
           </div>
         </div>
       </section>
@@ -1769,14 +1891,17 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
         <div class="col">
           <h4>Produit</h4>
           <a href="/">Présentation</a>
+          <a href="/produit">Produit</a>
+          <a href="/equipe">Équipe</a>
+          <a href="/methode">Méthode</a>
           <a href="/telecharger">Télécharger</a>
-          <a href="/cloud">Cloud / SaaS</a>
         </div>
         <div class="col">
           <h4>Ressources</h4>
-          <a href="/docs/">Documentation</a>
-          <a href="/docs/#methodology">Méthodologie</a>
-          <a href="/docs/#self-hosted">Self-hosted</a>
+          <a href="/docs/">Docs</a>
+          <a href="/methode">Méthode</a>
+          <a href="/candidature">Candidature</a>
+          <a href="/adrs/">ADRs</a>
         </div>
         <div class="col">
           <h4>Communauté</h4>
@@ -1785,13 +1910,21 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
             target="_blank"
             rel="noopener noreferrer">GitHub</a
           >
-          <a href="/candidature">Candidature data.gouv</a>
-          <a href="/adrs/">ADRs</a>
+          <a
+            href="https://github.com/BkOff-fr/defis-lia-generatif/issues"
+            target="_blank"
+            rel="noopener noreferrer">Signaler un problème</a
+          >
+          <a
+            href="https://github.com/BkOff-fr/defis-lia-generatif/releases"
+            target="_blank"
+            rel="noopener noreferrer">Releases</a
+          >
         </div>
       </div>
       <div class="bottom">
         <span>© 2026 Sobr.ia · MIT licence</span>
-        <span>v0.8.0</span>
+        <span>v0.9.0</span>
       </div>
     </footer>
 
@@ -1809,11 +1942,15 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
                 if (e.isIntersecting) e.target.classList.add('lit');
               });
             },
-            { threshold: 0.12 }
+            { threshold: 0.12 },
           );
-          rises.forEach(function (el) { io.observe(el); });
+          rises.forEach(function (el) {
+            io.observe(el);
+          });
         } catch (err) {
-          rises.forEach(function (el) { el.classList.add('lit'); });
+          rises.forEach(function (el) {
+            el.classList.add('lit');
+          });
         }
         // Safety net : si pour une raison X (cache, perf, IO timing) un
         // element reste opacity:0 apres 2,5s, on force la visibilite.
@@ -2558,10 +2695,10 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
       const I18N = {
         'La boîte à outils': { fr: 'La boîte à outils', en: 'The toolbox' },
         'Le chiffre invisible': { fr: 'Le chiffre invisible', en: 'The invisible number' },
-        'Pour ton équipe': { fr: 'Pour ton équipe', en: 'For your team' },
+        'Pour votre équipe': { fr: 'Pour votre équipe', en: 'For your team' },
         'Suivi personnel': { fr: 'Suivi personnel', en: 'Personal tracking' },
         'Recherche & datacenters': { fr: 'Recherche & datacenters', en: 'Research & datacenters' },
-        'En direct dans ton chat': { fr: 'En direct dans ton chat', en: 'Live in your chat' },
+        'En direct dans votre chat': { fr: 'En direct dans votre chat', en: 'Live in your chat' },
         Maintenant: { fr: 'Maintenant', en: 'Now' },
         Installer: { fr: 'Installer', en: 'Install' },
         Produit: { fr: 'Produit', en: 'Product' },

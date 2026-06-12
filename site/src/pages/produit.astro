@@ -1,0 +1,286 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const modules = [
+  {
+    icon: '⇄',
+    title: 'Comparer',
+    text: "34 modèles, deux méthodologies côte à côte. Le comparateur se pré-remplit en un clic depuis n'importe quel résultat.",
+  },
+  {
+    icon: '◷',
+    title: 'Suivi',
+    text: "Votre historique d'usage dans le temps : tendances, modèles favoris, totaux par période. Tout reste sur votre machine.",
+  },
+  {
+    icon: '◎',
+    title: 'Éco-budget',
+    text: 'Fixez-vous un budget carbone IA et suivez votre consommation réelle par rapport à ce plafond.',
+  },
+  {
+    icon: '⌖',
+    title: 'Datacenters',
+    text: 'La carte des 28 datacenters européens de référence : PUE, WUE et mix électrique documentés et sourcés.',
+  },
+  {
+    icon: '⛓',
+    title: "Journal d'audit",
+    text: "Chaque estimation est inscrite dans un registre chaîné SHA-256 : toute altération de l'historique est détectable.",
+  },
+  {
+    icon: '⎙',
+    title: 'Rapport CSRD',
+    text: "Export prêt pour votre reporting extra-financier, avec hypothèses et intervalles d'incertitude inclus.",
+  },
+];
+---
+
+<BaseLayout
+  title="Le produit — Sobr.ia"
+  description="L'application desktop Sobr.ia : estimer l'empreinte de vos prompts avec un intervalle P5-P95, comparer 34 modèles, réduire avec des alternatives recalculées par le moteur. 100 % local."
+>
+  <div class="max-w-5xl mx-auto px-6 py-16">
+    <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+    <p class="text-xs uppercase tracking-widest text-ivory-3">Sobr.ia · l'application desktop</p>
+    <h1 class="mt-2 font-display text-5xl text-ivory">
+      Estimer. Comparer. <span class="italic text-lime-signature">Réduire.</span>
+    </h1>
+    <p class="mt-4 text-ivory-2 max-w-2xl">
+      Sobr.ia est une application native (Windows, macOS, Linux) qui mesure l'empreinte
+      environnementale de vos usages d'IA générative — et vous aide concrètement à la réduire. 100 %
+      local : vos prompts ne quittent jamais votre machine.
+    </p>
+    <div class="mt-7 flex flex-wrap items-center gap-3">
+      <a
+        href="/telecharger/#app"
+        class="inline-flex items-center gap-2 rounded-md bg-lime-signature text-ink px-5 py-2.5 text-sm font-sans font-medium hover:bg-lime-deep transition-colors"
+      >
+        Télécharger v0.9.0
+      </a>
+      <a
+        href="/methode/"
+        class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory px-5 py-2.5 text-sm font-sans hover:border-lime-signature hover:text-lime-signature transition-colors"
+      >
+        Lire la méthode
+      </a>
+    </div>
+    <p class="mt-4 text-xs text-ivory-3 font-mono">
+      v0.9.0 · open source MIT · Tauri 2 + Rust · aucune clé API requise
+    </p>
+
+    <!-- ── 01 · Estimer ─────────────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="estimer">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">01</span> · Estimer
+      </p>
+      <h2 id="estimer" class="mt-2 font-display text-3xl text-ivory">
+        Un intervalle honnête, pas un <span class="italic">faux</span> chiffre précis.
+      </h2>
+      <div class="mt-6 grid gap-6 md:grid-cols-2 md:items-center">
+        <div class="text-sm text-ivory-2 leading-relaxed space-y-4">
+          <p>
+            Chaque estimation est une simulation Monte-Carlo de
+            <strong class="text-ivory font-mono">10 000 tirages</strong> : le moteur propage l'incertitude
+            de chaque hypothèse (énergie par token, PUE, mix électrique…) au lieu de la masquer.
+          </p>
+          <p>
+            Le résultat est toujours un intervalle <strong class="text-ivory">P5–P95</strong> autour de
+            la médiane — jamais un chiffre unique faussement exact.
+          </p>
+          <p>
+            Et si P5, P95, prefill ou PUE ne vous disent rien : dans l'app, chaque terme s'explique
+            au survol, relié au glossaire méthodologique.
+          </p>
+        </div>
+        <figure
+          class="rounded-lg border border-ivory-4/30 bg-ink-2 p-6"
+          aria-label="Exemple de résultat avec intervalle P5-P95"
+        >
+          <p class="text-xs text-ivory-3">
+            Votre prompt sur <b class="text-ivory">Claude Opus 4.8</b>
+          </p>
+          <p class="mt-2 font-mono text-3xl text-lime-signature">
+            7,2 <span class="text-base">g CO₂eq</span>
+          </p>
+          <p class="text-xs text-ivory-3">médiane (P50)</p>
+          <div class="mt-5">
+            <div class="relative h-2 rounded-full bg-ink-3 overflow-hidden">
+              <div
+                class="absolute inset-y-0 left-[18%] right-[22%] rounded-full bg-lime-signature/30"
+              >
+              </div>
+              <div class="absolute inset-y-0 left-[46%] w-1 bg-lime-signature rounded-full"></div>
+            </div>
+            <div class="mt-2 flex justify-between font-mono text-xs text-ivory-3">
+              <span>P5</span>
+              <span class="text-lime-signature">P50</span>
+              <span>P95</span>
+            </div>
+          </div>
+          <figcaption class="mt-4 text-xs text-ivory-3">
+            90 % des tirages tombent dans l'intervalle P5–P95, affiché sur chaque résultat.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ── 02 · Réduire ─────────────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="reduire">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">02</span> · Réduire
+      </p>
+      <h2 id="reduire" class="mt-2 font-display text-3xl text-ivory">
+        La boucle « Réduire » : mesurer, puis <span class="italic text-lime-signature">agir</span>.
+      </h2>
+      <p class="mt-4 text-sm text-ivory-2 max-w-2xl leading-relaxed">
+        Sous chaque estimation, Sobr.ia propose jusqu'à trois alternatives plus sobres — recalculées
+        par le vrai moteur Monte-Carlo, mêmes tokens, même méthodologie. Un clic pré-remplit le
+        comparateur, un autre vous fixe un budget.
+      </p>
+
+      <div class="mt-8 rounded-lg border border-ivory-4/30 bg-ink-2 p-6">
+        <p class="text-xs text-ivory-3">
+          Votre prompt sur <b class="text-ivory">Claude Opus 4.8</b> ·
+          <span class="font-mono">7,2 g CO₂eq</span>
+        </p>
+        <div class="mt-4 grid gap-3 sm:grid-cols-3">
+          <article class="rounded-md border border-lime-signature/40 bg-lime-signature/5 p-4">
+            <p class="font-sans text-sm text-ivory">Phi-4 Reasoning</p>
+            <p class="mt-1 font-mono text-2xl text-lime-signature">−99&nbsp;%</p>
+            <p class="mt-1 text-xs text-ivory-3 font-mono">59,7 mg · 14 Mds params</p>
+          </article>
+          <article class="rounded-md border border-lime-signature/40 bg-lime-signature/5 p-4">
+            <p class="font-sans text-sm text-ivory">Mistral Medium 3.5</p>
+            <p class="mt-1 font-mono text-2xl text-lime-signature">−93&nbsp;%</p>
+            <p class="mt-1 text-xs text-ivory-3 font-mono">0,67 g · 128 Mds params</p>
+          </article>
+          <article class="rounded-md border border-ivory-4/40 bg-ink-3 p-4">
+            <p class="font-sans text-sm text-ivory">Claude Opus 4</p>
+            <p class="mt-1 font-mono text-2xl text-ivory">−25&nbsp;%</p>
+            <p class="mt-1 text-xs text-ivory-3 font-mono">7,18 g · même famille</p>
+          </article>
+        </div>
+        <p class="mt-4 text-xs text-ivory-3">
+          Chiffres réels du moteur (seed 42) — pas une maquette.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── 03 · Modules ─────────────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="modules">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">03</span> · Piloter
+      </p>
+      <h2 id="modules" class="mt-2 font-display text-3xl text-ivory">
+        Un poste de pilotage <span class="italic">complet</span>.
+      </h2>
+      <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          modules.map((m) => (
+            <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5 hover:border-lime-signature/40 transition-colors">
+              <p class="text-lime-signature text-lg" aria-hidden="true">
+                {m.icon}
+              </p>
+              <h3 class="mt-2 font-sans text-base text-ivory">{m.title}</h3>
+              <p class="mt-2 text-sm text-ivory-2 leading-relaxed">{m.text}</p>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- ── 04 · Démo web ────────────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="demo">
+      <div
+        class="rounded-lg border border-ivory-4/30 bg-ink-2 p-7 md:flex md:items-center md:gap-8"
+      >
+        <div class="md:flex-1">
+          <p class="text-xs uppercase tracking-widest text-ivory-3">
+            <span class="font-mono text-lime-signature">04</span> · Essayer sans installer
+          </p>
+          <h2 id="demo" class="mt-2 font-display text-3xl text-ivory">
+            Le mode démo <span class="italic">web</span>.
+          </h2>
+          <p class="mt-4 text-sm text-ivory-2 leading-relaxed max-w-2xl">
+            La même application tourne aussi dans le navigateur, en mode démo : les données de
+            démonstration ne sont pas inventées, elles sortent du vrai moteur (204 résultats
+            Monte-Carlo pré-calculés, seed 42). Une bannière « Mode démo » l'indique en permanence,
+            et chaque résultat porte l'hypothèse correspondante.
+          </p>
+        </div>
+        <p class="mt-6 md:mt-0 shrink-0">
+          <a
+            href="/telecharger/"
+            class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory px-5 py-2.5 text-sm font-sans hover:border-lime-signature hover:text-lime-signature transition-colors"
+          >
+            Voir les téléchargements
+          </a>
+        </p>
+      </div>
+    </section>
+
+    <!-- ── 05 · Local & frugal ──────────────────────────────────────────── -->
+    <section class="mt-20" aria-labelledby="local">
+      <p class="text-xs uppercase tracking-widest text-ivory-3">
+        <span class="font-mono text-lime-signature">05</span> · Local &amp; frugal
+      </p>
+      <h2 id="local" class="mt-2 font-display text-3xl text-ivory">
+        L'app qui mesure l'IA commence par être <span class="italic text-lime-signature">sobre</span
+        >.
+      </h2>
+      <ul class="mt-8 grid gap-4 sm:grid-cols-2 text-sm text-ivory-2">
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">100 % local.</strong> Calculs, historique, journal d'audit : tout
+            reste sur votre machine. Aucun prompt n'est envoyé vers un serveur.
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">Tauri 2 + Rust, pas d'Electron.</strong> Une application native
+            légère plutôt qu'un navigateur embarqué de plusieurs centaines de Mo.
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">Aucune clé API requise.</strong> Sobr.ia est installable et fonctionnel
+            sans créer de compte ni fournir de clé.
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="text-lime-signature mt-0.5">→</span>
+          <span>
+            <strong class="text-ivory">Pas de télémétrie silencieuse.</strong> Tout partage est opt-in
+            explicite — c'est un principe d'architecture, pas une option.
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ── CTA final ────────────────────────────────────────────────────── -->
+    <section
+      class="mt-20 rounded-lg border border-lime-signature/40 bg-lime-signature/5 p-8 text-center"
+    >
+      <h2 class="font-display text-3xl text-ivory">
+        Mesurez votre premier prompt en <span class="italic text-lime-signature">30 secondes</span>.
+      </h2>
+      <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a
+          href="/telecharger/"
+          class="inline-flex items-center gap-2 rounded-md bg-lime-signature text-ink px-5 py-2.5 text-sm font-sans font-medium hover:bg-lime-deep transition-colors"
+        >
+          Télécharger Sobr.ia
+        </a>
+        <a
+          href="/equipe/"
+          class="inline-flex items-center gap-2 rounded-md border border-ivory-4 text-ivory px-5 py-2.5 text-sm font-sans hover:border-lime-signature hover:text-lime-signature transition-colors"
+        >
+          Découvrir le Mode Équipe
+        </a>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

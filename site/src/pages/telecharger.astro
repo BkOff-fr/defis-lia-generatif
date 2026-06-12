@@ -4,30 +4,102 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 const REPO_URL = 'https://github.com/BkOff-fr/defis-lia-generatif';
 const LATEST_RELEASE = `${REPO_URL}/releases/latest`;
 const ALL_RELEASES = `${REPO_URL}/releases`;
+
+const anchors = [
+  { href: '#extension', label: 'Extension navigateur' },
+  { href: '#app', label: 'Application desktop' },
+  { href: '#equipe', label: 'Serveur Mode Équipe' },
+];
 ---
 
 <BaseLayout
   title="Télécharger Sobr.ia"
-  description="Versions, checksums SHA-256, instructions de vérification et avertissements OS pour les binaires non encore codesignés."
+  description="Extension navigateur, application desktop (Windows, macOS, Linux) et serveur Mode Équipe self-hosted. Versions, checksums SHA-256 et instructions de vérification."
 >
   <div class="max-w-4xl mx-auto px-6 py-16">
-    <p class="text-xs uppercase tracking-widest text-ivory-3">Téléchargements</p>
-    <h1 class="mt-2 font-display text-5xl text-ivory">Toutes les versions de Sobr.ia</h1>
+    <p class="text-xs uppercase tracking-widest text-ivory-3">Téléchargements · v0.9.0</p>
+    <h1 class="mt-2 font-display text-5xl text-ivory">Télécharger Sobr.ia</h1>
     <p class="mt-4 text-ivory-2 max-w-2xl">
-      Tous les binaires sont publiés sur GitHub Releases. Les URLs ci-dessous pointent vers la
-      dernière version stable — pour les versions précédentes, consulter
-      <a href={ALL_RELEASES} class="text-lime-signature underline underline-offset-4"
-        >la page Releases du repo</a
+      Trois briques, toutes open source : l'extension navigateur qui mesure en direct, l'application
+      desktop qui analyse et pilote, le serveur Mode Équipe que votre organisation héberge. Tous les
+      binaires sont publiés sur GitHub Releases — pour les versions précédentes, consultez
+      <a
+        href={ALL_RELEASES}
+        rel="noopener external"
+        class="text-lime-signature underline underline-offset-4">la page Releases du repo</a
       >.
     </p>
 
-    <section class="mt-12">
-      <h2 class="font-display text-3xl text-ivory">Téléchargements directs</h2>
-      <p class="mt-3 text-ivory-2 text-sm">
-        Liens stables <code class="text-lime-signature text-xs"
-          >releases/latest/download/&lt;file&gt;</code
+    <nav class="mt-6 flex flex-wrap gap-2" aria-label="Sections de la page">
+      {
+        anchors.map((a) => (
+          <a
+            href={a.href}
+            class="inline-flex items-center rounded-full border border-ivory-4/40 px-3 py-1 text-xs text-ivory-2 hover:border-lime-signature/40 hover:text-ivory transition-colors"
+          >
+            {a.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <!-- ── Extension navigateur ─────────────────────────────────────────── -->
+    <section class="mt-14 scroll-mt-20" id="extension">
+      <h2 class="font-display text-3xl text-ivory">Extension navigateur</h2>
+      <p class="mt-3 text-ivory-2 text-sm max-w-2xl">
+        L'extension (WebExtension MV3) mesure vos conversations IA en direct dans le navigateur, et
+        permet de taguer chaque conversation par projet en Mode Équipe. Chrome, Edge, Brave et
+        Firefox.
+      </p>
+
+      <div class="mt-6 grid gap-3">
+        <a
+          href={LATEST_RELEASE}
+          rel="noopener external"
+          class="block rounded-lg border border-lime-signature/40 bg-ink-2 p-5 hover:border-lime-signature transition-colors"
         >
-        — GitHub redirige automatiquement vers la dernière release tagguée.
+          <p class="font-sans text-lg text-ivory">🧩 Récupérer les bundles extension</p>
+          <p class="mt-1 text-xs text-ivory-3">
+            Archive <code>.zip</code> (Chrome / Edge / Brave) et <code>.xpi</code> (Firefox) sur la release,
+            avec leurs fichiers <code>.sha256</code>.
+          </p>
+        </a>
+      </div>
+
+      <p class="mt-4 text-sm text-ivory-2">
+        En attendant la publication sur les stores, chargez l'extension en mode développeur :
+      </p>
+      <article class="mt-3 rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+        <p class="font-sans text-ivory mb-2">Chrome / Edge / Brave</p>
+        <p class="text-sm text-ivory-2">
+          Dézippez l'archive → ouvrez <code class="text-lime-signature text-xs"
+            >chrome://extensions</code
+          > → activez « Mode développeur » → « Charger l'extension non empaquetée » → sélectionnez le
+          dossier dézippé.
+        </p>
+        <p class="font-sans text-ivory mt-4 mb-2">Firefox</p>
+        <p class="text-sm text-ivory-2">
+          Ouvrez <code class="text-lime-signature text-xs">about:addons</code> → installez le fichier
+          <code>.xpi</code> téléchargé.
+        </p>
+      </article>
+      <p class="mt-3 text-xs text-ivory-3">
+        Comment l'extension communique avec l'app :
+        <a
+          class="underline underline-offset-4 hover:text-ivory"
+          href="/docs/extension/architecture/">architecture de l'extension</a
+        >.
+      </p>
+    </section>
+
+    <!-- ── Application desktop ──────────────────────────────────────────── -->
+    <section class="mt-14 scroll-mt-20" id="app">
+      <h2 class="font-display text-3xl text-ivory">Application desktop</h2>
+      <p class="mt-3 text-ivory-2 text-sm max-w-2xl">
+        L'app native Windows / macOS / Linux (Tauri 2 + Rust) : estimation Monte-Carlo, comparateur,
+        suivi, éco-budget, journal d'audit, rapport CSRD. Les URLs stables
+        <code class="text-lime-signature text-xs">releases/latest/download/&lt;file&gt;</code>
+        redirigent vers la dernière version tagguée.
       </p>
 
       <div class="mt-6 grid gap-3">
@@ -38,12 +110,14 @@ const ALL_RELEASES = `${REPO_URL}/releases`;
         >
           <p class="font-sans text-lg text-ivory">📦 Voir la dernière release</p>
           <p class="mt-1 text-xs text-ivory-3">
-            Page GitHub avec changelog, tous les binaires et fichiers .sha256.
+            Page GitHub avec changelog, tous les binaires (.exe, .msi, .dmg, .AppImage, .deb) et
+            fichiers .sha256.
           </p>
         </a>
       </div>
     </section>
 
+    <!-- ── Vérification SHA-256 ─────────────────────────────────────────── -->
     <section class="mt-14">
       <h2 class="font-display text-3xl text-ivory">Vérifier l'empreinte SHA-256</h2>
       <p class="mt-3 text-ivory-2 text-sm">
@@ -56,14 +130,14 @@ const ALL_RELEASES = `${REPO_URL}/releases`;
         <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
           <p class="font-sans text-ivory mb-2">🪟 Windows (PowerShell)</p>
           <pre
-            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>Get-FileHash -Algorithm SHA256 .\Sobr.ia_0.8.0_x64-setup.exe</code></pre>
+            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>Get-FileHash -Algorithm SHA256 .\Sobr.ia_0.9.0_x64-setup.exe</code></pre>
         </article>
         <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
           <p class="font-sans text-ivory mb-2">macOS / Linux</p>
           <pre
-            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>shasum -a 256 Sobr.ia_0.8.0_aarch64.dmg
+            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>shasum -a 256 Sobr.ia_0.9.0_aarch64.dmg
 # OU sur Linux :
-sha256sum Sobr.ia_0.8.0_amd64.AppImage</code></pre>
+sha256sum Sobr.ia_0.9.0_amd64.AppImage</code></pre>
         </article>
       </div>
 
@@ -73,12 +147,13 @@ sha256sum Sobr.ia_0.8.0_amd64.AppImage</code></pre>
       </p>
     </section>
 
-    <section class="mt-14" id="avertissements-os">
+    <!-- ── Avertissements OS ────────────────────────────────────────────── -->
+    <section class="mt-14 scroll-mt-20" id="avertissements-os">
       <h2 class="font-display text-3xl text-ivory">Avertissements OS</h2>
       <p class="mt-3 text-ivory-2 text-sm">
-        En v0.1.0, les binaires <strong>ne sont pas encore codesignés</strong> (différé v1.0 — coût +
-        complexité). Vous verrez probablement un avertissement à la première ouverture. Voici comment
-        l'autoriser proprement (après avoir vérifié l'empreinte SHA-256 ci-dessus) :
+        En v0.9.0, les binaires <strong>ne sont pas encore codesignés</strong> (signature prévue pour
+        la v1.0 — coût + complexité). Vous verrez probablement un avertissement à la première ouverture.
+        Voici comment l'autoriser proprement (après avoir vérifié l'empreinte SHA-256 ci-dessus) :
       </p>
 
       <div class="mt-6 space-y-4">
@@ -86,7 +161,7 @@ sha256sum Sobr.ia_0.8.0_amd64.AppImage</code></pre>
           <p class="font-sans text-ivory mb-2">🪟 Windows SmartScreen</p>
           <p class="text-sm text-ivory-2">
             À l'ouverture du <code>.exe</code> ou <code>.msi</code> : « Windows a empêché le démarrage…
-            » → cliquer <strong>Informations complémentaires</strong> →
+            » → cliquez <strong>Informations complémentaires</strong> →
             <strong>Exécuter quand même</strong>. Sobr.ia ne tente jamais d'accéder au réseau sans
             votre action explicite.
           </p>
@@ -95,8 +170,8 @@ sha256sum Sobr.ia_0.8.0_amd64.AppImage</code></pre>
           <p class="font-sans text-ivory mb-2">macOS Gatekeeper</p>
           <p class="text-sm text-ivory-2 mb-2">
             À l'ouverture du <code>.dmg</code> : « Sobr.ia ne peut pas être ouvert car l'identité du développeur
-            ne peut pas être confirmée. » → ouvrir
-            <strong>Réglages Système → Confidentialité et sécurité</strong>, descendre et cliquer <strong
+            ne peut pas être confirmée. » → ouvrez
+            <strong>Réglages Système → Confidentialité et sécurité</strong>, descendez et cliquez <strong
               >Ouvrir quand même</strong
             >. Alternative en CLI :
           </p>
@@ -109,12 +184,60 @@ sha256sum Sobr.ia_0.8.0_amd64.AppImage</code></pre>
             Le <code>.AppImage</code> doit être rendu exécutable :
           </p>
           <pre
-            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>chmod +x Sobr.ia_0.8.0_amd64.AppImage
-./Sobr.ia_0.8.0_amd64.AppImage</code></pre>
+            class="font-mono text-xs text-ivory-2 bg-ink-3 rounded p-3 overflow-x-auto"><code>chmod +x Sobr.ia_0.9.0_amd64.AppImage
+./Sobr.ia_0.9.0_amd64.AppImage</code></pre>
         </article>
       </div>
     </section>
 
+    <!-- ── Serveur Mode Équipe ──────────────────────────────────────────── -->
+    <section class="mt-14 scroll-mt-20" id="equipe">
+      <h2 class="font-display text-3xl text-ivory">Serveur Mode Équipe (self-hosted)</h2>
+      <p class="mt-3 text-ivory-2 text-sm max-w-2xl">
+        Le serveur <code class="text-lime-signature text-xs">sobria-team-aggregator</code> agrège les
+        mesures de votre organisation selon la politique de visibilité que vous choisissez — k-anonymat
+        appliqué côté serveur. Deux façons de le déployer :
+      </p>
+
+      <div class="mt-6 grid gap-4 md:grid-cols-2">
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-sans text-lg text-ivory">🐳 Kit Docker</p>
+          <p class="mt-2 text-sm text-ivory-2">
+            Compose + TLS fournis dans le repo (<code class="text-lime-signature text-xs"
+              >deploy/team/</code
+            >), objectif ~30 minutes.
+          </p>
+          <a
+            href="/docs/operations/deploiement-equipe/"
+            class="mt-4 inline-flex items-center gap-2 text-sm text-lime-signature underline underline-offset-4"
+          >
+            Guide de déploiement Docker →
+          </a>
+        </article>
+        <article class="rounded-lg border border-ivory-4/30 bg-ink-2 p-5">
+          <p class="font-sans text-lg text-ivory">⚙ Binaire standalone</p>
+          <p class="mt-2 text-sm text-ivory-2">
+            ~15 MB, Linux / macOS / Windows, SQLite intégré, TLS auto-signé. Sur la release, avec
+            son <code>.sha256</code>.
+          </p>
+          <a
+            href="/docs/operations/team-aggregator/"
+            class="mt-4 inline-flex items-center gap-2 text-sm text-lime-signature underline underline-offset-4"
+          >
+            Guide opérateur complet →
+          </a>
+        </article>
+      </div>
+
+      <p class="mt-4 text-sm text-ivory-2">
+        Politiques de visibilité, k-anonymat, kit emails CSE :
+        <a href="/equipe/" class="text-lime-signature underline underline-offset-4"
+          >tout sur le Mode Équipe</a
+        >.
+      </p>
+    </section>
+
+    <!-- ── Code source ──────────────────────────────────────────────────── -->
     <section class="mt-14">
       <h2 class="font-display text-3xl text-ivory">Code source + reproductibilité</h2>
       <p class="mt-3 text-ivory-2 text-sm">
@@ -140,14 +263,15 @@ sha256sum Sobr.ia_0.8.0_amd64.AppImage</code></pre>
       </ul>
     </section>
 
+    <!-- ── Mobile ───────────────────────────────────────────────────────── -->
     <section class="mt-14">
       <h2 class="font-display text-3xl text-ivory">Mobile (Android / iOS)</h2>
       <p class="mt-3 text-ivory-2 text-sm">
         Les builds mobiles sont planifiés pour v1.0+ (signing key Android via GitHub Secrets, Apple
-        Developer Program pour iOS). En v0.1, utilisez la version web / bureau ou
-        <a class="text-lime-signature underline underline-offset-4" href="/cloud/"
-          >inscrivez-vous à la mailing list</a
-        > pour être prévenu·e.
+        Developer Program pour iOS). En attendant, utilisez la version desktop ou
+        <a class="text-lime-signature underline underline-offset-4" href="/produit/"
+          >le mode démo web</a
+        >.
       </p>
     </section>
   </div>
