@@ -4,6 +4,7 @@
 [package]
 name = "sobria-core"
 version.workspace = true
+publish = false
 edition.workspace = true
 authors.workspace = true
 license.workspace = true

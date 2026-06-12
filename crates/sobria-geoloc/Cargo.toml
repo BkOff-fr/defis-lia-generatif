@@ -2,6 +2,7 @@
 [package]
 name = "sobria-geoloc"
 version.workspace = true
+publish = false
 edition.workspace = true
 license.workspace = true
 authors.workspace = true

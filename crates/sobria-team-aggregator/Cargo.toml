@@ -8,6 +8,7 @@
 [package]
 name = "sobria-team-aggregator"
 version.workspace = true
+publish = false
 edition.workspace = true
 license.workspace = true
 authors.workspace = true

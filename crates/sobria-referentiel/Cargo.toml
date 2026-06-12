@@ -2,6 +2,7 @@
 [package]
 name = "sobria-referentiel"
 version.workspace = true
+publish = false
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
