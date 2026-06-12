@@ -281,8 +281,8 @@ mod tests {
         let preset = find_preset("claude-opus-4-7").unwrap();
         let oh = overhead_from_preset(preset, 500);
         assert_eq!(oh.system_prompt_tokens, 2000); // Claude default
-        // claude-opus-4-7 is reasoning_capable, multiplier (2, 50) → geomean = 10
-        // 500 × 10 = 5000
+                                                   // claude-opus-4-7 is reasoning_capable, multiplier (2, 50) → geomean = 10
+                                                   // 500 × 10 = 5000
         assert!((4_900..=5_100).contains(&oh.thinking_tokens_p50));
     }
 

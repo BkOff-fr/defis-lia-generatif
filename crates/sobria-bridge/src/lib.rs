@@ -214,15 +214,12 @@ const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2_
 ///   - la réponse est malformée.
 ///
 /// Le bridge utilise ce retour pour décider de retomber sur `append_to_spool`.
-pub fn try_forward_to(
-    path: &std::path::Path,
-    req: &BridgeRequest,
-) -> Result<BridgeResponse> {
+pub fn try_forward_to(path: &std::path::Path, req: &BridgeRequest) -> Result<BridgeResponse> {
     #[cfg(unix)]
     {
         use std::os::unix::net::UnixStream;
-        let mut stream = UnixStream::connect(path)
-            .with_context(|| format!("connect {}", path.display()))?;
+        let mut stream =
+            UnixStream::connect(path).with_context(|| format!("connect {}", path.display()))?;
         stream.set_read_timeout(Some(FORWARD_TIMEOUT))?;
         stream.set_write_timeout(Some(FORWARD_TIMEOUT))?;
         forward_over(&mut stream, req)
@@ -251,15 +248,18 @@ fn forward_over<S: Read + Write>(stream: &mut S, req: &BridgeRequest) -> Result<
     stream.write_all(&bytes)?;
     stream.flush()?;
     let mut len_buf = [0u8; 4];
-    stream.read_exact(&mut len_buf).context("read response length")?;
+    stream
+        .read_exact(&mut len_buf)
+        .context("read response length")?;
     let resp_len = u32::from_le_bytes(len_buf) as usize;
     if resp_len > 1024 * 1024 {
         anyhow::bail!("response too large: {resp_len}");
     }
     let mut payload = vec![0u8; resp_len];
-    stream.read_exact(&mut payload).context("read response payload")?;
-    let resp: BridgeResponse =
-        serde_json::from_slice(&payload).context("decode BridgeResponse")?;
+    stream
+        .read_exact(&mut payload)
+        .context("read response payload")?;
+    let resp: BridgeResponse = serde_json::from_slice(&payload).context("decode BridgeResponse")?;
     Ok(resp)
 }
 

@@ -2,9 +2,9 @@
 
 pub mod alerts;
 pub mod analytics;
-pub mod user_detail;
 pub mod codes;
 pub mod exports;
+pub mod user_detail;
 pub mod users;
 
 use axum::{

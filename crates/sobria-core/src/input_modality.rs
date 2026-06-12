@@ -96,16 +96,14 @@ impl InputModality {
             Self::Text => 0,
             Self::VisionLow { image_count } => {
                 VISION_LOW_TOKENS_PER_IMAGE_FALLBACK.saturating_mul(*image_count)
-            }
+            },
             Self::VisionHigh { image_count, .. } => {
                 VISION_HIGH_TOKENS_PER_IMAGE_FALLBACK.saturating_mul(*image_count)
-            }
-            Self::Document { page_count } => {
-                DOCUMENT_TOKENS_PER_PAGE.saturating_mul(*page_count)
-            }
+            },
+            Self::Document { page_count } => DOCUMENT_TOKENS_PER_PAGE.saturating_mul(*page_count),
             Self::AudioInput { duration_seconds } => {
                 AUDIO_TOKENS_PER_SECOND.saturating_mul(*duration_seconds)
-            }
+            },
         }
     }
 

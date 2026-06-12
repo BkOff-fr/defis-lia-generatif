@@ -106,9 +106,7 @@ pub fn list_all_with_totals(conn: &Connection) -> AggregatorResult<Vec<UserWithT
 
 /// Variante NON masquée — réservée à la politique `identified`
 /// (ADR-0016) : totaux renseignés pour tous, opt-in ignoré.
-pub fn list_all_with_totals_unmasked(
-    conn: &Connection,
-) -> AggregatorResult<Vec<UserWithTotals>> {
+pub fn list_all_with_totals_unmasked(conn: &Connection) -> AggregatorResult<Vec<UserWithTotals>> {
     list_all_with_totals_inner(conn, false)
 }
 
@@ -289,14 +287,19 @@ mod tests {
         // Par défaut (pas d'opt-in) : totaux masqués pour tout le monde.
         let rows = list_all_with_totals(s.connection()).unwrap();
         assert_eq!(rows.len(), 2);
-        assert!(rows.iter().all(|r| !r.share_identified && r.totals.is_none()));
+        assert!(rows
+            .iter()
+            .all(|r| !r.share_identified && r.totals.is_none()));
 
         // u-1 active le partage → ses totaux apparaissent, pas ceux de u-2.
         set_share_identified(s.connection(), "u-1", true).unwrap();
         let rows = list_all_with_totals(s.connection()).unwrap();
         let by_id: std::collections::HashMap<_, _> =
             rows.iter().map(|r| (r.id.clone(), r.clone())).collect();
-        let t1 = by_id["u-1"].totals.as_ref().expect("u-1 a opté pour le partage");
+        let t1 = by_id["u-1"]
+            .totals
+            .as_ref()
+            .expect("u-1 a opté pour le partage");
         assert_eq!(t1.count, 2);
         assert!((t1.gco2eq_p50_g - 1.0).abs() < 1e-9);
         assert!(by_id["u-2"].totals.is_none());
@@ -305,9 +308,20 @@ mod tests {
     #[test]
     fn unmasked_variant_exposes_all_totals() {
         let s = Storage::open_in_memory().unwrap();
-        insert(s.connection(), "u-1", None, "fp-1", "h", Some("Alice"), Utc::now()).unwrap();
+        insert(
+            s.connection(),
+            "u-1",
+            None,
+            "fp-1",
+            "h",
+            Some("Alice"),
+            Utc::now(),
+        )
+        .unwrap();
         // Aucun opt-in : masqué → None, unmasked → Some.
-        assert!(list_all_with_totals(s.connection()).unwrap()[0].totals.is_none());
+        assert!(list_all_with_totals(s.connection()).unwrap()[0]
+            .totals
+            .is_none());
         assert!(list_all_with_totals_unmasked(s.connection()).unwrap()[0]
             .totals
             .is_some());

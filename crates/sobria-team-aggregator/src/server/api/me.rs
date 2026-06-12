@@ -74,7 +74,11 @@ pub async fn sharing_put(
         .storage
         .lock()
         .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
-    users::set_share_identified(storage.connection(), &user.claims.sub, body.share_identified)?;
+    users::set_share_identified(
+        storage.connection(),
+        &user.claims.sub,
+        body.share_identified,
+    )?;
     let pol = crate::policy::load(&storage);
     Ok(Json(SharingState {
         share_identified: body.share_identified,

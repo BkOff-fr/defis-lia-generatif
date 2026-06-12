@@ -102,8 +102,7 @@ impl MonteCarloEngine {
         // + thinking tokens auto pour reasoning models. Si le modèle est
         // inconnu, fallback aux valeurs brutes (pas d'overhead/modality).
         let preset_opt = find_preset(&request.model_id);
-        let (effective_in, effective_out) =
-            effective_tokens::effective_tokens(request, preset_opt);
+        let (effective_in, effective_out) = effective_tokens::effective_tokens(request, preset_opt);
         let t_in = f64::from(effective_in);
         let t_out = f64::from(effective_out);
 

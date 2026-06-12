@@ -88,7 +88,11 @@ fn spawn_retention_task(state: crate::server::ServerState) {
             match run_retention_purge(&state) {
                 Ok((days, 0)) => tracing::debug!(retention_days = days, "rétention: rien à purger"),
                 Ok((days, n)) => {
-                    tracing::info!(retention_days = days, purged = n, "rétention: purge effectuée");
+                    tracing::info!(
+                        retention_days = days,
+                        purged = n,
+                        "rétention: purge effectuée"
+                    );
                 },
                 Err(e) => tracing::warn!(error = %e, "rétention: purge échouée (non-fatal)"),
             }
@@ -97,9 +101,7 @@ fn spawn_retention_task(state: crate::server::ServerState) {
 }
 
 /// Lit `retention_days` (défaut/plancher via l'allow-list CLI) et purge.
-fn run_retention_purge(
-    state: &crate::server::ServerState,
-) -> anyhow::Result<(i64, u64)> {
+fn run_retention_purge(state: &crate::server::ServerState) -> anyhow::Result<(i64, u64)> {
     use crate::commands::config::RUNTIME_KEYS;
 
     let spec = RUNTIME_KEYS

@@ -548,7 +548,12 @@ mod tests {
         seed(&s);
         // Tag les estimations : alpha (u-1 + u-2 = 2 contributeurs),
         // solo (u-1 seul), e-5 reste hors projet.
-        for (id, p) in [("e-1", "alpha"), ("e-4", "alpha"), ("e-2", "solo"), ("e-3", "solo")] {
+        for (id, p) in [
+            ("e-1", "alpha"),
+            ("e-4", "alpha"),
+            ("e-2", "solo"),
+            ("e-3", "solo"),
+        ] {
             s.connection()
                 .execute(
                     "UPDATE estimations SET project = ?1 WHERE id = ?2",
@@ -564,7 +569,10 @@ mod tests {
         // sont fondus dans « autres » (folded).
         let gated = project_breakdown(s.connection(), from, to, Some(2)).unwrap();
         assert_eq!(gated.len(), 2);
-        let alpha = gated.iter().find(|p| p.project.as_deref() == Some("alpha")).unwrap();
+        let alpha = gated
+            .iter()
+            .find(|p| p.project.as_deref() == Some("alpha"))
+            .unwrap();
         assert_eq!(alpha.contributors, 2);
         assert!((alpha.gco2eq_g - 0.7).abs() < 1e-9); // e-1 0.2 + e-4 0.5
         let folded = gated.iter().find(|p| p.folded).unwrap();

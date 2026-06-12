@@ -217,14 +217,11 @@ impl VisionPricing {
                 } else {
                     let tiles_w = width.div_ceil(*tile_size);
                     let tiles_h = height.div_ceil(*tile_size);
-                    let per_image = base.saturating_add(
-                        per_tile
-                            .saturating_mul(tiles_w)
-                            .saturating_mul(tiles_h),
-                    );
+                    let per_image = base
+                        .saturating_add(per_tile.saturating_mul(tiles_w).saturating_mul(tiles_h));
                     per_image.saturating_mul(count)
                 }
-            }
+            },
             Self::AnthropicArea {
                 divisor,
                 max_tokens,
@@ -235,7 +232,7 @@ impl VisionPricing {
                 let area = width.saturating_mul(height);
                 let per_image = (area / divisor).min(*max_tokens);
                 per_image.saturating_mul(count)
-            }
+            },
             Self::GeminiNative { base, tile_size } => {
                 if (width <= 384 && height <= 384) || *tile_size == 0 {
                     base.saturating_mul(count)
@@ -246,7 +243,7 @@ impl VisionPricing {
                         .saturating_mul(tiles_h)
                         .saturating_mul(count)
                 }
-            }
+            },
             Self::LlamaPatches { tokens_per_image } => tokens_per_image.saturating_mul(count),
         }
     }
@@ -1790,7 +1787,10 @@ mod tests {
     fn available_models_filtered_excludes_deprecated() {
         let all = available_models_filtered(true);
         let active_only = available_models_filtered(false);
-        assert!(all.len() > active_only.len(), "le filtrage doit retirer >=1 deprecated");
+        assert!(
+            all.len() > active_only.len(),
+            "le filtrage doit retirer >=1 deprecated"
+        );
         assert!(
             active_only.iter().all(|p| !p.deprecated),
             "include_deprecated=false ne doit garder que !deprecated"
@@ -1833,10 +1833,7 @@ mod tests {
             "phi-4-reasoning",
             "phi-4-reasoning-vision",
         ] {
-            assert!(
-                find_preset(id).is_some(),
-                "preset C34 manquant : {id}"
-            );
+            assert!(find_preset(id).is_some(), "preset C34 manquant : {id}");
         }
     }
 
@@ -2014,7 +2011,12 @@ mod tests {
                 preset.release_date
             );
             let parts: Vec<&str> = preset.release_date.split('-').collect();
-            assert_eq!(parts.len(), 3, "preset {} : format date invalide", preset.id);
+            assert_eq!(
+                parts.len(),
+                3,
+                "preset {} : format date invalide",
+                preset.id
+            );
             // Parse year
             let year: u32 = parts[0].parse().unwrap_or_else(|_| {
                 panic!("preset {} : year non numérique", preset.id);

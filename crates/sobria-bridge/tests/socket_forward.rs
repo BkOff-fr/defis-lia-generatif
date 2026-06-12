@@ -40,7 +40,9 @@ mod unix {
             };
             let bytes = serde_json::to_vec(&resp).expect("encode resp");
             let resp_len = u32::try_from(bytes.len()).unwrap();
-            stream.write_all(&resp_len.to_le_bytes()).expect("write len");
+            stream
+                .write_all(&resp_len.to_le_bytes())
+                .expect("write len");
             stream.write_all(&bytes).expect("write payload");
             stream.flush().expect("flush");
         })
@@ -105,10 +107,7 @@ mod windows_pipe {
     fn forward_to_nonexistent_pipe_errors_fast() {
         // Pipe name aléatoire pour éviter une éventuelle collision avec un
         // vrai sobria-bridge tournant.
-        let pipe = format!(
-            r"\\.\pipe\sobria-bridge-test-{}",
-            std::process::id()
-        );
+        let pipe = format!(r"\\.\pipe\sobria-bridge-test-{}", std::process::id());
         let req = BridgeRequest::Ping {
             req_id: "ghost-win".into(),
         };

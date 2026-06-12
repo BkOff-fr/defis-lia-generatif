@@ -489,10 +489,7 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .await
         .unwrap();
     let alice_id = users["users"][0]["id"].as_str().unwrap().to_string();
-    let detail_url = format!(
-        "{}/api/v1/admin/users/{}/analytics",
-        fx.base_url, alice_id
-    );
+    let detail_url = format!("{}/api/v1/admin/users/{}/analytics", fx.base_url, alice_id);
 
     // opt_in (défaut) sans consentement → 403.
     let denied = fx
