@@ -1,0 +1,67 @@
+# C42 — Build de l'image Docker du Mode Équipe (kit C40, deploy/team/).
+#
+# Objectif : valider en CI ce qui n'a pas pu l'être en local (le Dockerfile
+# n'a jamais été buildé — cf. docs/operations/deploiement-equipe.md).
+# Build seul, pas de push registry : la publication (ghcr.io) viendra avec
+# un tag dédié quand le build sera prouvé vert.
+
+name: team-docker
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'deploy/team/**'
+      - 'crates/sobria-team-aggregator/**'
+      - 'crates/sobria-core/**'
+      - 'web-team/**'
+      - '.github/workflows/team-docker.yml'
+  pull_request:
+    paths:
+      - 'deploy/team/**'
+      - 'crates/sobria-team-aggregator/**'
+      - 'web-team/**'
+  workflow_dispatch:
+
+concurrency:
+  group: team-docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: docker build (aggregator + dashboard embarqué)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (sans push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/team/Dockerfile
+          push: false
+          load: true
+          tags: sobria-team-aggregator:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Smoke test : init + serve + /health dans le conteneur fraîchement bâti.
+      - name: Smoke test /health
+        run: |
+          docker run -d --name sobria-team \
+            -e SOBRIA_TEAM_ADMIN_PASSWORD='ci-only-password-1' \
+            -p 8443:8443 sobria-team-aggregator:ci
+          for i in $(seq 1 30); do
+            if curl -skf https://localhost:8443/health | grep -q '"ok":true'; then
+              echo "health OK"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::/health jamais OK"; docker logs sobria-team; exit 1
+
+      - name: Logs (debug si échec)
+        if: failure()
+        run: docker logs sobria-team || true
