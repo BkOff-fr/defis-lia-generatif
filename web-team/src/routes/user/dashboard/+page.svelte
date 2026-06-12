@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { apiGet, ApiError } from '$lib/api';
+  import { apiGet, apiPut, ApiError } from '$lib/api';
   import { formatCO2, formatCount, formatEnergy, formatWater } from '$lib/format';
   import MetricCard from '$lib/components/MetricCard.svelte';
 
@@ -20,16 +20,52 @@
   let data = $state<MyUsage | null>(null);
   let loading = $state(true);
   let error = $state('');
+  let shareIdentified = $state(false);
+  let shareSaving = $state(false);
+  // C44 — politique de visibilité de l'organisation (ADR-0016) : chaque
+  // salarié sait sous quel régime il travaille.
+  let policy = $state<'anonymous' | 'opt_in' | 'identified' | null>(null);
+
+  const POLICY_TEXT: Record<string, string> = {
+    anonymous:
+      'Politique de votre organisation : ANONYME STRICT — l’administrateur ne voit que des agrégats k-anonymes, jamais d’identification individuelle (même volontaire).',
+    opt_in:
+      'Politique de votre organisation : OPT-IN (défaut) — vous seul·e décidez d’apparaître nommément, via le réglage ci-dessous.',
+    identified:
+      'Politique de votre organisation : NOMINATIF, attestée par votre employeur (CSE et salariés informés — ADR-0016). Vos consommations sont visibles par l’administrateur.'
+  };
 
   async function load() {
     loading = true;
     error = '';
     try {
       data = await apiGet<MyUsage>('/api/v1/me/usage');
+      const sharing = await apiGet<{ share_identified: boolean; policy?: string }>(
+        '/api/v1/me/sharing'
+      );
+      shareIdentified = sharing.share_identified;
+      policy = (sharing.policy as typeof policy) ?? null;
     } catch (e) {
       error = e instanceof ApiError ? e.message : String(e);
     } finally {
       loading = false;
+    }
+  }
+
+  // ADR-0015 §3 : le consentement appartient au salarié — ce toggle est la
+  // SEULE écriture possible du flag (aucune route admin).
+  async function toggleSharing() {
+    shareSaving = true;
+    error = '';
+    try {
+      const next = await apiPut<{ share_identified: boolean }>('/api/v1/me/sharing', {
+        share_identified: !shareIdentified
+      });
+      shareIdentified = next.share_identified;
+    } catch (e) {
+      error = e instanceof ApiError ? e.message : String(e);
+    } finally {
+      shareSaving = false;
     }
   }
 
@@ -44,9 +80,9 @@
   <div>
     <h2>Mon usage</h2>
     <p class="muted">
-      Vue personnelle de mes prompts agrégés par le serveur équipe. Vos prompts
-      individuels ne quittent jamais votre poste — seules les métadonnées
-      (modèle, tokens, gCO₂eq calculé localement) sont remontées.
+      Vue personnelle de mes prompts agrégés par le serveur équipe. Vos prompts individuels ne
+      quittent jamais votre poste — seules les métadonnées (modèle, tokens, gCO₂eq calculé
+      localement) sont remontées.
     </p>
   </div>
 </section>
@@ -63,6 +99,40 @@
   <MetricCard eyebrow="Eau consommée" value={water.value} unit={water.unit} />
   <MetricCard eyebrow="Énergie" value={energy.value} unit={energy.unit} />
 </section>
+
+<div class="card share-card">
+  {#if policy}
+    <p class="policy-line" data-policy={policy}>{POLICY_TEXT[policy]}</p>
+  {/if}
+  <div class="share-row">
+    <div>
+      <h3>Partage identifié avec l'admin</h3>
+      <p class="muted">
+        {#if policy === 'identified'}
+          La politique nominative de votre organisation s'applique : ce réglage personnel est sans
+          effet sur les vues admin tant qu'elle est active.
+        {:else if policy === 'anonymous'}
+          La politique « anonyme strict » de votre organisation s'applique : personne n'apparaît
+          nommément, même volontairement. Ce réglage sera honoré si la politique change.
+        {:else}
+          Par défaut, l'administrateur ne voit que des
+          <strong>agrégats anonymes d'équipe</strong> (seuil k-anonymat). Si vous l'activez, votre
+          nom et vos totaux apparaîtront dans les vues admin. Révocable à tout moment — vous seul·e
+          contrôlez ce réglage.
+        {/if}
+      </p>
+    </div>
+    <button
+      class="share-toggle"
+      class:active={shareIdentified}
+      onclick={toggleSharing}
+      disabled={shareSaving || loading}
+      aria-pressed={shareIdentified}
+    >
+      {shareIdentified ? 'Activé — me retirer' : 'Désactivé — activer'}
+    </button>
+  </div>
+</div>
 
 <div class="card hint-card">
   <h3>Ce qui est partagé avec l'équipe</h3>
@@ -82,6 +152,16 @@
 </div>
 
 <style>
+  .policy-line {
+    margin-bottom: var(--sp-4);
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.07));
+    font-size: var(--fs-caption);
+    color: var(--ivory-2);
+  }
+  .policy-line[data-policy='identified'] {
+    color: var(--amber);
+  }
   .head {
     margin-bottom: var(--sp-5);
   }
@@ -98,5 +178,23 @@
   }
   .hint-card h3 {
     margin-top: var(--sp-3);
+  }
+  .share-card {
+    margin-bottom: var(--sp-5);
+    border-left: 3px solid var(--lime);
+  }
+  .share-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--sp-5);
+    flex-wrap: wrap;
+  }
+  .share-toggle {
+    flex: none;
+  }
+  .share-toggle.active {
+    background: var(--lime);
+    color: var(--ink);
   }
 </style>

@@ -10,6 +10,8 @@
     enrollment_code_id: string | null;
     created_at: string;
     last_seen_at: string | null;
+    share_identified: boolean;
+    /// `null` tant que l'employé n'a pas activé le partage (ADR-0015 §3).
     totals: {
       count: number;
       tokens_in: number;
@@ -17,7 +19,7 @@
       gco2eq_p50_g: number;
       water_ml: number;
       energy_wh: number;
-    };
+    } | null;
   }
 
   let users = $state<UserRow[]>([]);
@@ -44,8 +46,9 @@
   <div>
     <h2>Employés enrôlés</h2>
     <p class="muted">
-      {users.length} employé{users.length > 1 ? 's' : ''} avec un fingerprint unique.
-      Le multi-device sera disponible en v0.8+.
+      {users.length} employé{users.length > 1 ? 's' : ''} avec un fingerprint unique. Les consommations
+      individuelles n'apparaissent qu'avec le consentement de chacun (ADR-0015) — cette page sert à gérer
+      les enrôlements.
     </p>
   </div>
   <button onclick={load} disabled={loading}>Rafraîchir</button>
@@ -71,18 +74,30 @@
         <tr><td colspan="5" class="muted">Aucun employé enrôlé pour l'instant.</td></tr>
       {:else}
         {#each users as u (u.id)}
-          {@const co2 = formatCO2(u.totals.gco2eq_p50_g)}
           <tr>
             <td>
-              <div class="name">{u.display_name || u.fingerprint}</div>
+              <!-- C44 : lien vers le détail individuel — le serveur applique
+                   la politique (403 expliqué côté page si non autorisé). -->
+              <a class="name" href={`/admin/users/${u.id}`}>{u.display_name || u.fingerprint}</a>
               {#if u.display_name}
                 <div class="muted small mono">{u.fingerprint}</div>
               {/if}
             </td>
             <td>{formatDateTime(u.created_at)}</td>
             <td>{formatDateTime(u.last_seen_at)}</td>
-            <td class="num">{formatCount(u.totals.count)}</td>
-            <td class="num">{co2.value} <span class="muted small">{co2.unit}</span></td>
+            {#if u.totals}
+              {@const co2 = formatCO2(u.totals.gco2eq_p50_g)}
+              <td class="num">{formatCount(u.totals.count)}</td>
+              <td class="num">{co2.value} <span class="muted small">{co2.unit}</span></td>
+            {:else}
+              <td
+                class="num muted"
+                colspan="2"
+                title="L'employé n'a pas activé le partage identifié (ADR-0015)"
+              >
+                — partage non activé
+              </td>
+            {/if}
           </tr>
         {/each}
       {/if}

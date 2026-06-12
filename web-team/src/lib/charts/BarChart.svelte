@@ -28,21 +28,27 @@
   }
 </script>
 
-<svg viewBox="0 0 {width} {height}" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Top barres">
+<svg
+  viewBox="0 0 {width} {height}"
+  preserveAspectRatio="xMidYMin meet"
+  role="img"
+  aria-label="Top barres"
+>
   {#if bars.length === 0}
-    <text
-      x={width / 2}
-      y={height / 2}
-      text-anchor="middle"
-      fill="var(--ivory-3)"
-      font-size="13"
-    >
+    <text x={width / 2} y={height / 2} text-anchor="middle" fill="var(--ivory-3)" font-size="13">
       Aucune donnée.
     </text>
   {:else}
     {#each bars as b, i}
       <g transform="translate(0, {i * rowHeight + 8})">
-        <text x={labelWidth - 12} y={rowHeight / 2} dy="0.32em" text-anchor="end" fill="var(--ivory-2)" font-size="12">
+        <text
+          x={labelWidth - 12}
+          y={rowHeight / 2}
+          dy="0.32em"
+          text-anchor="end"
+          fill="var(--ivory-2)"
+          font-size="12"
+        >
           {b.label}
         </text>
         <rect
@@ -54,7 +60,13 @@
           fill={color}
           fill-opacity="0.85"
         />
-        <text x={labelWidth + (b.value / max) * barWidthMax + 8} y={rowHeight / 2} dy="0.32em" fill="var(--ivory)" font-size="12">
+        <text
+          x={labelWidth + (b.value / max) * barWidthMax + 8}
+          y={rowHeight / 2}
+          dy="0.32em"
+          fill="var(--ivory)"
+          font-size="12"
+        >
           {fmt(b.value)}{b.detail ? ` · ${b.detail}` : ''}
         </text>
       </g>

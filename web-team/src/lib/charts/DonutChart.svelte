@@ -45,7 +45,12 @@
       const start = acc;
       const span = (s.value / total) * Math.PI * 2;
       acc += span;
-      return { label: s.label, value: s.value, share: s.value / total, d: arc(start, start + span) };
+      return {
+        label: s.label,
+        value: s.value,
+        share: s.value / total,
+        d: arc(start, start + span)
+      };
     });
   });
 </script>

@@ -34,7 +34,9 @@
   }
 
   const path = $derived(
-    points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ')
+    points
+      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`)
+      .join(' ')
   );
 
   const area = $derived(
@@ -50,7 +52,12 @@
   }
 </script>
 
-<svg viewBox="0 0 {width} {height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Évolution temporelle">
+<svg
+  viewBox="0 0 {width} {height}"
+  preserveAspectRatio="xMidYMid meet"
+  role="img"
+  aria-label="Évolution temporelle"
+>
   <!-- Grille horizontale -->
   {#each yTicks as t}
     <line
@@ -61,7 +68,14 @@
       stroke="var(--plot-grid)"
       stroke-width="1"
     />
-    <text x={padding.left - 8} y={y(t)} dy="0.32em" text-anchor="end" fill="var(--plot-axis)" font-size="10">
+    <text
+      x={padding.left - 8}
+      y={y(t)}
+      dy="0.32em"
+      text-anchor="end"
+      fill="var(--plot-axis)"
+      font-size="10"
+    >
       {fmt(t)}
     </text>
   {/each}

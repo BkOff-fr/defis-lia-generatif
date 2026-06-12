@@ -47,7 +47,10 @@
   <div class="card login">
     <div class="logo">Sobr.ia</div>
     <h2>Mode Équipe</h2>
-    <p class="muted">Serveur self-hosted — vos données restent chez votre organisation.</p>
+    <p class="muted">
+      Serveur self-hosted — vos données restent chez votre organisation. Agrégats d'équipe
+      k-anonymes : aucune surveillance individuelle sans consentement explicite du salarié.
+    </p>
 
     <div class="tabs" role="tablist">
       <button
@@ -70,16 +73,34 @@
         <label for="username">Nom d'utilisateur admin</label>
         <input id="username" type="text" autocomplete="username" bind:value={username} required />
         <label for="password">Mot de passe</label>
-        <input id="password" type="password" autocomplete="current-password" bind:value={password} required />
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          bind:value={password}
+          required
+        />
       {:else if mode === 'user-login'}
         <label for="fingerprint">Identifiant employé (fingerprint)</label>
-        <input id="fingerprint" type="text" autocomplete="username" bind:value={username} required />
+        <input
+          id="fingerprint"
+          type="text"
+          autocomplete="username"
+          bind:value={username}
+          required
+        />
         <p class="hint muted">
           Si vous vous êtes enrôlé depuis ce navigateur, votre fingerprint est :
           <code>{browserFingerprint()}</code>
         </p>
         <label for="password">Mot de passe</label>
-        <input id="password" type="password" autocomplete="current-password" bind:value={password} required />
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          bind:value={password}
+          required
+        />
       {:else}
         <label for="code">Code d'enrôlement (12 chiffres)</label>
         <input

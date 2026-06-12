@@ -59,8 +59,8 @@
   <div>
     <h2>Codes d'enrôlement</h2>
     <p class="muted">
-      Chaque code single-use 12 chiffres permet à un employé de s'enrôler depuis son
-      navigateur ou son app Sobr.ia. Argon2id PHC en base, donc <strong>impossible</strong>
+      Chaque code single-use 12 chiffres permet à un employé de s'enrôler depuis son navigateur ou
+      son app Sobr.ia. Argon2id PHC en base, donc <strong>impossible</strong>
       d'afficher un code une fois la session fermée.
     </p>
   </div>
@@ -91,8 +91,8 @@
       <button onclick={copyAll}>Copier la liste</button>
     </div>
     <p class="muted">
-      ⚠️ Ces codes ne seront plus affichés en clair une fois cette page rechargée.
-      Distribuez-les par un canal sûr (gestionnaire de mots de passe, mail chiffré).
+      ⚠️ Ces codes ne seront plus affichés en clair une fois cette page rechargée. Distribuez-les
+      par un canal sûr (gestionnaire de mots de passe, mail chiffré).
     </p>
     <table>
       <thead>

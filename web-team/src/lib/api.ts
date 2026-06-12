@@ -93,11 +93,7 @@ export class ApiError extends Error {
   }
 }
 
-async function rawFetch(
-  path: string,
-  init: RequestInit = {},
-  retry = true
-): Promise<Response> {
+async function rawFetch(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
   const headers = new Headers(init.headers || {});
   if (init.body && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');
@@ -123,6 +119,14 @@ export async function apiGet<T>(path: string): Promise<T> {
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const resp = await rawFetch(path, {
     method: 'POST',
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  return parseResponse<T>(resp);
+}
+
+export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  const resp = await rawFetch(path, {
+    method: 'PUT',
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   return parseResponse<T>(resp);

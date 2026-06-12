@@ -73,6 +73,10 @@ export function browserFingerprint(): string {
     h ^= raw.charCodeAt(i);
     h = (h * 0x01000193) >>> 0;
   }
-  const platformShort = platform.toLowerCase().replace(/[^a-z]/g, '').slice(0, 8) || 'web';
+  const platformShort =
+    platform
+      .toLowerCase()
+      .replace(/[^a-z]/g, '')
+      .slice(0, 8) || 'web';
   return `web-${platformShort}-${h.toString(16).padStart(8, '0')}`;
 }
