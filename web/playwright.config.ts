@@ -15,6 +15,12 @@ import { defineConfig, devices } from '@playwright/test';
  * dans une suite séparée sur `cargo tauri dev` — chantier C09.5 / CI
  * dédiée.
  */
+// SOBRIA_E2E_PORT : `reuseExistingServer` peut silencieusement réutiliser
+// le dev server d'un AUTRE projet déjà ouvert sur 5173 — les tests
+// passent/échouent alors contre la mauvaise app. --strictPort + port
+// dédié rendent la collision impossible.
+const port = Number(process.env.SOBRIA_E2E_PORT ?? 5173);
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
@@ -26,7 +32,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: `http://localhost:${port}`,
     trace: 'on-first-retry',
     headless: true
   },
@@ -37,8 +43,8 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    command: `npm run dev -- --port ${port} --strictPort`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
     stdout: 'ignore',

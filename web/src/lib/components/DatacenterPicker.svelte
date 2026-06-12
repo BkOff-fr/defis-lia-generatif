@@ -120,6 +120,7 @@
   bind:this={root}
   role="combobox"
   tabindex="-1"
+  aria-label="Choisir un datacenter"
   aria-expanded={open}
   aria-haspopup="listbox"
   aria-controls="dc-picker-listbox"

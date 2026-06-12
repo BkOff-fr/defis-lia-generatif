@@ -278,16 +278,24 @@
                 <th scope="row">{row.vendor}</th>
                 <td>
                   {#if row.has_prompt_level}
-                    <span class="ok" aria-label="Oui"><Check size={14} strokeWidth={2.5} /></span>
+                    <span class="ok" role="img" aria-label="Oui"
+                      ><Check size={14} strokeWidth={2.5} /></span
+                    >
                   {:else}
-                    <span class="ko" aria-label="Non"><X size={14} strokeWidth={2.5} /></span>
+                    <span class="ko" role="img" aria-label="Non"
+                      ><X size={14} strokeWidth={2.5} /></span
+                    >
                   {/if}
                 </td>
                 <td>
                   {#if row.has_training}
-                    <span class="ok" aria-label="Oui"><Check size={14} strokeWidth={2.5} /></span>
+                    <span class="ok" role="img" aria-label="Oui"
+                      ><Check size={14} strokeWidth={2.5} /></span
+                    >
                   {:else}
-                    <span class="ko" aria-label="Non"><X size={14} strokeWidth={2.5} /></span>
+                    <span class="ko" role="img" aria-label="Non"
+                      ><X size={14} strokeWidth={2.5} /></span
+                    >
                   {/if}
                 </td>
                 <td>

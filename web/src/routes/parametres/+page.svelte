@@ -842,7 +842,12 @@
         {#each methodologies as m (m.method)}
           {@const isDefault = $preferences.default_method === m.method}
           {@const isRef = $preferences.also_show_methods.includes(m.method)}
-          <article class="method-row" data-method={m.method} class:is-default={isDefault}>
+          <article
+            class="method-row"
+            role="listitem"
+            data-method={m.method}
+            class:is-default={isDefault}
+          >
             <div class="method-head">
               <span class="method-name">{m.display_name}</span>
               {#if isDefault}

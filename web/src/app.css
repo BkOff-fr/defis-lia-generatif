@@ -113,14 +113,16 @@
   --border-hi: rgba(255, 255, 255, 0.14);
 
   /* Ivory (texte).
-   * Contrastes WCAG mesurés sur --ink (#0a0d0b), cf. DoD « check a11y » :
-   * --ivory 16.6:1 · --ivory-2 9.5:1 · --ivory-3 5.0:1 (AA texte normal)
-   * --ivory-4 3.1:1 — réservé aux éléments DÉCORATIFS (séparateurs,
-   * hints non porteurs d'information), jamais pour du texte utile. */
+   * Contrastes WCAG mesurés sur --ink (#0a0d0b) ET sur le panneau le plus
+   * clair (#141715) — c'est ce dernier qui contraint (audit axe C46) :
+   * --ivory 16.6:1 · --ivory-2 9.5:1 · --ivory-3 5.5:1 · --ivory-4 4.9:1.
+   * L'ancien --ivory-4 (#62605a, 2.9:1) était documenté « décoratif
+   * seulement » mais utilisé sur du texte porteur dans ~30 composants —
+   * recalé AA plutôt que de corriger 90 usages un à un. */
   --ivory: #f0ece3;
   --ivory-2: #b8b4ac;
-  --ivory-3: #83817a;
-  --ivory-4: #62605a;
+  --ivory-3: #908e86;
+  --ivory-4: #87857d;
   --ivory-inv: #0a0d0b;
 
   /* Lime (accent unique, signature) */
