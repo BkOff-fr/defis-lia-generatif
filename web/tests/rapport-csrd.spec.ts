@@ -15,8 +15,10 @@ import { expect, test } from '@playwright/test';
  *   2. C42 : bannière « app de bureau requise » au chargement + Générer désactivé.
  *   3. Les 4 champs du formulaire SONT rendus et éditables (coque
  *      éducative, validation côté client).
- *   4. Le bouton "Choisir le dossier puis générer" suit la validation du
- *      formulaire (désactivé tant que la raison sociale est vide).
+ *   4. C42 « plus d'actions qui mentent » : hors Tauri le bouton
+ *      "Choisir le dossier puis générer" reste désactivé MÊME formulaire
+ *      valide, avec l'explication au survol (title). Le couplage à la
+ *      validation n'est observable que dans l'app de bureau.
  *   5. Aucune card de succès (pas de PDF mocké).
  *   6. Le lien Méthodologie reste accessible.
  */
@@ -48,12 +50,14 @@ test('Rapport CSRD/AGEC : formulaire rendu, génération réservée à l’app d
   await expect(alert).not.toContainText(/cargo/);
   await expect(page.locator('button[type=submit]')).toBeDisabled();
 
-  // Bouton principal : désactivé tant que le formulaire est incomplet,
-  // activé dès que la raison sociale est posée (les dates sont préremplies).
+  // Bouton principal : hors Tauri il reste désactivé même une fois le
+  // formulaire valide (C42 — la génération écrit sur disque), et le
+  // title explique pourquoi.
   const generateBtn = page.getByRole('button', { name: /Choisir le dossier puis générer/i });
   await expect(generateBtn).toBeDisabled();
   await orgInput.fill('ACME SAS');
-  await expect(generateBtn).toBeEnabled();
+  await expect(generateBtn).toBeDisabled();
+  await expect(generateBtn).toHaveAttribute('title', /application de bureau requise/i);
 
   // Aucune success card (aucun PDF mocké, jamais).
   await expect(page.locator('.success')).toHaveCount(0);
