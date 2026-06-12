@@ -139,7 +139,7 @@
     gap: 2px;
   }
   .provider {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -153,7 +153,7 @@
     overflow-wrap: anywhere;
   }
   .model-id {
-    font: 400 10px/1.2 var(--font-mono);
+    font: 400 12px/1.2 var(--font-mono);
     color: var(--ivory-4);
     overflow-wrap: anywhere;
   }
@@ -172,7 +172,7 @@
     height: 22px;
     padding: 0 8px;
     border-radius: 999px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     letter-spacing: 0.02em;
     border: 1px solid transparent;
   }
@@ -201,7 +201,7 @@
   }
 
   .tagline {
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
     letter-spacing: 0.04em;
   }
@@ -217,7 +217,7 @@
     gap: 4px;
   }
   .baseline-h {
-    font: 500 9px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -233,11 +233,11 @@
     letter-spacing: -0.01em;
   }
   .unit {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-3);
   }
   .baseline-sub {
-    font: 400 10px/1.3 var(--font-ui);
+    font: 400 12px/1.3 var(--font-ui);
     color: var(--ivory-4);
     font-style: italic;
   }

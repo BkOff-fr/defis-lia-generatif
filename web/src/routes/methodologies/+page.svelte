@@ -10,7 +10,7 @@
     AlertTriangle
   } from '@lucide/svelte';
   import {
-    isTauriContext,
+    isBackendAvailable,
     listMethodologies,
     getAppPreferences,
     setAppPreferences,
@@ -29,11 +29,11 @@
   let loadError = $state<{ code: IpcErrorCode | string; message: string } | null>(null);
   let toast = $state<string | null>(null);
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         loadError = {
           code: 'tauri_unavailable',
@@ -170,11 +170,11 @@
         <h1 class="hero-h1">Catalogue de méthodologies</h1>
         <p class="hero-sub">
           Plusieurs méthodologies scientifiques d'estimation de l'empreinte LLM sont embarquées dans
-          Sobr.ia. Tu choisis ta méthodo par défaut, et tu peux en activer d'autres en référence
-          pour comparer les résultats côté Atelier.
+          Sobr.ia. Vous choisissez votre méthodologie par défaut, et pouvez en activer d'autres en
+          référence pour comparer les résultats côté Atelier.
         </p>
         <aside class="page-crosslink" aria-label="Documentation méthodologique">
-          <strong>Cette page sert à <em>choisir</em> ta méthodologie.</strong>
+          <strong>Cette page sert à <em>choisir</em> votre méthodologie.</strong>
           Pour comprendre <em>comment</em> Sobr.ia calcule concrètement (formules, paramètres,
           Monte-Carlo, sources scientifiques) :
           <a class="crosslink-cta" href="/methodo"> → Comment ça marche (doc méthodologique) </a>
@@ -269,7 +269,7 @@
         <h2 id="h-comment">Comment ça fonctionne ?</h2>
       </header>
       <p class="card-text">
-        Quand tu lances une estimation depuis l'Atelier (M1) ou un batch (M18), Sobr.ia utilise la
+        Quand vous lancez une estimation depuis l'Atelier (M1) ou un batch (M18), Sobr.ia utilise la
         méthodologie marquée <strong>« Par défaut »</strong>. Les méthodologies cochées
         <em>« Afficher en référence »</em>
         tournent <strong>en plus</strong> et leurs résultats apparaissent dans un panneau
@@ -338,7 +338,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: var(--radius-pill);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -503,7 +503,7 @@
     gap: 5px;
     padding: 3px 10px;
     border-radius: var(--radius-pill);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     letter-spacing: 0.01em;
     white-space: nowrap;
   }
@@ -543,7 +543,7 @@
     gap: 2px;
   }
   .meta-label {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-4);
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -557,7 +557,7 @@
     font-family: var(--font-mono);
   }
   .small {
-    font-size: 11px;
+    font-size: 12px;
   }
   .link {
     display: inline-flex;
@@ -670,7 +670,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    font: 400 11px/1.4 var(--font-ui);
+    font: 400 12px/1.4 var(--font-ui);
     color: var(--ivory-4);
   }
   .legal-footer .sep {

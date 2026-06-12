@@ -16,7 +16,7 @@
   } from '@lucide/svelte';
   import {
     estimatePrompt,
-    isTauriContext,
+    isBackendAvailable,
     listDatacenters,
     listModels,
     SobriaIpcError,
@@ -40,6 +40,20 @@
   let loadError = $state<{ code: IpcErrorCode; message: string } | null>(null);
 
   let selectedIds = $state<Set<string>>(new Set());
+
+  // C41 — pré-remplissage depuis la boucle « Réduire » (M1) :
+  // /comparer?models=a,b,c&tin=1200&tout=800. Appliqué une fois au
+  // bootstrap, après chargement du catalogue (ids validés contre la liste).
+  function applyUrlPrefill(list: ModelPresetDto[]) {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    const ids = (q.get('models') ?? '').split(',').filter((id) => list.some((m) => m.id === id));
+    if (ids.length >= 2) selectedIds = new Set(ids);
+    const tin = Number(q.get('tin'));
+    const tout = Number(q.get('tout'));
+    if (Number.isInteger(tin) && tin > 0) manualTokensIn = tin;
+    if (Number.isInteger(tout) && tout > 0) tokensOut = tout;
+  }
   // Prompt (source de vérité pour tokens_in). Ratio FR 3,3 chars/token —
   // même heuristique que Composer Estimer. Si l'utilisateur le laisse vide,
   // on retombe sur le `manualTokensIn` ci-dessous.
@@ -70,17 +84,17 @@
   // badge A-F dans la matrice).
   let selectedDetail = $state<string | null>(null);
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   // ─── Bootstrap ─────────────────────────────────────────────────────
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         loadError = {
           code: 'tauri_unavailable',
           message:
-            "L'application doit être lancée via `cargo run -p sobria-app`. Le comparateur exécute N estimations Monte-Carlo en parallèle via le moteur Rust local — pas accessible dans un navigateur seul."
+            "Cette fonctionnalité nécessite l'application de bureau Sobr.ia. La démo web présente des données d'exemple sur : Estimer, Comparer, Bibliothèque de modèles, Datacenters et Tableau de bord."
         };
         return;
       }
@@ -91,6 +105,7 @@
             ? a.display_name.localeCompare(b.display_name, 'fr')
             : a.provider.localeCompare(b.provider, 'fr')
         );
+        applyUrlPrefill(models);
         // Lecture des paramètres d'URL (depuis l'écran Estimer : CTA
         // « Comparer avec d'autres modèles » → /comparer?prompt=…&
         // tokensOut=…&model=…).
@@ -414,7 +429,7 @@
   });
 
   const ERROR_LABELS: Record<string, string> = {
-    tauri_unavailable: 'Application non lancée via Tauri',
+    tauri_unavailable: 'Application de bureau requise',
     internal: 'Erreur interne'
   };
   function errorLabel(code: string): string {
@@ -456,7 +471,7 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Module M5 · comparateur de modèles
+      Comparateur de modèles
     </div>
     <h1 class="hero-h1">
       Le bon LLM <em>pour le bon usage</em>, indicateurs à l'appui.
@@ -486,7 +501,7 @@
     </div>
   {/if}
 
-  {#if tauriAvailable}
+  {#if backendAvailable}
     <!-- ─── Sélection modèles ──────────────────────────────────── -->
     <section class="selector">
       <header class="selector-head">
@@ -896,7 +911,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -925,7 +940,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -1036,7 +1051,7 @@
     color: var(--ivory-2);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
   }
@@ -1087,7 +1102,7 @@
     font-weight: 500;
   }
   .chip-prov {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--ivory-4);
   }
   .model-chip.on .chip-prov {
@@ -1121,13 +1136,13 @@
     flex-wrap: wrap;
   }
   .dc-block-title {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
   }
   .dc-block-hint {
-    font: 400 10px/1.3 var(--font-mono);
+    font: 400 12px/1.3 var(--font-mono);
     color: var(--ivory-4);
   }
 
@@ -1137,7 +1152,7 @@
     gap: 6px;
   }
   .prompt-block label {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -1166,7 +1181,7 @@
     gap: 14px;
     align-items: center;
     flex-wrap: wrap;
-    font: 500 11px/1.4 var(--font-mono);
+    font: 500 12px/1.4 var(--font-mono);
     color: var(--ivory-3);
   }
   .prompt-meta b {
@@ -1192,7 +1207,7 @@
     gap: 6px;
   }
   .param-field label {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -1278,7 +1293,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.18em;
     color: var(--lime);
@@ -1329,7 +1344,7 @@
   .verdict-delta-u {
     display: block;
     margin-top: 4px;
-    font: 500 9px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -1354,7 +1369,7 @@
     margin: 0;
   }
   .cards-hint {
-    font: 400 11px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-4);
   }
 
@@ -1432,7 +1447,7 @@
     white-space: nowrap;
   }
   .cmp-card-meta {
-    font: 400 11px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-3);
     margin-top: 2px;
   }
@@ -1479,7 +1494,7 @@
     gap: 3px;
   }
   .cmp-metric-l {
-    font: 500 9px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -1501,12 +1516,12 @@
     color: var(--coral);
   }
   .cmp-metric-u {
-    font: 400 11px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     font-style: normal;
     color: var(--ivory-3);
   }
   .cmp-metric-r {
-    font: 400 10px/1.3 var(--font-mono);
+    font: 400 12px/1.3 var(--font-mono);
     color: var(--ivory-4);
   }
   .cmp-bar {
@@ -1555,7 +1570,7 @@
     color: var(--ivory-2);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     cursor: pointer;
     text-decoration: none;
     transition: all var(--dur-base) var(--ease);
@@ -1574,7 +1589,7 @@
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--ivory-2);
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     letter-spacing: 0.04em;
   }
   .badge.calib[data-tone='good'] {
@@ -1598,7 +1613,7 @@
     align-items: flex-start;
     gap: 8px;
     margin: 14px 0 0;
-    font: 400 11px/1.5 var(--font-ui);
+    font: 400 12px/1.5 var(--font-ui);
     color: var(--ivory-3);
   }
   .cards-footnote :global(svg) {
@@ -1659,7 +1674,7 @@
     border-bottom: 1px solid var(--border);
   }
   .drawer-eye {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -1672,7 +1687,7 @@
     margin-bottom: 4px;
   }
   .drawer-sub {
-    font: 400 11px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-3);
   }
   .drawer-body {
@@ -1682,7 +1697,7 @@
   }
 
   .sec-h {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -1728,7 +1743,7 @@
     overflow-wrap: anywhere;
   }
   .hyp-src {
-    font: 400 10px/1.3 var(--font-ui);
+    font: 400 12px/1.3 var(--font-ui);
     color: var(--ivory-3);
     font-style: italic;
   }

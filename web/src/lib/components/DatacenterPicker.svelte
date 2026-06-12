@@ -251,7 +251,7 @@
     min-width: 0;
   }
   .ll {
-    font-size: 11px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--ivory-3);
@@ -326,7 +326,7 @@
   }
   .group {
     padding: 8px 14px 4px;
-    font-size: 11px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--ivory-3);
@@ -346,7 +346,7 @@
     color: var(--ivory);
   }
   .option .opt-meta {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--ivory-3);
     font-feature-settings: 'tnum';
   }

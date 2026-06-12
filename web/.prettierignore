@@ -8,3 +8,6 @@ package-lock.json
 
 # Données fetched (JSON immutables des APIs ODRÉ/RTE/etc.) — ne pas reformatter.
 crates/
+
+# Fixtures du mode démo web (C37) — JSON générés par le moteur Rust, minifiés
+src/lib/demo/fixtures/

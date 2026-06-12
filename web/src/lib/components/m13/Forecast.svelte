@@ -232,7 +232,7 @@
     color: var(--lime);
   }
   .fh .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -265,7 +265,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -284,7 +284,7 @@
     outline: none;
   }
   .fc-field .suffix {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
 
@@ -300,7 +300,7 @@
     display: flex;
     justify-content: space-between;
     margin-top: 4px;
-    font: 400 9px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     letter-spacing: 0.04em;
   }
@@ -319,7 +319,7 @@
     border-radius: var(--radius-sm);
   }
   .stat-l {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -336,14 +336,14 @@
     color: var(--lime);
   }
   .stat-v .u {
-    font: 400 11px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     font-style: normal;
     color: var(--ivory-3);
     margin-left: 4px;
   }
   .stat-delta {
     margin-top: 5px;
-    font: 600 11px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .stat-delta.lime {

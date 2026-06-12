@@ -30,6 +30,7 @@
     ArrowUpRight
   } from '@lucide/svelte';
   import {
+    isBackendAvailable,
     isTauriContext,
     exportCsrdReport,
     SobriaIpcError,
@@ -94,7 +95,8 @@
   let genError = $state<{ code: IpcErrorCode; message: string } | null>(null);
   let copiedField = $state<string | null>(null);
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
+  const desktopAvailable = $derived(isTauriContext());
 
   const formValid = $derived(
     orgName.trim().length > 0 &&
@@ -110,7 +112,7 @@
   // ─── Génération ─────────────────────────────────────────────────────────
 
   async function pickDirAndGenerate() {
-    if (!tauriAvailable || !formValid) return;
+    if (!backendAvailable || !formValid) return;
 
     // Dialog : choisir un dossier où écrire `report.pdf` + `provo.jsonld`.
     let outputDir: string;
@@ -200,7 +202,7 @@
 
   // ─── Erreurs ─────────────────────────────────────────────────────────────
   const ERROR_LABELS: Record<string, string> = {
-    tauri_unavailable: 'Application non lancée via Tauri',
+    tauri_unavailable: 'Application de bureau requise',
     invalid_request: 'Paramètres invalides',
     empty_period: 'Aucune entrée pour cette période',
     export_error: 'Échec de la génération PDF',
@@ -248,29 +250,32 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Module M22 · AFNOR SPEC 2314 · PROV-O W3C
+      Rapport réglementaire · AFNOR SPEC 2314 · PROV-O W3C
     </div>
     <h1 class="hero-h1">
       Un rapport <em>conforme</em>, prêt à signer.
     </h1>
     <p class="hero-sub">
-      Génère un PDF officiel pour ton scope 3 IA (CSRD) ou ton bilan numérique (AGEC) sur la période
-      de ton choix. Le bundle JSON-LD PROV-O accompagne le PDF pour la reproductibilité audit.
+      Générez un PDF officiel pour votre scope 3 IA (CSRD) ou votre bilan numérique (AGEC) sur la
+      période de votre choix. Le bundle JSON-LD PROV-O accompagne le PDF pour la reproductibilité
+      audit.
     </p>
   </section>
 
-  <!-- Bannière hors-Tauri -->
-  {#if !tauriAvailable}
+  <!-- C42 — bannière au chargement hors Tauri : le formulaire reste lisible
+       mais la génération (écriture disque) est clairement annoncée comme
+       desktop-only, au lieu d'échouer tard avec un code interne. -->
+  {#if !desktopAvailable}
     <div class="banner" data-tone="warn" role="alert">
       <span class="banner-ico" aria-hidden="true"
         ><AlertTriangle size={18} strokeWidth={1.8} /></span
       >
       <div class="banner-body">
-        <strong>Application non lancée via Tauri</strong>
+        <strong>Application de bureau requise</strong>
         <span>
-          L'application doit être lancée via <span class="mono">cargo run -p sobria-app</span> (ou
-          <span class="mono">cargo tauri dev</span>). La génération PDF tourne en local — pas de
-          serveur, pas d'envoi externe.
+          La génération du rapport (PDF + bundle PROV-O) écrit sur votre disque et lit votre ledger
+          d'audit : elle nécessite l'application de bureau Sobr.ia. La génération tourne en local —
+          pas de serveur, pas d'envoi externe.
         </span>
       </div>
     </div>
@@ -410,7 +415,7 @@
             placeholder="Ex. Mairie de Lille"
             maxlength="120"
             required
-            disabled={!tauriAvailable || generating}
+            disabled={!backendAvailable || generating}
             class="text-input"
             aria-required="true"
           />
@@ -423,7 +428,7 @@
               type="date"
               bind:value={periodStart}
               required
-              disabled={!tauriAvailable || generating}
+              disabled={!backendAvailable || generating}
               class="date-input mono"
               max={periodEnd}
             />
@@ -434,7 +439,7 @@
               type="date"
               bind:value={periodEnd}
               required
-              disabled={!tauriAvailable || generating}
+              disabled={!backendAvailable || generating}
               class="date-input mono"
               min={periodStart}
               max={todayIso()}
@@ -448,7 +453,11 @@
 
         <label class="field">
           <span><Languages size={11} strokeWidth={1.8} /> Langue du rapport</span>
-          <select bind:value={locale} disabled={!tauriAvailable || generating} class="select-input">
+          <select
+            bind:value={locale}
+            disabled={!backendAvailable || generating}
+            class="select-input"
+          >
             <option value="fr">Français</option>
             <option value="en" disabled>English (v1.1)</option>
           </select>
@@ -471,7 +480,10 @@
           <button
             type="submit"
             class="btn-primary"
-            disabled={!tauriAvailable || generating || !formValid}
+            disabled={!desktopAvailable || generating || !formValid}
+            title={desktopAvailable
+              ? undefined
+              : 'La génération PDF/PROV-O écrit sur votre disque — application de bureau requise'}
             aria-busy={generating}
           >
             {#if generating}
@@ -542,7 +554,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -569,7 +581,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -651,7 +663,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -679,7 +691,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -730,7 +742,7 @@
     background: rgba(240, 108, 90, 0.08);
     border: 1px solid rgba(240, 108, 90, 0.3);
     border-radius: var(--radius-sm);
-    font: 400 11px/1.4 var(--font-ui);
+    font: 400 12px/1.4 var(--font-ui);
     color: var(--coral);
   }
 
@@ -762,7 +774,7 @@
   .form-err .help {
     color: var(--ivory-3);
     font-style: italic;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .actions {
@@ -836,7 +848,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
   }
 
@@ -885,7 +897,7 @@
     margin: 0;
   }
   .sh .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--lime);
@@ -897,7 +909,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-2);
     cursor: pointer;
   }
@@ -922,7 +934,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -942,7 +954,7 @@
   }
   .stat-r {
     margin-top: 4px;
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
 
@@ -969,14 +981,14 @@
     min-width: 0;
   }
   .fr-label {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
     margin-bottom: 4px;
   }
   .fr-path {
-    font: 400 11px/1.3 var(--font-mono);
+    font: 400 12px/1.3 var(--font-mono);
     color: var(--ivory);
     word-break: break-all;
     user-select: all;
@@ -993,13 +1005,13 @@
     border-radius: var(--radius-md);
   }
   .sha-label {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
   }
   .sha-val {
-    font: 400 11px/1.3 var(--font-mono);
+    font: 400 12px/1.3 var(--font-mono);
     color: var(--lime);
     word-break: break-all;
     user-select: all;
@@ -1016,7 +1028,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 999px;
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-2);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
@@ -1048,7 +1060,7 @@
     color: var(--ivory);
   }
   .hint {
-    font: 400 11px/1.4 var(--font-ui);
+    font: 400 12px/1.4 var(--font-ui);
     color: var(--ivory-3);
     font-style: italic;
   }

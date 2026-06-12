@@ -14,7 +14,9 @@ export default [
     languageOptions: {
       globals: {
         ...globals.browser,
-        ...globals.node
+        ...globals.node,
+        // Constante compile-time injectée par Vite `define` (cf. vite.config.ts, C37).
+        __APP_VERSION__: 'readonly'
       }
     }
   },

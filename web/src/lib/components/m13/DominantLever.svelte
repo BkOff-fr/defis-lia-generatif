@@ -119,7 +119,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-2);
@@ -139,7 +139,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     letter-spacing: 0.04em;
   }
@@ -222,7 +222,7 @@
   }
   .ll-pct {
     text-align: right;
-    font: 600 11px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--ivory-2);
   }
   .lead .ll-pct {

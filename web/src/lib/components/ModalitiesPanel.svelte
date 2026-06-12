@@ -435,7 +435,7 @@
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 4px;
     color: var(--lime);
-    font: 600 9px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
   }
   .mode-toggle {
     display: inline-flex;
@@ -446,7 +446,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
     color: var(--ivory-3);
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
   }
@@ -495,7 +495,7 @@
     color: var(--ivory-2);
   }
   .modality-toggle .m-warn {
-    font: 500 9px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--coral);
     background: rgba(240, 108, 90, 0.1);
     border: 1px solid rgba(240, 108, 90, 0.25);
@@ -525,7 +525,7 @@
     gap: 4px;
   }
   .field-mini .lbl {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-3);
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -576,7 +576,7 @@
     color: var(--lime);
   }
   .hint {
-    font: 400 11px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-4);
     font-style: italic;
   }
@@ -602,7 +602,7 @@
     flex: 1;
   }
   .rb-title {
-    font: 600 11px/1.4 var(--font-ui);
+    font: 600 12px/1.4 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
@@ -629,7 +629,7 @@
     gap: 8px;
     cursor: pointer;
     list-style: none;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-3);
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -645,7 +645,7 @@
   }
   .tech-disclaimer {
     margin-left: auto;
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--amber);
     text-transform: none;
     letter-spacing: 0;
@@ -664,7 +664,7 @@
     border: 1px solid var(--border-hi);
     border-radius: 50%;
     color: var(--ivory-3);
-    font: 500 9px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     cursor: help;
   }
   .tech-footer {
@@ -674,7 +674,7 @@
     margin-top: 12px;
     padding-top: 10px;
     border-top: 1px dashed var(--border);
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .tech-footer b {

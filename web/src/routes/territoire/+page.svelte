@@ -21,7 +21,7 @@
     MapPin
   } from '@lucide/svelte';
   import {
-    isTauriContext,
+    isBackendAvailable,
     listIndustrialSitesFr,
     aggregateIndustrialSitesByRegion,
     sankeyFrData,
@@ -66,17 +66,17 @@
     minConsumptionGwh: 0
   });
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   // ─── Bootstrap ───────────────────────────────────────────────────────────
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         loadError = {
           code: 'tauri_unavailable',
           message:
-            "L'application doit être lancée via `cargo run -p sobria-app` (ou `cargo tauri dev`). Les données RTE IRIS et le Sankey sont chargés en local par le backend Rust."
+            "La carte Territoire FR (RTE IRIS, maille industrielle) nécessite l'application de bureau Sobr.ia — les données sont chargées en local par le backend Rust."
         };
         return;
       }
@@ -143,7 +143,7 @@
 
   // ─── Error labels + tone ────────────────────────────────────────────────
   const ERROR_LABELS: Record<string, string> = {
-    tauri_unavailable: 'Application non lancée via Tauri',
+    tauri_unavailable: 'Application de bureau requise',
     data_not_ingested: 'Données territoriales non ingérées',
     internal: 'Erreur interne',
     io_error: 'Lecture du dataset impossible'
@@ -188,7 +188,7 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Module M20 · cartographie IRIS · 13 régions
+      Cartographie IRIS · 13 régions
     </div>
     <h1 class="hero-h1">
       L'angle <em>territorial</em> français de l'impact IA.
@@ -247,7 +247,7 @@
     </div>
   {/if}
 
-  {#if !bootstrapping && tauriAvailable && !showDataNotIngested && sites.length > 0}
+  {#if !bootstrapping && backendAvailable && !showDataNotIngested && sites.length > 0}
     <!-- Grid 3 colonnes : filtres / carte / drill-down -->
     <div class="grid">
       <div class="col-l">
@@ -288,8 +288,8 @@
       <MapPin size={20} strokeWidth={1.6} />
       <h4>Carte et Sankey indisponibles</h4>
       <p>
-        Lance <span class="mono">cargo run -p sobria-app</span> après avoir ingéré les datasets territoire-fr
-        et rte-mix pour activer la cartographie.
+        Installez l'application de bureau (datasets territoire-fr ingérés) pour activer la carte et
+        rte-mix pour activer la cartographie.
       </p>
     </div>
   {/if}
@@ -340,7 +340,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -368,7 +368,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -477,7 +477,7 @@
     color: var(--amber);
   }
   .ingest-card .hint {
-    font: 400 11px/1.4 var(--font-ui);
+    font: 400 12px/1.4 var(--font-ui);
     color: var(--ivory-3);
     font-style: italic;
     margin-top: 12px;

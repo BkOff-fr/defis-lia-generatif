@@ -220,7 +220,7 @@
     color: var(--ivory-3);
   }
   .equiv-carbon.compact {
-    font-size: 11px;
+    font-size: 12px;
     gap: 4px;
   }
   .equiv-items {

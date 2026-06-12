@@ -211,7 +211,7 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Module M8 · alignement AFNOR SPEC 2314
+      Méthodologie · alignement AFNOR SPEC 2314
     </div>
     <h1 class="hero-h1">
       Une méthode <em>sourcée</em>, des hypothèses lisibles, des intervalles assumés.
@@ -224,7 +224,7 @@
     </p>
     <aside class="page-crosslink" aria-label="Choisir une méthodologie">
       <strong>Cette page documente l'approche AFNOR SPEC 2314 (Sobr.ia).</strong>
-      Pour <em>choisir</em> quelle méthodologie scientifique tu utilises au quotidien (AFNOR
+      Pour <em>choisir</em> quelle méthodologie scientifique vous utilisez au quotidien (AFNOR
       Sobr.ia, EcoLogits 2026-01, etc.) :
       <a class="crosslink-cta" href="/methodologies">
         → Catalogue des méthodologies <ArrowUpRight size={12} strokeWidth={2} />
@@ -502,7 +502,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -531,7 +531,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -673,7 +673,7 @@
     flex: 1;
   }
   .card-meta {
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
     background: var(--surface);
     border: 1px solid var(--border);
@@ -759,7 +759,7 @@
     margin-top: 3px;
   }
   .status-label {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -771,7 +771,7 @@
     margin: 4px 0 4px;
   }
   .status-note {
-    font: 400 11px/1.5 var(--font-ui);
+    font: 400 12px/1.5 var(--font-ui);
     color: var(--ivory-3);
   }
 
@@ -784,7 +784,7 @@
   }
   .glossary thead th {
     text-align: left;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -821,7 +821,7 @@
     font-style: italic;
   }
   .gl-src {
-    font: 400 11px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-3);
   }
 
@@ -856,7 +856,7 @@
     flex: 1;
   }
   .ref-meta {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     flex-shrink: 0;
   }
@@ -892,7 +892,7 @@
     color: var(--ivory);
   }
   .biblio-hint {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
 
@@ -904,7 +904,7 @@
     margin: 0;
   }
   .about-grid dt {
-    font: 500 10px/1.2 var(--font-ui);
+    font: 500 12px/1.2 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -922,7 +922,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
-    font: 500 10px/1.4 var(--font-mono);
+    font: 500 12px/1.4 var(--font-mono);
     color: var(--ivory-2);
   }
   .link {

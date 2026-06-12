@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Term from '$lib/components/Term.svelte';
   import {
     Cpu,
     MessageSquare,
@@ -179,12 +180,14 @@
         class="item"
         title="Estimation heuristique (~3,3 caractères/token en FR, ~4 en EN). Tokenizer réel en v0.3 — chantier outillage."
       >
-        <ArrowDownToLine size={12} strokeWidth={1.8} />Tokens entrée
+        <ArrowDownToLine size={12} strokeWidth={1.8} /><Term k="token">Tokens</Term> entrée
         <b>{tokensIn}</b>
         <span class="hint-mark" aria-hidden="true">?</span>
       </span>
       <span class="item">
-        <ArrowUpFromLine size={12} strokeWidth={1.8} />Tokens sortie estimés
+        <ArrowUpFromLine size={12} strokeWidth={1.8} /><Term k="tokens_sortie"
+          >Tokens sortie estimés</Term
+        >
         <input
           type="number"
           min="1"
@@ -290,7 +293,7 @@
     flex: 1;
   }
   .field-label {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -351,7 +354,7 @@
     background: rgba(197, 240, 74, 0.1);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: var(--radius-pill);
-    font: 600 11px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--lime);
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -368,7 +371,7 @@
   }
   .score-pip.sm {
     padding: 3px 8px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .model-popover {
@@ -416,7 +419,7 @@
   }
   .model-row-prov {
     display: block;
-    font: 400 11px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-3);
     margin-top: 1px;
   }
@@ -483,7 +486,7 @@
     border: 1px solid var(--border-hi);
     border-radius: 50%;
     color: var(--ivory-3);
-    font: 500 9px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     cursor: help;
   }
   .prompt-meta .item.muted {
@@ -552,7 +555,7 @@
     min-width: 0;
   }
   .context-card .ll {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -566,7 +569,7 @@
     text-overflow: ellipsis;
   }
   .context-card .vm {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     margin-top: 2px;
   }
@@ -636,7 +639,7 @@
 
   .kbd-hint {
     margin-left: auto;
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     display: inline-flex;
     align-items: center;
@@ -648,6 +651,6 @@
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.3);
     color: var(--ivory-3);
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
   }
 </style>

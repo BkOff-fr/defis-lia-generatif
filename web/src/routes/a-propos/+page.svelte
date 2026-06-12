@@ -14,7 +14,7 @@
   } from '@lucide/svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
   import {
-    isTauriContext,
+    isBackendAvailable,
     metaInfo,
     SobriaIpcError,
     type IpcErrorCode,
@@ -27,16 +27,16 @@
   let loadError = $state<{ code: IpcErrorCode | string; message: string } | null>(null);
   let copiedField = $state<string | null>(null);
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         loadError = {
           code: 'tauri_unavailable',
           message:
-            "L'application doit être lancée via `cargo run -p sobria-app`. L'état technique runtime n'est pas disponible dans un navigateur seul."
+            "L'état technique runtime (versions, chemins locaux) est visible dans l'application de bureau Sobr.ia."
         };
         return;
       }
@@ -421,7 +421,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: var(--radius-pill);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -464,7 +464,7 @@
     margin: 0;
   }
   .hero-version {
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
     letter-spacing: 0.08em;
     margin-top: 4px;
@@ -599,7 +599,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
-    font: 500 10px/1.4 var(--font-mono);
+    font: 500 12px/1.4 var(--font-mono);
     color: var(--ivory-2);
     letter-spacing: 0.04em;
   }
@@ -639,7 +639,7 @@
     flex: 1;
   }
   .src-hint {
-    font: 400 11px/1.3 var(--font-mono);
+    font: 400 12px/1.3 var(--font-mono);
     color: var(--ivory-3);
     flex-shrink: 0;
   }
@@ -694,7 +694,7 @@
     margin: 0;
   }
   .tech-grid dt {
-    font: 500 10px/1.4 var(--font-ui);
+    font: 500 12px/1.4 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -733,7 +733,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--ivory-2);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
     flex-shrink: 0;
@@ -753,7 +753,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 1px 6px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--ivory);
   }
 

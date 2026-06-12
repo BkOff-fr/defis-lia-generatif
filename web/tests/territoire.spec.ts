@@ -1,32 +1,36 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Contrat « no-mock » de l'écran Territoire FR (M20).
+ * Contrat « démo » de l'écran Territoire FR (M20 / C36).
  *
  * M20 charge 200 sites industriels (RTE IRIS), 13 agrégats régionaux et un
- * Sankey énergétique national depuis les datasets ODRÉ stockés localement
- * — toujours via 4 commandes IPC (cf. CLAUDE.md §13). Hors Tauri, aucune
- * carte / aucun Sankey ne doit être rendu.
+ * Sankey énergétique national via 4 commandes IPC — aucune n'est couverte
+ * par la démo web (datasets locaux du backend Rust). Hors Tauri :
+ * bannière « Application de bureau requise », aucune carte ni Sankey.
  *
  * Garanties :
- *   1. La coque est rendue (hero h1 + sub).
- *   2. Bannière `tauri_unavailable` avec mention `cargo run -p sobria-app`.
+ *   1. La coque est rendue (hero h1 + sub) + bannière « Mode démo ».
+ *   2. Bannière d'avertissement « Application de bureau requise » dont le
+ *      message oriente vers l'application de bureau (plus de `cargo run`).
  *   3. AUCUN container Leaflet visible (pas de markers mockés).
  *   4. AUCUN SVG Sankey rendu (pas de flux mockés).
- *   5. Le lien Méthodologie reste accessible.
+ *   5. L'empty shell explicative est visible.
+ *   6. Le lien Méthodologie reste accessible.
  */
 
-test('Territoire FR : refuse de servir une carte mockée hors contexte Tauri', async ({ page }) => {
+test('Territoire FR : réservé à l’application de bureau, pas de carte démo', async ({ page }) => {
   await page.goto('/territoire');
 
   await expect(page).toHaveTitle(/Territoire France/);
   await expect(page.getByRole('heading', { name: /angle.*territorial.*français/i })).toBeVisible();
+  await expect(page.locator('aside.demo-banner')).toBeVisible();
 
-  // Bannière tauri_unavailable
+  // Bannière « Application de bureau requise » (nouveau libellé C36).
   const banner = page.getByRole('alert');
   await expect(banner).toBeVisible();
-  await expect(banner).toContainText(/Application non lancée via Tauri/);
-  await expect(banner).toContainText(/cargo run -p sobria-app/);
+  await expect(banner).toContainText(/Application de bureau requise/);
+  await expect(banner).toContainText(/application de bureau/);
+  await expect(banner).not.toContainText(/cargo run/);
 
   // Pas de carte Leaflet — le container `.leaflet-container` n'apparaît
   // que si le composant TerritoireMap a été monté avec des données réelles.

@@ -1,10 +1,13 @@
 // Wrapper IPC typé pour les commandes Tauri exposées par `crates/sobria-app`.
 //
-// Tout appel passe par `invoke()` réel (cf. CLAUDE.md §13 : pas de mock, pas
-// de fallback, pas de données factices). Si l'app est ouverte hors contexte
-// Tauri (ex: `npm run dev` dans un navigateur seul), les fonctions rejettent
-// avec un `SobriaIpcError{ code: 'tauri_unavailable' }` que l'UI doit
-// présenter explicitement à l'utilisateur.
+// En contexte Tauri, tout appel passe par `invoke()` réel (cf. CLAUDE.md
+// §13 : pas de mock, pas de données factices dans l'application). Hors
+// Tauri (démo web déployée, `npm run dev` navigateur), les commandes
+// couvertes par le mode démo (C36) servent des fixtures précalculées par
+// le moteur Rust lui-même — voir `$lib/demo` pour la justification
+// méthodologique — et les autres rejettent un
+// `SobriaIpcError{ code: 'tauri_unavailable' }` avec un message orienté
+// utilisateur final que l'UI présente explicitement.
 //
 // Les types ci-dessous **mirrorent à l'identique** les DTO de
 // `crates/sobria-app/src/dto.rs` : noms de champs en snake_case (Serde n'a
@@ -14,6 +17,15 @@
 // Voir `briefs/chantiers/C09-tauri-integration.md` §3 pour les contrats IPC.
 
 import { invoke } from '@tauri-apps/api/core';
+
+// Mode démo (C36) chargé paresseusement : l'application de bureau (contexte
+// Tauri) n'embarque ni le module ni ses fixtures JSON dans son bundle.
+type DemoModule = typeof import('./demo');
+let demoModulePromise: Promise<DemoModule> | null = null;
+function loadDemo(): Promise<DemoModule> {
+  demoModulePromise ??= import('./demo');
+  return demoModulePromise;
+}
 
 // ─── DTO mirrors ─────────────────────────────────────────────────────────
 
@@ -608,19 +620,40 @@ export function isTauriContext(): boolean {
   return typeof window !== 'undefined' && TAURI_GLOBAL in window;
 }
 
-function assertTauriContext(): void {
-  if (!isTauriContext()) {
-    throw new SobriaIpcError(
-      'tauri_unavailable',
-      "L'application doit être lancée via `cargo run -p sobria-app` (ou `cargo tauri dev`). Le contexte Tauri n'est pas disponible dans un navigateur seul."
-    );
-  }
+/**
+ * Vrai si un backend peut répondre aux commandes : soit le runtime Tauri
+ * réel (application de bureau), soit le mode démo web (C36, fixtures
+ * précalculées par le moteur). Les pages utilisent ce prédicat pour leur
+ * bootstrap ; les commandes non couvertes par la démo rejettent
+ * individuellement `tauri_unavailable` avec [`DESKTOP_ONLY_MESSAGE`].
+ */
+export function isBackendAvailable(): boolean {
+  return typeof window !== 'undefined';
 }
+
+/** Message utilisateur final — jamais de commande développeur ici. */
+const DESKTOP_ONLY_MESSAGE =
+  "Cette fonctionnalité nécessite l'application de bureau Sobr.ia " +
+  '(calcul local, ledger d’audit). La démo web présente des données ' +
+  "d'exemple sur : Estimer, Comparer, Bibliothèque de modèles, " +
+  'Datacenters et Tableau de bord.';
 
 // ─── Cœur de l'appel IPC ─────────────────────────────────────────────────
 
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  assertTauriContext();
+  if (!isTauriContext()) {
+    const { demoHandlers } = await loadDemo();
+    const handler = demoHandlers[cmd];
+    if (handler === undefined) {
+      throw new SobriaIpcError('tauri_unavailable', DESKTOP_ONLY_MESSAGE);
+    }
+    try {
+      // Promesse pour symétrie avec `invoke` (les handlers sont synchrones).
+      return (await Promise.resolve(handler(args))) as T;
+    } catch (err) {
+      throw normalizeError(err);
+    }
+  }
   try {
     return await invoke<T>(cmd, args);
   } catch (err) {

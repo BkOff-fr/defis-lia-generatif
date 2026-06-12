@@ -14,7 +14,7 @@
 
   import { AlertTriangle, Info, PlugZap, HelpCircle, Lock, Globe } from '@lucide/svelte';
   import {
-    isTauriContext,
+    isBackendAvailable,
     listDatacenters,
     aggregateDatacentersByCountry,
     getDatacenterDetail,
@@ -61,17 +61,17 @@
     enabledCountries: new Set<string>()
   });
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   // ─── Bootstrap ───────────────────────────────────────────────────────────
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         loadError = {
           code: 'tauri_unavailable',
           message:
-            "L'application doit être lancée via `cargo run -p sobria-app` (ou `cargo tauri dev`). Les 28 datacenters européens sont embarqués dans le binaire — pas de fetch externe."
+            "Cette fonctionnalité nécessite l'application de bureau Sobr.ia. La démo web présente des données d'exemple sur : Estimer, Comparer, Bibliothèque de modèles, Datacenters et Tableau de bord."
         };
         return;
       }
@@ -155,7 +155,7 @@
 
   // ─── Error labels + tone ────────────────────────────────────────────────
   const ERROR_LABELS: Record<string, string> = {
-    tauri_unavailable: 'Application non lancée via Tauri',
+    tauri_unavailable: 'Application de bureau requise',
     not_found: 'Datacenter inconnu',
     internal: 'Erreur interne'
   };
@@ -195,7 +195,7 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Module M12 · 28 datacenters · 13 pays
+      28 datacenters · 13 pays
     </div>
     <h1 class="hero-h1">
       Où tournent <em>physiquement</em> vos prompts ?
@@ -226,7 +226,7 @@
     </div>
   {/if}
 
-  {#if !bootstrapping && tauriAvailable && datacenters.length > 0}
+  {#if !bootstrapping && backendAvailable && datacenters.length > 0}
     <div class="dc-route">
       <div class="dc-map-fill">
         <DatacenterMap
@@ -268,8 +268,8 @@
       <Globe size={20} strokeWidth={1.6} />
       <h4>Carte indisponible</h4>
       <p>
-        Lance <span class="mono">cargo run -p sobria-app</span> pour activer la cartographie des 28 datacenters
-        européens (dataset embarqué dans le binaire).
+        Installez l'application de bureau Sobr.ia pour activer la cartographie complète des 28
+        datacenters européens (dataset embarqué dans le binaire).
       </p>
     </div>
   {/if}
@@ -314,7 +314,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -341,7 +341,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -468,10 +468,6 @@
     font: 400 13px/1.55 var(--font-ui);
     color: var(--ivory-3);
     max-width: 560px;
-  }
-
-  .mono {
-    font-family: var(--font-mono);
   }
 
   @media (max-width: 1180px) {

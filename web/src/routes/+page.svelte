@@ -24,7 +24,7 @@
   import {
     estimateForComparison,
     estimatePrompt,
-    isTauriContext,
+    isBackendAvailable,
     listDatacenters,
     listMethodologies,
     listModels,
@@ -43,6 +43,7 @@
   import { preferences, moduleLabel, type ModuleId } from '$lib/preferences';
   import Composer from '$lib/components/Composer.svelte';
   import ModalitiesPanel from '$lib/components/ModalitiesPanel.svelte';
+  import ReduceSuggestions from '$lib/components/ReduceSuggestions.svelte';
   import ResultBlock from '$lib/components/ResultBlock.svelte';
   import HypothesisBlock from '$lib/components/HypothesisBlock.svelte';
   import { tick } from 'svelte';
@@ -157,7 +158,7 @@
   // Ancre pour le scroll smooth post-estimation (cf. submitEstimation).
   let resultAnchor: HTMLDivElement | undefined = $state();
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   // ─── C32.2 — Bannière « Et après ? » post-premier-prompt ─────────────
   // Affichée après le 1er résultat valide, ferme-able définitivement via
@@ -186,12 +187,12 @@
   // ─── Bootstrap : on charge les modèles via IPC réel ──────────────────
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         error = {
           code: 'tauri_unavailable',
           message:
-            "L'application doit être lancée via `cargo run -p sobria-app` (ou `cargo tauri dev`). Le contexte Tauri n'est pas disponible dans un navigateur seul."
+            "Cette fonctionnalité nécessite l'application de bureau Sobr.ia. La démo web présente des données d'exemple sur : Estimer, Comparer, Bibliothèque de modèles, Datacenters et Tableau de bord."
         };
         return;
       }
@@ -210,8 +211,11 @@
             ? new URLSearchParams(window.location.search).get('model')
             : null;
         const fromUrl = urlModel ? list.find((m) => m.id === urlModel)?.id : undefined;
+        // C41 — défaut : un modèle courant et sobre (GPT-4o mini est
+        // deprecated et la boucle « Réduire » mérite une vraie première
+        // impression). Fallback : premier du catalogue.
         selectedModelId =
-          fromUrl ?? list.find((m) => m.id === 'gpt-4o-mini')?.id ?? list[0]?.id ?? '';
+          fromUrl ?? list.find((m) => m.id === 'claude-haiku-4-5')?.id ?? list[0]?.id ?? '';
 
         // C25 — Catalogue datacenters (M12) + pré-remplissage depuis les
         // préférences utilisateur. Non-bloquant : si l'IPC échoue, le
@@ -395,7 +399,7 @@
   // Libellés humains pour les codes d'erreur IPC connus (mirroir simple —
   // source de vérité dans `crates/sobria-app/src/error.rs`).
   const ERROR_LABELS: Record<string, string> = {
-    tauri_unavailable: 'Application non lancée via Tauri',
+    tauri_unavailable: 'Application de bureau requise',
     unknown_model: 'Modèle inconnu',
     invalid_request: 'Requête invalide',
     estimator_error: 'Erreur du moteur Monte-Carlo',
@@ -440,7 +444,7 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Atelier d'estimation · Module M2
+      Atelier d'estimation
     </div>
     <h1 class="hero-h1">
       Quel est le poids carbone, <em>réel</em>, d'une seule requête à votre LLM ?
@@ -488,7 +492,7 @@
   <!-- ─── Composer (form) ──────────────────────────────────────── -->
   {#if bootstrapping}
     <div class="composer-skel" aria-busy="true">Chargement du référentiel…</div>
-  {:else if tauriAvailable && models.length > 0}
+  {:else if backendAvailable && models.length > 0}
     <Composer
       {models}
       bind:selectedModelId
@@ -507,6 +511,7 @@
   {#if result}
     <div bind:this={resultAnchor} style="scroll-margin-top: 24px"></div>
     <ResultBlock {result} />
+    <ReduceSuggestions {result} {models} />
 
     <!-- Équivalents (tuiles visuelles « Pour mettre cela en perspective »).
          C34 — la ligne texte EquivalenceCarbon a été retirée ici : elle
@@ -575,7 +580,7 @@
               <ArrowRight size={12} strokeWidth={2} />
             </span>
           </a>
-          <a class="nb-card" href="/m15">
+          <a class="nb-card" href="/suivi">
             <span class="nb-card-ico" aria-hidden="true">
               <BarChart3 size={18} strokeWidth={1.6} />
             </span>
@@ -587,7 +592,7 @@
               <ArrowRight size={12} strokeWidth={2} />
             </span>
           </a>
-          <a class="nb-card" href="/m25">
+          <a class="nb-card" href="/eco-budget">
             <span class="nb-card-ico" aria-hidden="true">
               <Target size={18} strokeWidth={1.6} />
             </span>
@@ -617,7 +622,7 @@
             <p class="also-sub">
               Le même prompt, calculé en parallèle avec
               <a class="link" href="/methodologies">d'autres méthodologies</a>
-              que tu as activées. Tous les calculs sont audités.
+              que vous avez activées. Tous les calculs sont audités.
             </p>
           </div>
         </header>
@@ -840,7 +845,7 @@
   .nb-card-sub {
     grid-row: 2;
     grid-column: 2;
-    font: 400 11px/1.45 var(--font-ui);
+    font: 400 12px/1.45 var(--font-ui);
     color: var(--ivory-3);
   }
   .nb-card-arrow {
@@ -928,7 +933,7 @@
     color: var(--ivory);
   }
   .also-card-pill {
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     padding: 3px 8px;
     border-radius: var(--radius-pill);
     background: var(--surface);
@@ -965,7 +970,7 @@
     gap: 6px 12px;
   }
   .stat dt {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-4);
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -980,7 +985,7 @@
     font-weight: 500;
   }
   .stat .unit {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     margin-left: 2px;
   }
@@ -1002,7 +1007,7 @@
   }
   .also-card-ref {
     margin: 4px 0 0;
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
   }
   .also-card-ref .link {
     color: var(--ivory-4);
@@ -1119,7 +1124,7 @@
     animation: rise 600ms var(--ease) backwards;
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -1279,7 +1284,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);

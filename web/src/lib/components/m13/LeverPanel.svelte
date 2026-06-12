@@ -336,7 +336,7 @@
     border-bottom: 1px solid var(--border);
   }
   .ph .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -357,7 +357,7 @@
     background: transparent;
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-2);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
@@ -387,7 +387,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-2);
@@ -410,7 +410,7 @@
   }
   .lev-status {
     margin-left: auto;
-    font: 400 11px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     color: var(--ivory-3);
     text-transform: none;
     letter-spacing: 0;
@@ -504,7 +504,7 @@
   .slider-axis {
     display: flex;
     justify-content: space-between;
-    font: 400 9px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     letter-spacing: 0.04em;
     margin-top: 4px;
@@ -551,7 +551,7 @@
     border-color: rgba(197, 240, 74, 0.5);
   }
   .r-label {
-    font: 600 11px/1 var(--font-ui);
+    font: 600 12px/1 var(--font-ui);
     color: var(--ivory);
     letter-spacing: 0.04em;
   }
@@ -559,7 +559,7 @@
     color: var(--lime);
   }
   .r-value {
-    font: 400 9px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .region-radio.on .r-value {

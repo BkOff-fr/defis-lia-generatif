@@ -170,7 +170,7 @@
     max-width: 50%;
   }
   .src {
-    font: 400 11px/1.2 var(--font-ui);
+    font: 400 12px/1.2 var(--font-ui);
     color: var(--ivory-3);
     display: inline-flex;
     align-items: center;

@@ -1,11 +1,25 @@
+import { readFileSync } from 'node:fs';
+
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+
+// Version unique, lue depuis package.json au build (synchronisée sur le
+// workspace Cargo par la release). Injectée en constante compile-time —
+// évite d'importer package.json au runtime (interdit par `server.fs.allow`
+// de SvelteKit en dev, cf. C37).
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
+  version: string;
+};
 
 // Configuration Vite — Sobr.ia
 // Optimisée pour Tauri (port fixe, pas de HMR network), build minimal.
 
 export default defineConfig({
   plugins: [sveltekit()],
+
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version)
+  },
 
   // Tauri attend un port fixe pour le hot reload
   server: {

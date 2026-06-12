@@ -199,7 +199,7 @@
     background: rgba(10, 13, 11, 0.85);
     border: 1px solid var(--border);
     border-radius: 999px;
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-2);
     letter-spacing: 0.06em;
     pointer-events: none;
@@ -239,7 +239,7 @@
   :global(.leaflet-control-attribution) {
     background: rgba(10, 13, 11, 0.75) !important;
     color: var(--ivory-3) !important;
-    font: 400 9px/1 var(--font-mono) !important;
+    font: 400 12px/1 var(--font-mono) !important;
   }
   :global(.leaflet-control-attribution a) {
     color: var(--ivory-2) !important;

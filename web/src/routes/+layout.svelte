@@ -17,19 +17,26 @@
     FileText,
     Info,
     FlaskConical,
-    Layers
+    Layers,
+    ChevronDown
   } from '@lucide/svelte';
   import { get } from 'svelte/store';
   import { isTauriContext, SobriaIpcError } from '$lib/api';
   import { loadPreferences, preferences } from '$lib/preferences';
   import type { ModuleId } from '$lib/preferences';
   import BrandMark from '$lib/components/BrandMark.svelte';
+  import DemoBanner from '$lib/components/DemoBanner.svelte';
+
+  // Injectée par Vite `define` depuis package.json (cf. vite.config.ts).
+  const appVersion = __APP_VERSION__;
 
   type Props = { children?: import('svelte').Snippet };
   let { children }: Props = $props();
 
   type RailItem = {
     label: string;
+    /** Libellé court affiché sous l'icône (C39 — rail lisible). */
+    short: string;
     icon: typeof Zap;
     href: string;
     moduleId: ModuleId;
@@ -120,40 +127,119 @@
   // Modules différés v1.1+ (M2/M5/M6/M10/M11/M16/M18/M19/M21/M23/M24) :
   // routes placeholder retirées du rail. Les backend Rust restent compilés
   // et activables manuellement via Paramètres.
-  const itemsCore: RailItem[] = [
-    { label: 'Estimer', icon: Zap, href: '/', moduleId: 'm1' },
-    { label: 'Comparer modèles', icon: Scale, href: '/comparer', moduleId: 'm3' },
-    { label: 'Simuler « Et si...? »', icon: TrendingUp, href: '/simuler', moduleId: 'm13' },
-    { label: 'Tableau de bord', icon: BarChart3, href: '/m15', moduleId: 'm15' },
-    { label: 'Eco-budget', icon: Target, href: '/m25', moduleId: 'm25' }
+  // ─── C39 — rail simplifié ────────────────────────────────────────────
+  // 5 essentiels toujours visibles ; le reste derrière « Plus » (état
+  // persisté). Le gating personas (visible()) s'applique par-dessus.
+  const itemsEssential: RailItem[] = [
+    { label: 'Estimer un prompt', short: 'Estimer', icon: Zap, href: '/', moduleId: 'm1' },
+    {
+      label: 'Comparer les modèles',
+      short: 'Comparer',
+      icon: Scale,
+      href: '/comparer',
+      moduleId: 'm3'
+    },
+    {
+      label: 'Tableau de bord personnel',
+      short: 'Suivi',
+      icon: BarChart3,
+      href: '/suivi',
+      moduleId: 'm15'
+    },
+    {
+      label: 'Bibliothèque de modèles',
+      short: 'Modèles',
+      icon: Library,
+      href: '/modeles',
+      moduleId: 'm9'
+    },
+    {
+      label: 'Datacenters Europe',
+      short: 'Datacenters',
+      icon: Server,
+      href: '/datacenters',
+      moduleId: 'm12'
+    }
   ];
-  const itemsIO: RailItem[] = [
-    { label: 'Datacenters Europe', icon: Server, href: '/datacenters', moduleId: 'm12' },
-    { label: 'Territoire FR', icon: Globe, href: '/territoire', moduleId: 'm20' },
-    { label: 'Datasheet scientifique', icon: FlaskConical, href: '/m17', moduleId: 'm17' },
+  const itemsMore: RailItem[] = [
+    {
+      label: 'Simuler « Et si...? »',
+      short: 'Simuler',
+      icon: TrendingUp,
+      href: '/simuler',
+      moduleId: 'm13'
+    },
+    {
+      label: 'Éco-budget personnel',
+      short: 'Budget',
+      icon: Target,
+      href: '/eco-budget',
+      moduleId: 'm25'
+    },
+    {
+      label: 'Territoire France (IRIS)',
+      short: 'Territoire',
+      icon: Globe,
+      href: '/territoire',
+      moduleId: 'm20'
+    },
+    {
+      label: 'Datasheet scientifique',
+      short: 'Datasheet',
+      icon: FlaskConical,
+      href: '/datasheets',
+      moduleId: 'm17'
+    },
     {
       label: 'Rapport réglementaire (CSRD/AGEC)',
+      short: 'CSRD',
       icon: FileText,
       href: '/rapport-csrd',
       moduleId: 'm22'
-    }
-  ];
-  const itemsAudit: RailItem[] = [
-    { label: "Journal d'audit", icon: ShieldCheck, href: '/journal', moduleId: 'm7' },
-    { label: 'Bibliothèque de modèles', icon: Library, href: '/m9', moduleId: 'm9' },
-    // Polish B — désambiguïsation des routes méthodologie :
-    // `/methodo` = doc explicative de la méthodologie (cours, formules)
-    // `/methodologies` = catalogue de choix utilisateur (settings global)
-    { label: 'Comment ça marche', icon: BookOpen, href: '/methodo', moduleId: 'm8' },
+    },
+    {
+      label: "Journal d'audit",
+      short: 'Journal',
+      icon: ShieldCheck,
+      href: '/journal',
+      moduleId: 'm7'
+    },
+    {
+      label: 'Comment ça marche',
+      short: 'Méthode',
+      icon: BookOpen,
+      href: '/methodo',
+      moduleId: 'm8'
+    },
     {
       label: 'Méthodologies (choix)',
+      short: 'Méthodos',
       icon: Layers,
       href: '/methodologies',
       moduleId: 'm14',
       alwaysVisible: true
     },
-    { label: 'À propos', icon: Info, href: '/a-propos', moduleId: 'm14' }
+    { label: 'À propos', short: 'À propos', icon: Info, href: '/a-propos', moduleId: 'm14' }
   ];
+
+  // État du dépliage « Plus » — persisté (localStorage, best-effort).
+  const RAIL_KEY = 'sobria.rail_expanded';
+  let railExpanded = $state(false);
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    railExpanded = window.localStorage.getItem(RAIL_KEY) === '1';
+  });
+  function toggleRail() {
+    railExpanded = !railExpanded;
+    try {
+      window.localStorage.setItem(RAIL_KEY, railExpanded ? '1' : '0');
+    } catch {
+      /* stockage indisponible : non-bloquant */
+    }
+  }
+
+  // Si la page ACTIVE est dans « Plus », on déplie pour montrer où on est.
+  const moreHasActive = $derived(itemsMore.some((i) => isActive(i.href, pathname)));
 
   function visible(item: RailItem, prefs: typeof $preferences): boolean {
     // Toujours visible (paramétrage global cf. C24).
@@ -169,6 +255,13 @@
 
   // Onboarding : full-screen wizard, on cache le rail et la décoration.
   const isOnboarding = $derived(pathname === '/onboarding');
+
+  // Mode démo (C36) : évalué client-only pour éviter tout flash de la
+  // bannière dans l'app de bureau (le HTML prérendu n'en contient pas).
+  let demoMode = $state(false);
+  $effect(() => {
+    demoMode = !isTauriContext();
+  });
 </script>
 
 {#if isOnboarding}
@@ -196,63 +289,51 @@
         <BrandMark size={44} uid="rail" />
       </a>
 
-      {#each itemsCore as item (item.href)}
+      {#snippet railBtn(item: RailItem)}
+        {@const Icon = item.icon}
+        {@const active = isActive(item.href, pathname)}
+        <a
+          class="rail-btn"
+          class:active
+          href={item.href}
+          title={item.label}
+          aria-label={item.label}
+          aria-current={active ? 'page' : undefined}
+          data-module-id={item.moduleId}
+        >
+          <Icon size={20} strokeWidth={1.6} />
+          <span class="rail-label">{item.short}</span>
+        </a>
+      {/snippet}
+
+      {#each itemsEssential as item (item.href)}
         {#if visible(item, $preferences)}
-          {@const Icon = item.icon}
-          {@const active = isActive(item.href, pathname)}
-          <a
-            class="rail-btn"
-            class:active
-            href={item.href}
-            title={item.label}
-            aria-label={item.label}
-            aria-current={active ? 'page' : undefined}
-            data-module-id={item.moduleId}
-          >
-            <Icon size={20} strokeWidth={1.6} />
-          </a>
+          {@render railBtn(item)}
         {/if}
       {/each}
 
       <div class="rail-sep" aria-hidden="true"></div>
 
-      {#each itemsIO as item (item.href)}
-        {#if visible(item, $preferences)}
-          {@const Icon = item.icon}
-          {@const active = isActive(item.href, pathname)}
-          <a
-            class="rail-btn"
-            class:active
-            href={item.href}
-            title={item.label}
-            aria-label={item.label}
-            aria-current={active ? 'page' : undefined}
-            data-module-id={item.moduleId}
-          >
-            <Icon size={20} strokeWidth={1.6} />
-          </a>
-        {/if}
-      {/each}
+      <button
+        class="rail-btn rail-more"
+        type="button"
+        onclick={toggleRail}
+        aria-expanded={railExpanded || moreHasActive}
+        title={railExpanded || moreHasActive ? 'Réduire le menu' : 'Plus de modules'}
+      >
+        <span class="chev" class:open={railExpanded || moreHasActive}>
+          <ChevronDown size={18} strokeWidth={1.8} />
+        </span>
+        <span class="rail-label">{railExpanded || moreHasActive ? 'Réduire' : 'Plus'}</span>
+      </button>
 
-      <div class="rail-sep" aria-hidden="true"></div>
-
-      {#each itemsAudit as item (item.href)}
-        {#if visible(item, $preferences)}
-          {@const Icon = item.icon}
-          {@const active = isActive(item.href, pathname)}
-          <a
-            class="rail-btn"
-            class:active
-            href={item.href}
-            title={item.label}
-            aria-label={item.label}
-            aria-current={active ? 'page' : undefined}
-            data-module-id={item.moduleId}
-          >
-            <Icon size={20} strokeWidth={1.6} />
-          </a>
-        {/if}
-      {/each}
+      {#if railExpanded || moreHasActive}
+        {#each itemsMore as item (item.href)}
+          {#if visible(item, $preferences)}
+            {@render railBtn(item)}
+          {/if}
+        {/each}
+      {/if}
 
       <div class="rail-foot">
         <a
@@ -266,11 +347,14 @@
         <a class="rail-btn" href="/parametres" title="Paramètres" aria-label="Paramètres">
           <Settings2 size={20} strokeWidth={1.6} />
         </a>
-        <div class="rail-version">v0.3.0 · LOCAL</div>
+        <div class="rail-version">v{appVersion} · {demoMode ? 'DÉMO' : 'LOCAL'}</div>
       </div>
     </nav>
 
     <main class="canvas scrollable">
+      {#if demoMode}
+        <DemoBanner />
+      {/if}
       {@render children?.()}
     </main>
   </div>
@@ -422,10 +506,14 @@
   }
 
   .rail-btn {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
+    width: 80px;
+    min-height: 52px;
+    padding: 7px 4px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
     border: none;
     background: transparent;
     color: var(--ivory-3);
@@ -447,10 +535,31 @@
     background: var(--surface-hi);
     color: var(--lime);
   }
+  .rail-label {
+    font: 500 0.75rem/1.1 var(--font-ui);
+    letter-spacing: 0.01em;
+    max-width: 76px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rail-more {
+    background: transparent;
+    border: none;
+  }
+  .rail-more .chev {
+    display: grid;
+    place-items: center;
+    transition: transform var(--dur-base) var(--ease);
+  }
+  .rail-more .chev.open {
+    transform: rotate(180deg);
+  }
+
   .rail-btn.active::before {
     content: '';
     position: absolute;
-    left: -22px;
+    left: -8px;
     top: 50%;
     transform: translateY(-50%);
     width: 3px;
@@ -481,7 +590,7 @@
     align-items: center;
   }
   .rail-version {
-    font: 500 9px/1.3 var(--font-mono);
+    font: 500 12px/1.3 var(--font-mono);
     color: var(--ivory-4);
     writing-mode: vertical-rl;
     text-orientation: mixed;

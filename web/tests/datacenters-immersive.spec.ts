@@ -1,82 +1,76 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * C25 — Régression layout immersif de l'écran Datacenters Europe (M12).
+ * C25/C36 — Layout immersif de l'écran Datacenters Europe (M12).
  *
  * Le chantier C25 a transformé `/datacenters` en mise en page immersive :
  *   - `.dc-route`           → conteneur de route `position: relative; overflow: hidden`
- *                            (gated sur `tauriAvailable && datacenters.length > 0`).
+ *                            (gated sur `backendAvailable && datacenters.length > 0`).
  *   - `.dc-map-fill`        → wrapper carte `position: absolute; inset: 0`.
  *   - `.dc-filters-overlay` → overlay filtres flottant top-left `position: absolute`.
  *   - `.dc-drill-overlay`   → overlay drill-down monté UNIQUEMENT si selectedDc
  *                            ou selectedCountry est défini (cf. C25 B3, plus de
  *                            placeholder « Cliquez un marker »).
  *
- * En mode vite-only (cette suite), le runtime Tauri est absent. La gating
- * `tauriAvailable && datacenters.length > 0` empêche `.dc-route` d'être
- * montée — c'est exactement le contrat « no-mock » (CLAUDE.md §13). Les
- * assertions structurelles sur le layout immersif vivent dans la suite
- * Tauri dédiée (C09.5).
+ * Depuis C36, le mode démo web sert `list_datacenters` /
+ * `aggregate_datacenters_by_country` hors Tauri : le layout immersif est
+ * donc monté aussi en vite-only et son contrat CSS est vérifiable ici.
  *
- * Cette suite garantit donc :
- *   1. La dégradation gracieuse est propre : bannière `tauri_unavailable`
- *      visible, empty-shell visible.
- *   2. Aucune trace du layout immersif n'apparaît hors Tauri (aucun
- *      `.dc-route`, `.dc-map-fill`, `.dc-filters-overlay`, `.dc-drill-overlay`).
- *   3. Le drill-overlay n'est jamais monté tant qu'aucune sélection n'a eu
- *      lieu (régression B3 — supprime le placeholder vide historique).
- *
- * Le bloc `test.skip` documente le contrat immersif réel (CSS computed)
- * qui sera vérifié dès que la suite Tauri sera branchée.
+ * Cette suite garantit :
+ *   1. Bannière « Mode démo » visible, aucune bannière d'erreur, pas
+ *      d'empty-shell.
+ *   2. Le layout immersif est monté : `.dc-route`, `.dc-map-fill`,
+ *      `.dc-filters-overlay`, carte Leaflet.
+ *   3. Le contrat CSS C25 B1 est respecté (positions calculées).
+ *   4. Régression B3 : le drill-overlay n'est jamais monté tant
+ *      qu'aucune sélection n'a eu lieu.
  */
 
 test.describe('C25 /datacenters immersive layout', () => {
-  test('vite-only : dégradation gracieuse, aucun layout immersif monté', async ({ page }) => {
+  test('mode démo : layout immersif monté, drill-overlay absent sans sélection', async ({
+    page
+  }) => {
     await page.goto('/datacenters');
 
-    // 1. Coque rendue (hero h1 toujours visible quel que soit le contexte).
+    // 1. Coque rendue + mode démo sans erreur ni empty-shell.
     await expect(
       page.getByRole('heading', { name: /Où tournent.*physiquement.*vos prompts/i })
     ).toBeVisible();
+    await expect(page.locator('aside.demo-banner')).toBeVisible();
+    await expect(page.locator('.dc-route')).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Carte indisponible/i })).toHaveCount(0);
 
-    // 2. Bannière tauri_unavailable (prouve que la route a bootstrappé et a
-    //    refusé de mocker la carte).
-    const banner = page.getByRole('alert');
-    await expect(banner).toBeVisible();
-    await expect(banner).toContainText(/Application non lancée via Tauri/);
+    // 2. Layout immersif monté avec la carte Leaflet.
+    await expect(page.locator('.dc-map-fill')).toBeVisible();
+    await expect(page.locator('.dc-filters-overlay')).toBeVisible();
+    await expect(page.locator('.dc-map-fill .leaflet-container')).toBeVisible();
 
-    // 3. Empty-shell pédagogique visible (branche `!bootstrapping && (!tauri || !data)`).
-    await expect(page.getByRole('heading', { name: /Carte indisponible/i })).toBeVisible();
+    // 3. Contrat CSS C25 B1 (computed styles).
+    expect(
+      await page.locator('.dc-route').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { position: s.position, overflow: s.overflow };
+      })
+    ).toEqual({ position: 'relative', overflow: 'hidden' });
+    expect(await page.locator('.dc-map-fill').evaluate((el) => getComputedStyle(el).position)).toBe(
+      'absolute'
+    );
+    expect(
+      await page.locator('.dc-filters-overlay').evaluate((el) => getComputedStyle(el).position)
+    ).toBe('absolute');
 
-    // 4. Aucun élément du layout immersif ne doit fuiter en vite-only.
-    //    Toute la mise en page C25 B1-B3 est gated sur la présence d'un
-    //    runtime Tauri + un dataset chargé.
-    await expect(page.locator('.dc-route')).toHaveCount(0);
-    await expect(page.locator('.dc-map-fill')).toHaveCount(0);
-    await expect(page.locator('.dc-filters-overlay')).toHaveCount(0);
-
-    // 5. Régression C25 B3 : tant qu'aucune sélection n'a eu lieu, le
+    // 4. Régression C25 B3 : tant qu'aucune sélection n'a eu lieu, le
     //    drill-overlay n'est JAMAIS monté (plus de placeholder vide).
     await expect(page.locator('.dc-drill-overlay')).toHaveCount(0);
   });
 
-  // Contrat immersif complet — vérifiable uniquement avec un runtime Tauri
-  // qui fournit les 28 datacenters via `list_datacenters`. À brancher sur la
-  // suite C09.5 (cargo tauri dev) dès qu'elle existe.
-  //
-  // Garanties attendues côté Tauri :
-  //   - `.dc-route` présent, `getComputedStyle().position === 'relative'`,
-  //     `overflow === 'hidden'`.
-  //   - `.dc-map-fill` présent, `position === 'absolute'`, `inset: 0`.
-  //   - `.dc-filters-overlay` présent, `position === 'absolute'`,
-  //     `top: 16px`, `left: 16px`, z-index élevé.
-  //   - `.dc-drill-overlay` absent au mount (aucune sélection initiale).
-  //   - Au clic sur un marker Leaflet : `.dc-drill-overlay` apparaît,
-  //     contient `<DatacenterDrillDown>` (et un `aria-label` close).
-  //   - Au clic sur une country layer : `.dc-drill-overlay` contient
-  //     `<CountryDrillDown>`.
-  //   - Carte Leaflet `.leaflet-container` rendue et remplit `.dc-map-fill`.
-  test.skip('tauri-only : layout immersif respecte le contrat CSS C25', async () => {
+  // Drill-down complet (clic marker → fiche détaillée, clic pays →
+  // CountryDrillDown) : la fiche datacenter dépend de
+  // `get_datacenter_detail` (profil 24 h), volontairement NON couverte par
+  // la démo (`desktopOnly`). L'interaction est donc vérifiée dans la suite
+  // Tauri dédiée (C09.5) avec le runtime réel.
+  test.skip('tauri-only : drill-down marker/pays alimenté par get_datacenter_detail', async () => {
     // Voir briefs/chantiers/C25-*.md pour le plan complet.
   });
 });

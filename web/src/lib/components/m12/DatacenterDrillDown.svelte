@@ -465,7 +465,7 @@
     flex-shrink: 0;
   }
   .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -479,7 +479,7 @@
     margin: 0 0 2px;
   }
   .sub {
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .x-btn {
@@ -548,14 +548,14 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
   }
   .block-counter {
     margin-left: auto;
-    font: 600 10px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--amber);
   }
 
@@ -574,7 +574,7 @@
   }
   .donut-hint {
     margin: 0;
-    font: 400 10px/1.4 var(--font-ui);
+    font: 400 12px/1.4 var(--font-ui);
     color: var(--ivory-3);
     font-style: italic;
     text-align: center;
@@ -600,7 +600,7 @@
     border-radius: var(--radius-sm);
   }
   .bar-label {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-2);
   }
   .bar-track {
@@ -619,7 +619,7 @@
   }
   .bar-val {
     text-align: right;
-    font: 600 11px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--ivory);
   }
   .bar-val .u {
@@ -642,7 +642,7 @@
   .profile-axis {
     display: flex;
     justify-content: space-between;
-    font: 400 9px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     letter-spacing: 0.04em;
   }
@@ -669,14 +669,14 @@
     flex-shrink: 0;
   }
   .spec-l {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
   }
   .spec-v {
     margin-left: auto;
-    font: 600 11px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--ivory);
   }
 
@@ -698,7 +698,7 @@
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    font: 400 11px/1.3 var(--font-ui);
+    font: 400 12px/1.3 var(--font-ui);
     color: var(--ivory-2);
     text-decoration: none;
     transition: all var(--dur-base) var(--ease);

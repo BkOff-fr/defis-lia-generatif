@@ -3,15 +3,16 @@ import { expect, test } from '@playwright/test';
 /**
  * Smoke test de la page À propos / Crédits (module M14).
  *
- * Comme /methodo, la page est essentiellement statique (le bloc « État
- * technique » dépend de l'IPC `meta_info` mais affiche un message clair
- * hors Tauri sans bloquer le reste du contenu). On vérifie donc :
+ * Comme /methodo, la page est essentiellement statique. Le bloc « État
+ * technique » dépend de l'IPC `meta_info` — couverte par la démo web
+ * (C36) : hors Tauri il affiche le runtime démo (version « démo web »,
+ * seed 42) sans inventer de chemin local. On vérifie donc :
  *   1. La route répond et porte le bon titre.
  *   2. Les sections principales (Méthodologie, Licences, Sources,
  *      Contributeurs, Mentions légales, État technique) sont présentes.
  *   3. Les liens externes ont rel="noopener noreferrer".
- *   4. Hors Tauri, la section « État technique » signale clairement
- *      l'indisponibilité de l'IPC plutôt que de planter.
+ *   4. Hors Tauri, la section « État technique » présente le runtime démo
+ *      et renvoie vers l'application de bureau pour les chemins locaux.
  */
 
 test('À propos : charge et présente toutes les sections', async ({ page }) => {
@@ -50,8 +51,13 @@ test('À propos : liens externes sécurisés (noopener)', async ({ page }) => {
   }
 });
 
-test("À propos : hors Tauri, état technique signale l'indisponibilité IPC", async ({ page }) => {
+test('À propos : hors Tauri, état technique affiche le runtime démo', async ({ page }) => {
   await page.goto('/a-propos');
-  // Le bloc « État technique » doit afficher le code IPC explicite.
-  await expect(page.getByText('tauri_unavailable')).toBeVisible();
+  // `meta_info` est couvert par la démo : le bloc « État technique » rend
+  // la grille runtime avec la version démo et le seed du moteur, et les
+  // chemins locaux pointent explicitement vers l'application de bureau.
+  const tech = page.locator('.tech-grid');
+  await expect(tech).toBeVisible();
+  await expect(tech).toContainText(/démo web \(fixtures seed 42\)/);
+  await expect(tech).toContainText(/application de bureau/);
 });

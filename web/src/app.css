@@ -112,11 +112,15 @@
   --border-soft: rgba(255, 255, 255, 0.04);
   --border-hi: rgba(255, 255, 255, 0.14);
 
-  /* Ivory (texte) */
+  /* Ivory (texte).
+   * Contrastes WCAG mesurés sur --ink (#0a0d0b), cf. DoD « check a11y » :
+   * --ivory 16.6:1 · --ivory-2 9.5:1 · --ivory-3 5.0:1 (AA texte normal)
+   * --ivory-4 3.1:1 — réservé aux éléments DÉCORATIFS (séparateurs,
+   * hints non porteurs d'information), jamais pour du texte utile. */
   --ivory: #f0ece3;
   --ivory-2: #b8b4ac;
-  --ivory-3: #72706a;
-  --ivory-4: #46443f;
+  --ivory-3: #83817a;
+  --ivory-4: #62605a;
   --ivory-inv: #0a0d0b;
 
   /* Lime (accent unique, signature) */
@@ -150,34 +154,37 @@
   --font-ui: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  /* Échelle type */
-  --fs-display: 64px;
+  /* Échelle type — en rem (base 16px) pour respecter le réglage de
+   * taille de police du navigateur/de l'OS (a11y). Corps relevé de
+   * 14px → 15px et plancher global 12px (0.75rem) : aucun texte
+   * porteur d'information sous ce seuil. */
+  --fs-display: 4rem; /* 64px */
   --lh-display: 1.05;
-  --fs-display-sm: 48px;
+  --fs-display-sm: 3rem; /* 48px */
   --lh-display-sm: 1.05;
-  --fs-h1: 28px;
-  --lh-h1: 36px;
-  --fs-h2: 20px;
-  --lh-h2: 28px;
-  --fs-h3: 16px;
-  --lh-h3: 24px;
-  --fs-body: 14px;
-  --lh-body: 20px;
-  --fs-body-sm: 13px;
-  --lh-body-sm: 18px;
-  --fs-caption: 12px;
-  --lh-caption: 16px;
-  --fs-eyebrow: 11px;
-  --lh-eyebrow: 14px;
+  --fs-h1: 1.75rem; /* 28px */
+  --lh-h1: 1.3;
+  --fs-h2: 1.25rem; /* 20px */
+  --lh-h2: 1.4;
+  --fs-h3: 1rem; /* 16px */
+  --lh-h3: 1.5;
+  --fs-body: 0.9375rem; /* 15px */
+  --lh-body: 1.45;
+  --fs-body-sm: 0.875rem; /* 14px */
+  --lh-body-sm: 1.4;
+  --fs-caption: 0.75rem; /* 12px — plancher */
+  --lh-caption: 1.35;
+  --fs-eyebrow: 0.75rem; /* 12px — plancher (était 11px) */
+  --lh-eyebrow: 1.3;
 
   /* Métrique éditoriale */
-  --fs-metric-xl: 72px;
+  --fs-metric-xl: 4.5rem; /* 72px */
   --lh-metric-xl: 1;
-  --fs-metric-lg: 48px;
+  --fs-metric-lg: 3rem; /* 48px */
   --lh-metric-lg: 1;
-  --fs-metric-md: 28px;
+  --fs-metric-md: 1.75rem; /* 28px */
   --lh-metric-md: 1;
-  --fs-metric-sm: 22px;
+  --fs-metric-sm: 1.375rem; /* 22px */
   --lh-metric-sm: 1;
 
   /* Espacements (grille 4 px) */
@@ -213,7 +220,7 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Layout */
-  --rail-w: 76px;
+  --rail-w: 96px;
   --statusbar-h: 36px;
 
   color-scheme: dark;
@@ -265,7 +272,7 @@ a:hover {
 code,
 pre {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 0.8125rem; /* 13px */
   color: var(--ivory);
 }
 

@@ -212,7 +212,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.3);
     color: var(--lime);
-    font: 600 10px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
   }
   .reset {
     display: inline-flex;
@@ -224,7 +224,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--ivory-2);
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     cursor: pointer;
   }
   .reset:hover {
@@ -242,7 +242,7 @@
     border: none;
   }
   legend {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -286,7 +286,7 @@
     border: 1px solid var(--border);
     border-radius: 999px;
     color: var(--ivory-2);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
   }

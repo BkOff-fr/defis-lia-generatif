@@ -1,16 +1,20 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Contrat « no-mock » de la section Mode Équipe (C29.1 — brief §C29.1).
+ * Contrat « démo » de la section Mode Équipe (C29.1 — brief §C29.1 / C36).
  *
  * La section Mode Équipe est rendue dans la page /parametres entre
- * « Extension navigateur » et « Runtime ». Hors Tauri, les 8 IPC `team_*`
- * sont indisponibles — on vérifie :
+ * « Extension navigateur » et « Runtime ». Les 8 IPC `team_*` ne sont PAS
+ * couverts par la démo web : toute action réseau rejettera avec le message
+ * « application de bureau ». La coque reste rendue et les champs sont
+ * éditables (validation client), mais aucune donnée équipe n'est servie.
+ *
+ * On vérifie :
  *   1. La section est rendue (heading + section-foot avec docs/operations/team-aggregator.md).
  *   2. Le pill de statut affiche "Non configuré" (état initial, sans data).
- *   3. Les contrôles d'écriture (URL input, mots de passe, boutons) sont
- *      disabled hors Tauri — pas de mock, pas de fallback (CLAUDE.md §13).
- *   4. Le 3-radio dispatcher (local / team / both) est présent et disabled.
+ *   3. Les champs sont éditables mais les actions restent gardées par la
+ *      validation client (URL vide → boutons désactivés).
+ *   4. Le 3-radio dispatcher (local / team / both) est présent.
  *   5. Aucun bloc "enrôlé" n'est rendu sans IPC (pas de fake data).
  *
  * Le flow complet (URL → ping → enrôlement → set_mode → logout) sera
@@ -18,7 +22,7 @@ import { expect, test } from '@playwright/test';
  * binaire `sobria-team-aggregator` local (cf. brief C29 §"DoD globale").
  */
 
-test('Paramètres → Mode Équipe : section rendue + contrôles disabled hors Tauri', async ({
+test('Paramètres → Mode Équipe : section rendue + aucune donnée équipe servie', async ({
   page
 }) => {
   await page.goto('/parametres');
@@ -34,32 +38,29 @@ test('Paramètres → Mode Équipe : section rendue + contrôles disabled hors T
   await expect(pill).toBeVisible();
   await expect(pill).toContainText(/Non configuré/i);
 
-  // 3. URL input présent ET disabled hors Tauri.
+  // 3. URL input présent et éditable (validation purement client).
   const urlInput = page.locator('[data-testid="team-url-input"]');
   await expect(urlInput).toBeVisible();
-  await expect(urlInput).toBeDisabled();
+  await expect(urlInput).toBeEnabled();
 
-  // Bouton Enregistrer l'URL disabled (Tauri OFF + URL vide).
+  // Bouton Enregistrer l'URL désactivé tant que l'URL est vide/invalide.
   await expect(page.locator('[data-testid="team-save-url"]')).toBeDisabled();
 
-  // Bouton Vérifier la connexion disabled (Tauri OFF + URL non posée).
+  // Bouton Vérifier la connexion désactivé (URL non posée).
   await expect(page.locator('[data-testid="team-ping"]')).toBeDisabled();
 
-  // Toggle "Accepter les certificats auto-signés" disabled hors Tauri.
-  await expect(page.locator('[data-testid="team-accept-cert"]')).toBeDisabled();
-
-  // 4. Bloc Enrôlement visible (puisque pas enrôlé) avec champs disabled.
+  // 4. Bloc Enrôlement visible (puisque pas enrôlé), champs éditables mais
+  //    soumission gardée par la validation client (champs vides).
   await expect(page.locator('[data-testid="team-enroll-block"]')).toBeVisible();
-  await expect(page.locator('[data-testid="team-code-input"]')).toBeDisabled();
-  await expect(page.locator('[data-testid="team-password-input"]')).toBeDisabled();
-  await expect(page.locator('[data-testid="team-password-confirm-input"]')).toBeDisabled();
+  await expect(page.locator('[data-testid="team-code-input"]')).toBeEnabled();
+  await expect(page.locator('[data-testid="team-password-input"]')).toBeEnabled();
+  await expect(page.locator('[data-testid="team-password-confirm-input"]')).toBeEnabled();
   await expect(page.locator('[data-testid="team-enroll-btn"]')).toBeDisabled();
 
-  // 5. Dispatcher : les 3 radios sont rendus et disabled hors Tauri.
+  // 5. Dispatcher : les 3 radios sont rendus.
   for (const m of ['local', 'team', 'both']) {
     const radio = page.locator(`[data-testid="team-mode-${m}"]`);
     await expect(radio).toBeVisible();
-    await expect(radio).toBeDisabled();
   }
 
   // 6. Pas de bloc "enrôlé" (logout / dashboard externe) sans données IPC.
@@ -70,8 +71,9 @@ test('Paramètres → Mode Équipe : section rendue + contrôles disabled hors T
 });
 
 test("Paramètres → Mode Équipe : input client-side ne déclenche pas d'IPC", async ({ page }) => {
-  // Hors Tauri les inputs sont disabled. On vérifie qu'aucune erreur visible
-  // ne fuit dans la section (pas de bannière rouge "team_error" en boot).
+  // En démo web, le boot équipe échoue silencieusement (loadTeam catch).
+  // On vérifie qu'aucune erreur visible ne fuit dans la section (pas de
+  // bannière rouge "team_error" en boot).
   await page.goto('/parametres');
   await expect(page.locator('[data-testid="team-section"]')).toBeVisible();
   await expect(page.locator('[data-testid="team-error"]')).toHaveCount(0);

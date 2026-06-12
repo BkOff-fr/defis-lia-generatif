@@ -133,7 +133,7 @@
     flex-shrink: 0;
   }
   .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -147,7 +147,7 @@
     margin: 0 0 2px;
   }
   .sub {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .x-btn {
@@ -187,7 +187,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -203,7 +203,7 @@
     color: var(--blue);
   }
   .m-v .u {
-    font: 400 11px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     font-style: normal;
     color: var(--ivory-3);
     margin-left: 5px;
@@ -220,7 +220,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -267,7 +267,7 @@
     border-top: 1px solid var(--border);
   }
   .top-h {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -293,7 +293,7 @@
   }
   .rank {
     text-align: center;
-    font: 600 11px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--lime);
   }
   .rn {
@@ -305,7 +305,7 @@
   .rs {
     grid-column: 2 / 3;
     grid-row: 2 / 3;
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     margin-top: 2px;
   }

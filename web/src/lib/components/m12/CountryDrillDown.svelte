@@ -129,7 +129,7 @@
     padding-top: 2px;
   }
   .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -143,7 +143,7 @@
     margin: 0 0 2px;
   }
   .sub {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .x-btn {
@@ -178,7 +178,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -200,7 +200,7 @@
     color: var(--coral);
   }
   .c-v .u {
-    font: 400 10px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     font-style: normal;
     color: var(--ivory-3);
     margin-left: 5px;
@@ -211,7 +211,7 @@
     border-top: 1px solid var(--border);
   }
   .dl-h {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -251,12 +251,12 @@
     white-space: nowrap;
   }
   .dc-op {
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--lime);
     letter-spacing: 0.04em;
   }
   .dc-pue {
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .mono {

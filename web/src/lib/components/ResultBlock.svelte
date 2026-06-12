@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Term from '$lib/components/Term.svelte';
   import { Leaf, Droplet, Hexagon, Layers, Settings2 } from '@lucide/svelte';
   import type {
     DistributionBins,
@@ -210,7 +211,7 @@
   <a
     class="method-badge"
     href="/methodologies"
-    title="Méthodologie utilisée pour ce calcul. Clique pour changer ta méthodologie par défaut."
+    title="Méthodologie utilisée pour ce calcul. Cliquez pour changer votre méthodologie par défaut."
     data-method={result.method}
   >
     <Layers size={11} strokeWidth={2} />
@@ -221,7 +222,7 @@
   <article class="hero-metric">
     <h2 class="hm-label">
       <Leaf size={14} strokeWidth={1.8} />
-      Émission CO₂ équivalent · médiane
+      Émission CO₂ équivalent · <Term k="p50">médiane</Term>
     </h2>
 
     {#if co2}
@@ -229,7 +230,7 @@
         {fmt(co2.p50 * co2Scale.mult)}<span class="unit">{co2Scale.unit}</span>
       </div>
       <div class="hm-range" aria-label="Intervalle d'incertitude P5 à P95">
-        <span class="key">P5–P95</span>
+        <span class="key"><Term k="p5p95">P5–P95</Term></span>
         <span class="lime">{fmt(co2.p5 * co2Scale.mult)}</span>
         <span class="key">→</span>
         <span class="lime">{fmt(co2.p95 * co2Scale.mult)}</span>
@@ -263,7 +264,7 @@
           <!-- Médiane -->
           <line x1={x50} y1="0" x2={x50} y2="78" stroke="#c5f04a" stroke-width="2" />
           <circle cx={x50} cy="8" r="3.5" fill="#c5f04a" />
-          <text x={x50 + 6} y="14" font-family="JetBrains Mono" font-size="9" fill="#c5f04a"
+          <text x={x50 + 6} y="14" font-family="JetBrains Mono" font-size="10" fill="#c5f04a"
             >MÉDIANE</text
           >
           <!-- P5 / P95 ticks -->
@@ -289,7 +290,7 @@
             x={x5}
             y="48"
             font-family="JetBrains Mono"
-            font-size="8"
+            font-size="10"
             fill="rgba(240,236,227,0.55)"
             text-anchor="middle">P5</text
           >
@@ -297,7 +298,7 @@
             x={x95}
             y="54"
             font-family="JetBrains Mono"
-            font-size="8"
+            font-size="10"
             fill="rgba(240,236,227,0.55)"
             text-anchor="middle">P95</text
           >
@@ -408,7 +409,7 @@
     background: var(--surface-hi);
     border: 1px solid var(--border-hi);
     border-radius: var(--radius-pill);
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-2);
     text-decoration: none;
     z-index: 2;
@@ -464,7 +465,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -540,13 +541,13 @@
   .dist-axis {
     display: flex;
     justify-content: space-between;
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     padding: 0 2px;
   }
   .dist-meta {
     margin-top: 6px;
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     letter-spacing: 0.04em;
     text-transform: lowercase;
@@ -605,7 +606,7 @@
     min-width: 0;
   }
   .side-metric .sm-l {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -632,7 +633,7 @@
     margin-left: 6px;
   }
   .side-metric .sm-r {
-    font: 400 10px/1.3 var(--font-mono);
+    font: 400 12px/1.3 var(--font-mono);
     color: var(--ivory-4);
     margin-top: 4px;
   }

@@ -266,7 +266,7 @@
             y={n.y + n.height / 2 + 14}
             fill="#b8b4ac"
             font-family="JetBrains Mono, monospace"
-            font-size="9"
+            font-size="10"
           >
             {fmtTwh(n.value_twh, 1)} TWh
           </text>
@@ -372,7 +372,7 @@
     color: var(--lime);
   }
   .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -419,7 +419,7 @@
     background: rgba(10, 13, 11, 0.92);
     border: 1px solid rgba(197, 240, 74, 0.3);
     border-radius: 999px;
-    font: 400 11px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     color: var(--ivory);
     pointer-events: none;
     white-space: nowrap;
@@ -449,7 +449,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font: 400 11px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     color: var(--ivory-2);
   }
   .lg-swatch {
@@ -476,7 +476,7 @@
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
-    font: 400 10px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-3);
   }
   .sfoot a {

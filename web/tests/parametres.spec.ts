@@ -1,31 +1,44 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Contrat « no-mock » de l'écran Paramètres (C10 — ADR-0010).
+ * Contrat « démo » de l'écran Paramètres (C10 — ADR-0010 / C36).
  *
  * Paramètres affiche : persona, modules par catégorie, modules disponibles,
- * refaire onboarding + langue. Hors Tauri, l'IPC `get_app_preferences` et
- * `meta_info` échouent — on vérifie :
- *   1. La coque est rendue (hero h1, sections persona / modules).
- *   2. Les bannières `tauri_unavailable` s'affichent.
- *   3. Les contrôles d'écriture (boutons persona, toggles modules, langue)
- *      sont disabled — pas de mock, pas de fallback.
- *   4. La section Runtime n'est PAS peuplée (pas de chemin filesystem
- *      affiché — sinon c'est qu'on a mocké).
+ * refaire onboarding + langue, référentiel, extension, mode équipe,
+ * runtime. La page est PARTIELLEMENT couverte par la démo web :
+ * `meta_info`, `list_methodologies`, `get_referentiel_status` et
+ * `get/set_app_preferences` répondent, mais le bootstrap groupé inclut les
+ * commandes pairing (extension navigateur) NON couvertes — la page affiche
+ * donc la bannière « Application de bureau requise ».
+ *
+ * On vérifie :
+ *   1. La coque est rendue (hero h1, sections persona / modules) +
+ *      bannière « Mode démo ».
+ *   2. La bannière « Application de bureau requise » s'affiche, orientée
+ *      application de bureau (plus de mention `cargo run`).
+ *   3. Les contrôles de préférences (personas, refaire onboarding) sont
+ *      actifs — `set_app_preferences` est couvert par la démo.
+ *   4. La section Runtime n'est PAS peuplée (le bootstrap groupé a échoué
+ *      avant d'assigner `meta` — aucun chemin filesystem inventé).
  */
 
-test('Paramètres : sections persona + modules + runtime vide hors Tauri', async ({ page }) => {
+test('Paramètres : sections persona/modules + runtime démo, pairing en bandeau (C41)', async ({
+  page
+}) => {
   await page.goto('/parametres');
 
   await expect(page).toHaveTitle(/Paramètres/);
   await expect(
     page.getByRole('heading', { name: /Vos.*paramètres.*moteur Sobr\.ia/i })
   ).toBeVisible();
+  await expect(page.locator('aside.demo-banner')).toBeVisible();
 
-  // Bannière tauri_unavailable
-  const banners = page.getByRole('alert');
-  await expect(banners.first()).toBeVisible();
-  await expect(banners.first()).toContainText(/Application non lancée via Tauri/);
+  // C41 — plus de bannière globale : le rejet pairing (desktop-only) est
+  // confiné à sa section, les sections couvertes par la démo s'affichent.
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  const pairingMsg = page.locator('.reload-msg').filter({ hasText: /application de bureau/i });
+  await expect(pairingMsg.first()).toBeVisible();
+  await expect(pairingMsg.first()).not.toContainText(/cargo run/);
 
   // Les 5 sections principales sont rendues (titres présents)
   await expect(page.getByRole('heading', { name: /Persona courant/ })).toBeVisible();
@@ -34,37 +47,25 @@ test('Paramètres : sections persona + modules + runtime vide hors Tauri', async
   await expect(page.getByRole('heading', { name: /Réinitialiser/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: /^Runtime$/ })).toBeVisible();
 
-  // Les 5 personas sont proposés (boutons disabled hors Tauri)
+  // Les 5 personas sont proposés et actifs (set_app_preferences couvert
+  // par la démo — préférences en mémoire le temps de la session).
   for (const p of ['student', 'pro_tech', 'enterprise', 'public_sector', 'researcher']) {
     const btn = page.locator(`button[data-persona="${p}"]`);
     await expect(btn).toBeVisible();
-    await expect(btn).toBeDisabled();
+    await expect(btn).toBeEnabled();
   }
 
-  // Bouton « Refaire l'onboarding » disabled hors Tauri
-  await expect(page.locator('[data-action="redo-onboarding"]')).toBeDisabled();
+  // Bouton « Refaire l'onboarding » actif (préférences démo disponibles).
+  await expect(page.locator('[data-action="redo-onboarding"]')).toBeEnabled();
 
-  // Aucune valeur runtime affichée (pas de mock IPC)
-  await expect(page.locator('.runtime-grid')).toHaveCount(0);
+  // C41 — bootstrap scindé : les sections couvertes par la démo s'affichent
+  // (runtime + méthodologies + référentiel), seul le pairing remonte le
+  // bandeau « Application de bureau requise » (vérifié plus haut).
+  await expect(page.locator('.runtime-grid')).toBeVisible();
+  await expect(page.locator('.runtime-grid')).toContainText(/démo web/);
 });
 
-/**
- * Smoke tests des stubs « coming soon ». /simuler (M13) et /territoire (M20)
- * ont été livrés en C11 / C13 et ne sont plus des stubs — ils ont leurs
- * propres contrats no-mock dans `tests/simuler.spec.ts` et
- * `tests/territoire.spec.ts`.
- */
-test.describe('Stubs (M10 / M6)', () => {
-  for (const r of [
-    { path: '/importer', module: 'M10', titleMatch: /journal d.usage entreprise/i },
-    { path: '/exporter', module: 'M6', titleMatch: /rapport.*sourcé/i }
-  ]) {
-    test(`${r.path} — coque + IPC attendus`, async ({ page }) => {
-      const response = await page.goto(r.path);
-      expect(response?.status()).toBe(200);
-      await expect(page.getByText(`Module ${r.module} · en chantier`)).toBeVisible();
-      await expect(page.getByRole('heading', { name: r.titleMatch })).toBeVisible();
-      await expect(page.getByText('IPC attendus')).toBeVisible();
-    });
-  }
-});
+// NOTE : les anciens smoke tests des stubs /importer (M10) et /exporter (M6)
+// ont été retirés — ces routes n'existent plus (modules listés « À venir en
+// v1.1+ » dans Paramètres). /simuler (M13) et /territoire (M20) ont leurs
+// propres contrats démo dans `tests/simuler.spec.ts` / `tests/territoire.spec.ts`.

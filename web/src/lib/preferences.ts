@@ -244,7 +244,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Bibliothèque de modèles',
     description: 'Catalogue des 25+ modèles couverts et leurs sources.',
     category: 'pedagogie',
-    href: '/m9'
+    href: '/modeles'
   },
   m10: {
     id: 'm10',
@@ -287,7 +287,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Tableau de bord personnel',
     description: 'Vos usages agrégés (jour, semaine, mois).',
     category: 'visualisation',
-    href: '/m15'
+    href: '/suivi'
   },
   m16: {
     id: 'm16',
@@ -301,7 +301,7 @@ const MODULES: Record<ModuleId, ModuleInfo> = {
     label: 'Datasheet scientifique',
     description: 'Bilan complet pour reproductibilité scientifique.',
     category: 'reporting',
-    href: '/m17'
+    href: '/datasheets'
   },
   m18: {
     id: 'm18',

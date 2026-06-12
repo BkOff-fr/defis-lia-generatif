@@ -16,6 +16,7 @@
     RotateCcw
   } from '@lucide/svelte';
   import {
+    isBackendAvailable,
     isTauriContext,
     listAuditEntries,
     verifyAudit,
@@ -50,7 +51,9 @@
   // `{#each}` ne change pas entre rendus.
   const SKEL_ROWS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
+  // C42 — les actions du ledger n'existent que sur le bureau (démo = lecture).
+  const desktopAvailable = $derived(isTauriContext());
   const canPrev = $derived(offset > 0);
   const canNext = $derived(entries.length === PAGE_SIZE);
   const currentPage = $derived(Math.floor(offset / PAGE_SIZE) + 1);
@@ -58,12 +61,12 @@
   // ─── Bootstrap + URL focus ─────────────────────────────────────────────
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         error = {
           code: 'tauri_unavailable',
           message:
-            "L'application doit être lancée via `cargo run -p sobria-app`. Le ledger d'audit local n'est pas accessible dans un navigateur seul."
+            "Le journal d'audit (ledger local chaîné SHA-256) est disponible dans l'application de bureau Sobr.ia — vos estimations n'y quittent jamais votre machine."
         };
         return;
       }
@@ -231,7 +234,7 @@
   });
 
   const ERROR_LABELS: Record<string, string> = {
-    tauri_unavailable: 'Application non lancée via Tauri',
+    tauri_unavailable: 'Application de bureau requise',
     audit_error: "Erreur du ledger d'audit",
     io_error: 'Erreur disque',
     internal: 'Erreur interne'
@@ -268,7 +271,7 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Module M7 · ledger ACID chaîné SHA-256
+      Journal d'audit · chaîné SHA-256
     </div>
     <h1 class="hero-h1">
       Toutes vos estimations, <em>vérifiables</em>, hors-ligne.
@@ -306,7 +309,7 @@
   {/if}
 
   <!-- ─── Toolbar ─────────────────────────────────────────────── -->
-  {#if tauriAvailable}
+  {#if backendAvailable}
     <div class="toolbar">
       <button
         class="btn-action lime"
@@ -324,7 +327,15 @@
         {verdictLoading ? 'Vérification…' : 'Vérifier la chaîne'}
       </button>
 
-      <button class="btn-action" type="button" onclick={exportNdjson} disabled={bootstrapping}>
+      <button
+        class="btn-action"
+        type="button"
+        onclick={exportNdjson}
+        disabled={bootstrapping || !desktopAvailable}
+        title={desktopAvailable
+          ? undefined
+          : "Disponible dans l'application de bureau Sobr.ia (ledger local)"}
+      >
         <Download size={16} strokeWidth={1.8} />
         Exporter NDJSON
       </button>
@@ -572,7 +583,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -601,7 +612,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -816,7 +827,7 @@
   }
   .ledger-table thead th {
     text-align: left;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -893,7 +904,7 @@
     display: inline-block;
     padding: 2px 8px;
     border-radius: var(--radius-pill);
-    font: 500 10px/1.4 var(--font-mono);
+    font: 500 12px/1.4 var(--font-mono);
     letter-spacing: 0.02em;
     border: 1px solid transparent;
   }
@@ -915,7 +926,7 @@
   .td-sig {
     /* `<td>` doit rester en `display: table-cell` pour respecter la grille
        du tableau ; on déporte le flex sur un span enfant. */
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     vertical-align: middle;
   }
@@ -941,7 +952,7 @@
     gap: 4px;
     padding: 3px 8px;
     border-radius: var(--radius-pill);
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     letter-spacing: 0.06em;
   }
   .badge-ok {
@@ -1028,7 +1039,7 @@
     cursor: not-allowed;
   }
   .page-info {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--ivory-3);
     letter-spacing: 0.04em;
   }
@@ -1084,7 +1095,7 @@
     border-bottom: 1px solid var(--border);
   }
   .drawer-eye {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -1107,7 +1118,7 @@
     margin: 0 0 20px;
   }
   .drawer-grid dt {
-    font: 500 10px/1.2 var(--font-ui);
+    font: 500 12px/1.2 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);

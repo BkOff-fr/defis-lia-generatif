@@ -819,7 +819,7 @@
     gap: 4px;
   }
   .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -833,7 +833,7 @@
     overflow-wrap: anywhere;
   }
   .sub {
-    font: 400 11px/1.2 var(--font-mono);
+    font: 400 12px/1.2 var(--font-mono);
     color: var(--ivory-3);
     overflow-wrap: anywhere;
   }
@@ -850,7 +850,7 @@
     height: 22px;
     padding: 0 9px;
     border-radius: 999px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     letter-spacing: 0.02em;
     border: 1px solid transparent;
   }
@@ -946,14 +946,14 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
   }
   .block-counter {
     margin-left: auto;
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-4);
   }
 
@@ -983,11 +983,11 @@
     gap: 2px;
   }
   .chart-label {
-    font: 500 11px/1.1 var(--font-ui);
+    font: 500 12px/1.1 var(--font-ui);
     color: var(--ivory);
   }
   .chart-unit {
-    font: 400 9px/1.2 var(--font-mono);
+    font: 400 12px/1.2 var(--font-mono);
     color: var(--ivory-4);
     letter-spacing: 0.02em;
   }
@@ -1001,7 +1001,7 @@
   .chart-vals {
     grid-column: 2;
     grid-row: 2;
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-2);
     text-align: right;
   }
@@ -1033,7 +1033,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -1048,12 +1048,12 @@
   .kpi-v .u {
     color: var(--ivory-3);
     margin-left: 4px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
   }
   .kpi-sub {
     grid-column: 1 / -1;
     grid-row: 2;
-    font: 400 10px/1 var(--font-ui);
+    font: 400 12px/1 var(--font-ui);
     color: var(--ivory-4);
     font-style: italic;
   }
@@ -1093,7 +1093,7 @@
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    font: 400 11px/1.3 var(--font-ui);
+    font: 400 12px/1.3 var(--font-ui);
     color: var(--ivory-2);
     text-decoration: none;
     transition: all var(--dur-base) var(--ease);
@@ -1160,13 +1160,13 @@
     gap: 12px;
   }
   .vendor-scope {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-2);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .vendor-published {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--ivory-4);
   }
   .vendor-value {
@@ -1181,14 +1181,14 @@
   }
   .vendor-note {
     margin: 0;
-    font: 400 11px/1.5 var(--font-ui);
+    font: 400 12px/1.5 var(--font-ui);
     color: var(--ivory-3);
   }
   .vendor-source {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
     text-decoration: none;
     align-self: flex-start;
@@ -1213,7 +1213,7 @@
     align-items: center;
     gap: 4px;
     margin-top: 6px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: #7eb6ff;
     text-decoration: none;
   }
@@ -1250,7 +1250,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
     color: var(--ivory-3);
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
   }
   .cap-badges {
     display: flex;
@@ -1266,7 +1266,7 @@
     gap: 6px;
     padding: 5px 10px;
     border-radius: var(--radius-pill);
-    font: 600 10px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
@@ -1322,7 +1322,7 @@
   }
   .cap-hint {
     margin-left: auto;
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     font-style: italic;
   }
@@ -1345,7 +1345,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-3);
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1386,7 +1386,7 @@
     margin: 8px 0 0;
     padding-top: 8px;
     border-top: 1px dashed var(--border);
-    font: 400 11px/1.5 var(--font-ui);
+    font: 400 12px/1.5 var(--font-ui);
     color: var(--ivory-3);
   }
   .cap-footnote b {
@@ -1404,7 +1404,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
     color: var(--ivory-2);
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     text-decoration: none;
     transition: all var(--dur-base) var(--ease);
   }

@@ -189,7 +189,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -206,7 +206,7 @@
     background: rgba(0, 0, 0, 0.25);
     border: 1px solid var(--border);
     border-radius: 999px;
-    font: 600 11px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     letter-spacing: 0.04em;
     margin-left: auto;
   }
@@ -287,7 +287,7 @@
   }
 
   .dist-meta {
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     letter-spacing: 0.04em;
     text-transform: lowercase;

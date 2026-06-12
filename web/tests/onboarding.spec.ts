@@ -1,18 +1,19 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Contrat « no-mock » du wizard d'onboarding (C10 — ADR-0010).
+ * Contrat « démo » du wizard d'onboarding (C10 — ADR-0010 / C36).
  *
  * Ces tests vérifient le parcours UI du wizard sans dépendre de l'IPC
- * Tauri (cf. estimate.spec.ts et CLAUDE.md §13). En contexte navigateur :
- *  - le store `preferences` reste en mode `loaded: false` ;
- *  - les gardes de route ne se déclenchent pas (préférences inconnues) ;
- *  - l'IPC `set_app_preferences` échoue avec `tauri_unavailable` à l'étape
- *    « Terminer » — c'est ce qu'on vérifie pour le contrat no-mock.
+ * Tauri (cf. estimate.spec.ts). En contexte navigateur, la démo web (C36)
+ * couvre `get/set_app_preferences` :
+ *  - les préférences démo sont `onboarded: true` → pas de redirection
+ *    forcée vers /onboarding, mais la route reste accessible ;
+ *  - l'étape « Terminer » persiste via la démo (en mémoire) puis redirige
+ *    vers l'atelier — c'est ce que vérifie le test 3.
  *
- * Les e2e métier avec IPC réelle (persona persisté, rail filtré, switch
- * de bundle) tournent dans la suite `cargo tauri dev` (chantier dédié,
- * cf. C09.5 / C10.5).
+ * Les e2e métier avec IPC réelle (persona persisté sur disque, rail
+ * filtré, switch de bundle) tournent dans la suite `cargo tauri dev`
+ * (chantier dédié, cf. C09.5 / C10.5).
  */
 
 // ─── Test 1 — Splash → intro → persona picker → bundle Étudiant pré-coché ──────
@@ -97,8 +98,8 @@ test('Onboarding : « + Plus de modules » dévoile les modules hors bundle', as
   ).toHaveCount(1);
 });
 
-// ─── Test 3 — Tentative « Terminer » hors Tauri → erreur claire ────────
-test("Onboarding : « Terminer » hors Tauri affiche l'erreur tauri_unavailable", async ({
+// ─── Test 3 — « Terminer » : persistance démo + retour à l'atelier ────────
+test("Onboarding : « Terminer » persiste via la démo et redirige vers l'atelier", async ({
   page
 }) => {
   await page.goto('/onboarding');
@@ -111,16 +112,15 @@ test("Onboarding : « Terminer » hors Tauri affiche l'erreur tauri_unavailable"
   await page.getByRole('button', { name: /^Continuer/ }).click();
   await expect(page.getByRole('heading', { name: /C'est parti/ })).toBeVisible();
 
-  // Clic « Terminer » sans contexte Tauri → bannière d'erreur affichée,
-  // pas de redirection. Le contrat no-mock est respecté : aucune
-  // persistance silencieuse, l'utilisateur sait pourquoi.
+  // Clic « Terminer » : `set_app_preferences` est couvert par la démo web
+  // (C36) — l'enregistrement réussit (en mémoire) et l'app redirige vers
+  // l'atelier. Aucune bannière d'erreur ne doit apparaître.
   await page.locator('[data-action="finish"]').click();
-  const banner = page.getByRole('alert');
-  await expect(banner).toBeVisible({ timeout: 5000 });
-  await expect(banner).toContainText(/Échec de l.enregistrement|cargo run -p sobria-app|Tauri/i);
+  await expect(page).toHaveURL('/', { timeout: 10_000 });
 
-  // L'URL reste sur /onboarding (pas de goto('/') prématuré).
-  await expect(page).toHaveURL(/\/onboarding/);
+  // L'atelier est rendu en mode démo (composer + bannière layout).
+  await expect(page.locator('aside.demo-banner')).toBeVisible();
+  await expect(page.locator('form.composer')).toBeVisible();
 });
 
 // ─── Test 4 — Garde de route M13 + bandeau /?disabled=m13 ──────────────
@@ -128,8 +128,8 @@ test('Garde de route : /?disabled=m13 affiche le bandeau « activer dans Paramè
   page
 }) => {
   // On simule directement ce que ferait la garde de /simuler quand
-  // l'utilisateur n'a pas M13 dans son bundle. Hors Tauri, la garde elle-
-  // même ne se déclenche pas (preferences.loaded=false), mais l'URL
+  // l'utilisateur n'a pas M13 dans son bundle. Les préférences démo ont
+  // tous les modules actifs (la garde ne se déclenche pas), mais l'URL
   // posée doit bien afficher le bandeau coral.
   await page.goto('/?disabled=m13');
 

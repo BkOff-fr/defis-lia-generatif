@@ -38,7 +38,7 @@
   import {
     getPairingCodeStatus,
     getReferentielStatus,
-    isTauriContext,
+    isBackendAvailable,
     listMethodologies,
     listPairings,
     metaInfo,
@@ -126,45 +126,52 @@
   // nouveau fingerprint — c'est intentionnel.
   let teamFingerprint = $state('');
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         loadError = {
           code: 'tauri_unavailable',
-          message:
-            "L'application doit être lancée via `cargo run -p sobria-app`. Les préférences ne peuvent pas être modifiées dans un navigateur seul."
+          message: "Les préférences complètes nécessitent l'application de bureau Sobr.ia."
         };
         return;
       }
+      // C41 — bootstrap scindé (cf. C37 §bugs) : les sections couvertes par
+      // le mode démo (runtime, méthodologies, référentiel) ne doivent pas
+      // être sacrifiées si le pairing/équipe (desktop-only) rejette.
       try {
-        const [m, list, ref, code, pairs] = await Promise.all([
+        const [m, list, ref] = await Promise.all([
           metaInfo(),
           listMethodologies(),
-          getReferentielStatus(),
-          getPairingCodeStatus(),
-          listPairings(),
-          loadTeam().catch(() => {
-            /* échec silencieux : mode équipe optionnel */
-          })
+          getReferentielStatus()
         ]);
         meta = m;
         methodologies = list;
         referentiel = ref;
-        pairingCode = code;
-        pairings = pairs;
-        teamUrlDraft = $teamStore.url ?? '';
       } catch (err) {
         if (err instanceof SobriaIpcError) {
           loadError = { code: err.code, message: err.message };
         } else {
           loadError = { code: 'internal', message: 'Échec du chargement des paramètres.' };
         }
-      } finally {
-        bootstrapping = false;
       }
+      // Pairing extension + mode équipe : best-effort, desktop-only.
+      try {
+        const [code, pairs] = await Promise.all([getPairingCodeStatus(), listPairings()]);
+        pairingCode = code;
+        pairings = pairs;
+      } catch (err) {
+        if (err instanceof SobriaIpcError) {
+          pairingError = err.message;
+        }
+      }
+      await loadTeam().catch(() => {
+        /* échec silencieux : mode équipe optionnel */
+      });
+      teamUrlDraft = $teamStore.url ?? '';
+      bootstrapping = false;
     })();
   });
 
@@ -618,7 +625,7 @@
       </span>
       <div class="banner-body">
         <strong>
-          {loadError.code === 'tauri_unavailable' ? 'Application non lancée via Tauri' : 'Erreur'}
+          {loadError.code === 'tauri_unavailable' ? 'Application de bureau requise' : 'Erreur'}
         </strong>
         <span>{loadError.message}</span>
       </div>
@@ -660,7 +667,7 @@
           onclick={() => {
             confirmPersona = null;
           }}
-          disabled={!tauriAvailable}
+          disabled={!backendAvailable}
           aria-label="Conserver le persona actuel"
         >
           Conserver
@@ -681,7 +688,7 @@
             type="button"
             class="persona-option"
             class:current={isCurrent}
-            disabled={!tauriAvailable || isCurrent}
+            disabled={!backendAvailable || isCurrent}
             onclick={() => (confirmPersona = p)}
             data-persona={p}
           >
@@ -731,7 +738,7 @@
                       type="checkbox"
                       checked
                       onchange={() => toggleModule(m)}
-                      disabled={!tauriAvailable}
+                      disabled={!backendAvailable}
                       data-module={m}
                     />
                     <span class="check-box" aria-hidden="true">
@@ -770,7 +777,7 @@
                 type="checkbox"
                 checked={false}
                 onchange={() => toggleModule(m)}
-                disabled={!tauriAvailable}
+                disabled={!backendAvailable}
                 data-module={m}
               />
               <span class="check-box" aria-hidden="true"></span>
@@ -861,7 +868,7 @@
                 class="btn-tiny"
                 class:active={isDefault}
                 onclick={() => setDefaultMethod(m.method)}
-                disabled={!tauriAvailable || isDefault}
+                disabled={!backendAvailable || isDefault}
               >
                 {isDefault ? '✓ méthodo par défaut' : 'Définir comme défaut'}
               </button>
@@ -869,7 +876,7 @@
                 <input
                   type="checkbox"
                   checked={isRef}
-                  disabled={!tauriAvailable || isDefault}
+                  disabled={!backendAvailable || isDefault}
                   onchange={() => toggleAlsoShowMethod(m.method)}
                 />
                 <span>Afficher en référence (« Voir aussi »)</span>
@@ -900,7 +907,7 @@
           type="button"
           class="btn-ghost"
           onclick={redoOnboarding}
-          disabled={!tauriAvailable}
+          disabled={!backendAvailable}
           data-action="redo-onboarding"
         >
           <RefreshCw size={14} strokeWidth={1.8} />
@@ -1236,7 +1243,7 @@
             class="team-input"
             placeholder="https://votre-serveur:8443"
             bind:value={teamUrlDraft}
-            disabled={!tauriAvailable || teamBusy}
+            disabled={!backendAvailable || teamBusy}
             data-testid="team-url-input"
           />
         </div>
@@ -1254,7 +1261,7 @@
           <input
             type="checkbox"
             checked={$teamStore.accept_invalid_certs}
-            disabled={!tauriAvailable || teamBusy}
+            disabled={!backendAvailable || teamBusy}
             onchange={handleToggleAcceptCert}
             data-testid="team-accept-cert"
           />
@@ -1274,7 +1281,7 @@
             type="button"
             class="btn-secondary"
             onclick={handleSaveTeamUrl}
-            disabled={!tauriAvailable || teamBusy || !teamUrlIsValid}
+            disabled={!backendAvailable || teamBusy || !teamUrlIsValid}
             data-testid="team-save-url"
           >
             <Check size={14} strokeWidth={1.8} />
@@ -1284,7 +1291,7 @@
             type="button"
             class="btn-secondary"
             onclick={handleTeamPing}
-            disabled={!tauriAvailable || teamBusy || !$teamStore.url}
+            disabled={!backendAvailable || teamBusy || !$teamStore.url}
             data-testid="team-ping"
           >
             <PlugZap size={14} strokeWidth={1.8} />
@@ -1323,7 +1330,7 @@
               maxlength="12"
               placeholder="123456789012"
               bind:value={teamCode}
-              disabled={!tauriAvailable || teamBusy}
+              disabled={!backendAvailable || teamBusy}
               data-testid="team-code-input"
             />
           </div>
@@ -1334,7 +1341,7 @@
               type="password"
               class="team-input"
               bind:value={teamPassword}
-              disabled={!tauriAvailable || teamBusy}
+              disabled={!backendAvailable || teamBusy}
               data-testid="team-password-input"
             />
           </div>
@@ -1345,7 +1352,7 @@
               type="password"
               class="team-input"
               bind:value={teamPasswordConfirm}
-              disabled={!tauriAvailable || teamBusy}
+              disabled={!backendAvailable || teamBusy}
               data-testid="team-password-confirm-input"
             />
           </div>
@@ -1363,7 +1370,7 @@
               class="team-input"
               placeholder="ex. Marie Dupont"
               bind:value={teamDisplayName}
-              disabled={!tauriAvailable || teamBusy}
+              disabled={!backendAvailable || teamBusy}
               data-testid="team-display-name-input"
             />
           </div>
@@ -1372,7 +1379,7 @@
               type="button"
               class="btn-secondary"
               onclick={handleTeamEnroll}
-              disabled={!tauriAvailable || teamBusy || !teamEnrollReady}
+              disabled={!backendAvailable || teamBusy || !teamEnrollReady}
               data-testid="team-enroll-btn"
             >
               <KeyRound size={14} strokeWidth={1.8} />
@@ -1400,7 +1407,7 @@
               type="button"
               class="btn-secondary btn-destructive"
               onclick={handleTeamLogout}
-              disabled={!tauriAvailable || teamBusy}
+              disabled={!backendAvailable || teamBusy}
               data-testid="team-logout-btn"
             >
               <LogOut size={14} strokeWidth={1.8} />
@@ -1422,7 +1429,7 @@
                 name="team-mode"
                 value={opt.id}
                 checked={$teamStore.mode === opt.id}
-                disabled={!tauriAvailable || teamBusy}
+                disabled={!backendAvailable || teamBusy}
                 onchange={() => handleSetTeamMode(opt.id as TeamMode)}
                 data-testid={`team-mode-${opt.id}`}
               />
@@ -1704,7 +1711,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -1732,7 +1739,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -1841,7 +1848,7 @@
     flex: 1;
   }
   .section-hint {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--ivory-4);
   }
   .section-foot {
@@ -1859,7 +1866,7 @@
     margin-top: 2px;
   }
   .section-foot code {
-    font: 500 11px/1.4 var(--font-mono);
+    font: 500 12px/1.4 var(--font-mono);
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -1982,7 +1989,7 @@
     color: var(--ivory-3);
   }
   .persona-tag {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--lime);
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
@@ -2006,7 +2013,7 @@
     border-top: 1px dashed var(--border);
   }
   .category-title {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -2082,7 +2089,7 @@
     background: var(--surface-hi);
     border: 1px solid var(--border-hi);
     border-radius: var(--radius-pill);
-    font: 500 9px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
     letter-spacing: 0.04em;
     margin-top: 4px;
@@ -2100,7 +2107,7 @@
     color: var(--lime);
   }
   .module-desc {
-    font: 400 11px/1.4 var(--font-ui);
+    font: 400 12px/1.4 var(--font-ui);
     color: var(--ivory-3);
   }
   .empty {
@@ -2200,7 +2207,7 @@
     color: rgb(147, 197, 253);
   }
   .doi {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     text-decoration: none;
     margin-left: auto;
@@ -2276,7 +2283,7 @@
     cursor: not-allowed;
   }
   .lang-pending {
-    font-size: 9px;
+    font-size: 12px;
     color: var(--ivory-4);
     margin-left: 4px;
     letter-spacing: 0.04em;
@@ -2373,7 +2380,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
@@ -2596,13 +2603,13 @@
     background: var(--ink);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    font: 400 11px/1.55 var(--font-mono);
+    font: 400 12px/1.55 var(--font-mono);
     color: var(--ivory-2);
     overflow-x: auto;
     white-space: pre;
   }
   .ta-step-hint {
-    font: 400 11px/1.5 var(--font-ui);
+    font: 400 12px/1.5 var(--font-ui);
     color: var(--ivory-4);
     margin: 0;
     font-style: italic;
@@ -2777,7 +2784,7 @@
     overflow-wrap: anywhere;
   }
   .pairing-meta {
-    font: 400 11px/1.4 var(--font-mono);
+    font: 400 12px/1.4 var(--font-mono);
     color: var(--ivory-3, rgba(244, 240, 232, 0.55));
     margin-top: 2px;
   }
@@ -2811,7 +2818,7 @@
     color: var(--ivory-3, rgba(244, 240, 232, 0.55));
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    font-size: 11px;
+    font-size: 12px;
   }
   .team-mono {
     font: 500 12.5px/1.3 var(--font-mono);
@@ -2830,7 +2837,7 @@
     align-items: center;
     padding: 3px 10px;
     border-radius: 999px;
-    font: 500 11px/1.4 var(--font-ui);
+    font: 500 12px/1.4 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     border: 1px solid transparent;

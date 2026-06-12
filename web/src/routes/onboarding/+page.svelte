@@ -19,7 +19,7 @@
     Landmark,
     Microscope
   } from '@lucide/svelte';
-  import { SobriaIpcError } from '$lib/api';
+  import { regeneratePairingCode, SobriaIpcError, type PairingCodeDto } from '$lib/api';
   import {
     ALL_MODULES,
     ALL_PERSONAS,
@@ -49,6 +49,24 @@
   // C32.2 — 5 étapes : Splash (1) → 30 sec (2) → Persona (3) → Bundle (4) → Ready (5).
   type Step = 1 | 2 | 3 | 4 | 5;
   let step = $state<Step>(1);
+
+  // C40 — pairing extension depuis l'étape Ready.
+  let pairingCode = $state<PairingCodeDto | null>(null);
+  let pairingError = $state<string | null>(null);
+  let pairingBusy = $state(false);
+  async function generatePairing() {
+    pairingError = null;
+    pairingBusy = true;
+    try {
+      pairingCode = await regeneratePairingCode();
+    } catch (e) {
+      pairingCode = null;
+      pairingError =
+        e instanceof SobriaIpcError ? e.message : 'Génération du code impossible pour le moment.';
+    } finally {
+      pairingBusy = false;
+    }
+  }
   let persona = $state<Persona | null>(null);
   let chosen = $state<Set<ModuleId>>(new Set());
   let showMore = $state(false);
@@ -353,7 +371,7 @@
               text-anchor="middle"
               fill="rgba(245,242,234,0.45)"
               font-family="var(--font-ui)"
-              font-size="9">Source : Mistral × ADEME</text
+              font-size="10">Source : Mistral × ADEME</text
             >
           </g>
           <!-- Flèche -->
@@ -609,6 +627,10 @@
     </section>
   {/if}
 
+  <!-- C40 — état de la carte pairing (étape Ready). Le code 6 chiffres
+       est généré par l'app (TTL 5 min) ; l'utilisateur le recopie dans
+       l'extension. Hors Tauri l'IPC répond une erreur orientée
+       utilisateur, affichée inline sans bloquer le wizard. -->
   <!-- ╭───── ÉTAPE 5 — READY ───────────────────────────────────────╮ -->
   {#if step === 5}
     <section class="ready-stage" id="step5">
@@ -622,6 +644,32 @@
           10 000 tirages pour vous donner CO₂eq, énergie, eau et métaux avec leur intervalle P5-P95.
         </p>
       </header>
+
+      <!-- C40 — Mesure automatique : LE moment de valeur du produit.
+           Proposée ici plutôt qu'enfouie dans Paramètres. -->
+      <div class="pairing-card">
+        <div class="pairing-text">
+          <span class="pairing-title">Mesure automatique (recommandé)</span>
+          <span class="pairing-sub">
+            L'extension navigateur mesure vos prompts sur claude.ai, ChatGPT et Le Chat —
+            automatiquement, sans rien saisir. Vos textes ne quittent jamais votre machine.
+          </span>
+          {#if pairingCode}
+            <span class="pairing-code" aria-live="polite">
+              Code d'association : <strong>{pairingCode.code}</strong>
+              <span class="pairing-ttl"
+                >valable {Math.max(1, Math.round(pairingCode.seconds_remaining / 60))} min — saisissez-le
+                dans l'extension</span
+              >
+            </span>
+          {:else if pairingError}
+            <span class="pairing-error">{pairingError}</span>
+          {/if}
+        </div>
+        <button class="pairing-btn" type="button" onclick={generatePairing} disabled={pairingBusy}>
+          {pairingCode ? 'Régénérer le code' : 'Associer mon extension'}
+        </button>
+      </div>
 
       <!-- Quatre mini-cartes résumant ce qui attend l'utilisateur — pas de
            mock UI interactif (le brief demandait un tooltip sur M1 réel,
@@ -797,7 +845,7 @@
     margin: 0;
   }
   .eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -968,7 +1016,7 @@
     align-items: center;
     gap: 7px;
     color: var(--ivory-4);
-    font: 500 11px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     letter-spacing: 0.06em;
   }
 
@@ -1238,7 +1286,7 @@
   .more-count {
     color: var(--ivory-4);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
   }
   .actions {
     display: flex;
@@ -1259,6 +1307,68 @@
     text-align: center;
     animation: rise 500ms var(--ease) backwards;
   }
+  .pairing-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    background: var(--lime-soft);
+    border: 1px solid rgba(197, 240, 74, 0.3);
+    border-radius: var(--radius-lg);
+  }
+  .pairing-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 520px;
+  }
+  .pairing-title {
+    font: 600 var(--fs-h3) / var(--lh-h3) var(--font-ui);
+    color: var(--ivory);
+  }
+  .pairing-sub {
+    font: 400 var(--fs-body-sm) / var(--lh-body-sm) var(--font-ui);
+    color: var(--ivory-2);
+  }
+  .pairing-code {
+    margin-top: 6px;
+    font: 400 var(--fs-body-sm) / 1.4 var(--font-ui);
+    color: var(--ivory);
+  }
+  .pairing-code strong {
+    font: 600 1.25rem/1 var(--font-mono);
+    color: var(--lime);
+    letter-spacing: 0.12em;
+    margin: 0 4px;
+  }
+  .pairing-ttl {
+    display: block;
+    font: 400 var(--fs-caption) / var(--lh-caption) var(--font-ui);
+    color: var(--ivory-2);
+  }
+  .pairing-error {
+    margin-top: 6px;
+    font: 400 var(--fs-caption) / var(--lh-caption) var(--font-ui);
+    color: var(--amber);
+  }
+  .pairing-btn {
+    flex: none;
+    padding: 10px 18px;
+    background: var(--lime);
+    color: var(--ink);
+    border: none;
+    border-radius: var(--radius-pill);
+    font: 600 var(--fs-body-sm) / 1 var(--font-ui);
+    cursor: pointer;
+  }
+  .pairing-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
   .ready-cards {
     list-style: none;
     padding: 0;

@@ -138,7 +138,7 @@
     flex-shrink: 0;
   }
   .eyebrow {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -152,7 +152,7 @@
     margin: 0 0 2px;
   }
   .sub {
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
 
@@ -181,7 +181,7 @@
     margin: 0 0 14px;
   }
   .grid dt {
-    font: 500 10px/1.4 var(--font-ui);
+    font: 500 12px/1.4 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -195,7 +195,7 @@
   .grid dd .iso {
     font-family: var(--font-mono);
     color: var(--ivory-3);
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .metrics {
@@ -218,7 +218,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -240,7 +240,7 @@
     margin-left: 5px;
   }
   .m-r {
-    font: 400 10px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
     margin-top: 3px;
     letter-spacing: 0.04em;
@@ -253,7 +253,7 @@
     gap: 10px;
     padding-top: 10px;
     border-top: 1px solid var(--border);
-    font: 400 11px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .year {

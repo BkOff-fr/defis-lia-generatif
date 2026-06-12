@@ -19,7 +19,7 @@
     Sparkles
   } from '@lucide/svelte';
   import {
-    isTauriContext,
+    isBackendAvailable,
     listDatacenters,
     listModels,
     simulateScenarios,
@@ -86,12 +86,12 @@
   let simulating = $state(false);
   let simError = $state<{ code: IpcErrorCode; message: string } | null>(null);
 
-  const tauriAvailable = $derived(isTauriContext());
+  const backendAvailable = $derived(isBackendAvailable());
 
   // ─── Bootstrap : charge la liste des modèles ─────────────────────────────
   $effect(() => {
     void (async () => {
-      if (!tauriAvailable) {
+      if (!backendAvailable) {
         bootstrapping = false;
         loadError = {
           code: 'tauri_unavailable',
@@ -294,7 +294,7 @@
   }
 
   async function runSimulation(req: SimulationRequestDto) {
-    if (!tauriAvailable) return;
+    if (!backendAvailable) return;
     simulating = true;
     try {
       const r = await simulateScenarios(req);
@@ -333,7 +333,7 @@
     void forecastGrowth;
     void selectedDatacenter?.id;
 
-    if (!tauriAvailable || bootstrapping) return;
+    if (!backendAvailable || bootstrapping) return;
     const req = buildRequest();
     if (req) scheduleSimulation(req);
   });
@@ -398,7 +398,7 @@
   });
 
   const ERROR_LABELS: Record<string, string> = {
-    tauri_unavailable: 'Application non lancée via Tauri',
+    tauri_unavailable: 'Application de bureau requise',
     unknown_model: 'Modèle inconnu',
     invalid_request: 'Requête invalide',
     estimator_error: 'Erreur estimateur',
@@ -436,7 +436,7 @@
   <section class="hero">
     <div class="hero-eyebrow">
       <span class="pulse" aria-hidden="true"></span>
-      Module M13 · 7 leviers temps réel
+      Simulation · 7 leviers temps réel
     </div>
     <h1 class="hero-h1">
       Et si on changeait <em>un seul levier</em> ?
@@ -555,7 +555,7 @@
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             Simulation en cours…
           </div>
-        {:else if !tauriAvailable}
+        {:else if !backendAvailable}
           <div class="loading">
             Lance <span class="mono">cargo run -p sobria-app</span> pour activer le moteur Monte-Carlo
             et voir le verdict CO₂eq se calculer en temps réel.
@@ -605,7 +605,7 @@
     background: var(--lime-soft);
     border: 1px solid rgba(197, 240, 74, 0.25);
     border-radius: 999px;
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--lime);
   }
   .icon-btn {
@@ -634,7 +634,7 @@
     border-bottom: 1px solid var(--border);
   }
   .hero-eyebrow {
-    font: 500 11px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--ivory-3);
@@ -743,7 +743,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -775,7 +775,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ivory-3);
@@ -824,13 +824,13 @@
     flex-wrap: wrap;
   }
   .dc-block-title {
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-3);
   }
   .dc-block-hint {
-    font: 400 10px/1.3 var(--font-mono);
+    font: 400 12px/1.3 var(--font-mono);
     color: var(--ivory-4);
   }
 

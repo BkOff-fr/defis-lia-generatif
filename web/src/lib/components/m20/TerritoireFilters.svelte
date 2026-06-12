@@ -126,7 +126,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -147,7 +147,7 @@
     background: transparent;
     border: 1px solid var(--border);
     border-radius: 999px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-2);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
@@ -166,14 +166,14 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-2);
   }
   .counter {
     margin-left: auto;
-    font: 600 10px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--lime);
   }
 
@@ -214,7 +214,7 @@
     cursor: pointer;
   }
   .iso {
-    font: 600 10px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .region-row.on .iso {
@@ -231,7 +231,7 @@
     color: var(--ivory);
   }
   .rcount {
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
 
@@ -270,7 +270,7 @@
   .slider-axis {
     display: flex;
     justify-content: space-between;
-    font: 400 9px/1 var(--font-mono);
+    font: 400 12px/1 var(--font-mono);
     color: var(--ivory-4);
     letter-spacing: 0.04em;
     margin-top: 4px;

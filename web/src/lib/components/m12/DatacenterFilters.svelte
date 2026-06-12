@@ -146,7 +146,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--ivory-3);
@@ -167,7 +167,7 @@
     background: transparent;
     border: 1px solid var(--border);
     border-radius: 999px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     color: var(--ivory-2);
     cursor: pointer;
     transition: all var(--dur-base) var(--ease);
@@ -186,14 +186,14 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    font: 500 10px/1 var(--font-ui);
+    font: 500 12px/1 var(--font-ui);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--ivory-2);
   }
   .counter {
     margin-left: auto;
-    font: 600 10px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--lime);
   }
 
@@ -245,7 +245,7 @@
     color: var(--ivory);
   }
   .op-count {
-    font: 500 10px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
 
@@ -285,14 +285,14 @@
     line-height: 1;
   }
   .c-iso {
-    font: 600 10px/1 var(--font-mono);
+    font: 600 12px/1 var(--font-mono);
     color: var(--ivory-2);
   }
   .country-row.on .c-iso {
     color: var(--lime);
   }
   .c-count {
-    font: 500 9px/1 var(--font-mono);
+    font: 500 12px/1 var(--font-mono);
     color: var(--ivory-3);
   }
   .mono {
