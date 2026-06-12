@@ -7,8 +7,7 @@
 export const FONT_UI = "'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 /** Stack titres / métriques éditoriales (Instrument Serif italic). */
-export const FONT_DISPLAY =
-  "'Instrument Serif', 'Cormorant Garamond', Georgia, serif";
+export const FONT_DISPLAY = "'Instrument Serif', 'Cormorant Garamond', Georgia, serif";
 
 /** Stack chiffres / labels techniques (JetBrains Mono). */
 export const FONT_MONO = "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace";
@@ -27,8 +26,8 @@ export const SHADOW_HOST_TYPO = `
 
 function extensionUrl(path: string): string {
   try {
-    const api = (globalThis as { chrome?: { runtime?: { getURL?: (p: string) => string } } })
-      .chrome?.runtime?.getURL;
+    const api = (globalThis as { chrome?: { runtime?: { getURL?: (p: string) => string } } }).chrome
+      ?.runtime?.getURL;
     return api ? api(path) : '';
   } catch {
     return '';
@@ -61,9 +60,7 @@ export function renderShadowFontFaces(): string {
   return [
     face('Geist', 'normal', '300 700', geistLatin, latinRange),
     geistLatinExt ? face('Geist', 'normal', '300 700', geistLatinExt, latinExtRange) : '',
-    instrumentLatin
-      ? face('Instrument Serif', 'normal', '400', instrumentLatin, latinRange)
-      : '',
+    instrumentLatin ? face('Instrument Serif', 'normal', '400', instrumentLatin, latinRange) : '',
     instrumentLatinExt
       ? face('Instrument Serif', 'normal', '400', instrumentLatinExt, latinExtRange)
       : '',

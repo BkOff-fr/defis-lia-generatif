@@ -89,9 +89,9 @@
       <section class="section">
         <h2 class="section__title">Mode Équipe (self-hosted)</h2>
         <p class="section__intro">
-          Si votre entreprise déploie le binaire <code>sobria-team-aggregator</code> en
-          interne, vous pouvez y envoyer vos estimations en plus (ou à la place) de votre
-          app desktop personnelle. <strong>Aucune donnée ne passe par Sobr.ia.</strong>
+          Si votre entreprise déploie le binaire <code>sobria-team-aggregator</code> en interne,
+          vous pouvez y envoyer vos estimations en plus (ou à la place) de votre app desktop
+          personnelle. <strong>Aucune donnée ne passe par Sobr.ia.</strong>
           Voir
           <a href="https://github.com/sobria/sobria" target="_blank" rel="noopener"
             >la doc déploiement</a
@@ -113,18 +113,16 @@
               placeholder="https://team.exemple.fr:8443"
               class="pairing-input"
             />
-            <button type="button" class="btn btn--secondary" id="team-ping-btn">
-              Vérifier
-            </button>
+            <button type="button" class="btn btn--secondary" id="team-ping-btn">Vérifier</button>
           </div>
           <p class="callout callout--info" style="margin-top: 12px">
             <span class="callout__icon" aria-hidden="true">ℹ️</span>
             <span class="callout__body">
-              <strong>Certificat auto-signé</strong> : visitez d'abord cette URL dans un
-              autre onglet et acceptez l'avertissement de sécurité. Le navigateur
-              mémorisera votre consentement et l'extension pourra dialoguer avec le
-              serveur. Si votre admin a installé un certificat reconnu (Let's Encrypt,
-              CA interne), aucune étape supplémentaire n'est nécessaire.
+              <strong>Certificat auto-signé</strong> : visitez d'abord cette URL dans un autre
+              onglet et acceptez l'avertissement de sécurité. Le navigateur mémorisera votre
+              consentement et l'extension pourra dialoguer avec le serveur. Si votre admin a
+              installé un certificat reconnu (Let's Encrypt, CA interne), aucune étape
+              supplémentaire n'est nécessaire.
             </span>
           </p>
           <p class="pairing-pane__error" id="team-ping-error" aria-live="polite"></p>
@@ -134,8 +132,8 @@
         <div class="pairing-pane" id="team-enroll-form" hidden>
           <h3 style="margin: 16px 0 4px; font-size: 14px">S'enrôler avec un code</h3>
           <p class="pairing-pane__hint">
-            Votre admin vous a remis un code à 12 chiffres. Choisissez un mot de passe
-            (≥ 8 caractères) pour pouvoir vous reconnecter au dashboard.
+            Votre admin vous a remis un code à 12 chiffres. Choisissez un mot de passe (≥ 8
+            caractères) pour pouvoir vous reconnecter au dashboard.
           </p>
           <label for="team-code-input" class="form-label">Code à 12 chiffres</label>
           <input
@@ -163,7 +161,12 @@
             minlength="8"
             class="pairing-input"
           />
-          <button type="button" class="btn btn--primary" id="team-enroll-btn" style="margin-top: 8px">
+          <button
+            type="button"
+            class="btn btn--primary"
+            id="team-enroll-btn"
+            style="margin-top: 8px"
+          >
             M'enrôler
           </button>
           <p class="pairing-pane__error" id="team-enroll-error" aria-live="polite"></p>
@@ -184,8 +187,8 @@
 
           <h3 style="margin: 16px 0 4px; font-size: 14px">Dispatch des estimations</h3>
           <p class="pairing-pane__hint">
-            Choisissez où vos estimations remontent. « Les deux » est utile pendant la
-            transition vers le serveur équipe.
+            Choisissez où vos estimations remontent. « Les deux » est utile pendant la transition
+            vers le serveur équipe.
           </p>
           <div class="team-mode-row" role="radiogroup" aria-label="Dispatch estimations">
             <label class="team-mode">
@@ -202,7 +205,12 @@
             </label>
           </div>
 
-          <button type="button" class="btn btn--danger" id="team-logout-btn" style="margin-top: 12px">
+          <button
+            type="button"
+            class="btn btn--danger"
+            id="team-logout-btn"
+            style="margin-top: 12px"
+          >
             Me déconnecter (efface les tokens)
           </button>
         </div>

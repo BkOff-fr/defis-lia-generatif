@@ -52,11 +52,7 @@ async function joinUrl(path: string): Promise<string> {
   return `${base}${path}`;
 }
 
-async function rawFetch(
-  path: string,
-  init: RequestInit = {},
-  retry = true
-): Promise<Response> {
+async function rawFetch(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
   const headers = new Headers(init.headers || {});
   if (init.body && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');
@@ -151,7 +147,9 @@ export async function enroll(args: {
 
 /** Pousse une estimation au serveur. Lance `TeamApiError` en cas d'échec
  *  (réseau, cert, 401 même après refresh, validation 400). */
-export async function pushEstimation(payload: EstimatePayload): Promise<{ id: string; ack: boolean }> {
+export async function pushEstimation(
+  payload: EstimatePayload
+): Promise<{ id: string; ack: boolean }> {
   const resp = await rawFetch('/api/v1/estimations', {
     method: 'POST',
     body: JSON.stringify(payload)

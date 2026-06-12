@@ -45,7 +45,9 @@ const CONTENT_SCRIPTS = ['chatgpt', 'claude', 'le-chat'];
 
 async function main() {
   if (isWatch) {
-    console.log(`[build] watch mode (${targetLabel}) — build complet initial puis watch popup/options`);
+    console.log(
+      `[build] watch mode (${targetLabel}) — build complet initial puis watch popup/options`
+    );
     await runVite({ SOBRIA_KIND: 'main' });
     await runVite({ SOBRIA_KIND: 'sw' });
     for (const cs of CONTENT_SCRIPTS) {

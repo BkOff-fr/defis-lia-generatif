@@ -182,9 +182,7 @@ async function init(): Promise<void> {
   const teamUrlInput = document.querySelector<HTMLInputElement>('#team-url-input');
   const teamPingBtn = document.querySelector<HTMLButtonElement>('#team-ping-btn');
   const teamCodeInput = document.querySelector<HTMLInputElement>('#team-code-input');
-  const teamDisplayInput = document.querySelector<HTMLInputElement>(
-    '#team-displayname-input'
-  );
+  const teamDisplayInput = document.querySelector<HTMLInputElement>('#team-displayname-input');
   const teamPasswordInput = document.querySelector<HTMLInputElement>('#team-password-input');
   const teamEnrollBtn = document.querySelector<HTMLButtonElement>('#team-enroll-btn');
   const teamLogoutBtn = document.querySelector<HTMLButtonElement>('#team-logout-btn');
@@ -205,11 +203,7 @@ async function init(): Promise<void> {
     try {
       await setTeamUrl(raw);
       const health = await ping();
-      setTeamFieldError(
-        'team-ping-error',
-        `Serveur joignable · version ${health.version}`,
-        true
-      );
+      setTeamFieldError('team-ping-error', `Serveur joignable · version ${health.version}`, true);
       renderTeam(await getTeamState());
     } catch (err) {
       const msg =
@@ -275,8 +269,7 @@ async function init(): Promise<void> {
   });
 
   teamLogoutBtn?.addEventListener('click', async () => {
-    if (!confirm('Te déconnecter du serveur équipe ? Les tokens seront effacés.'))
-      return;
+    if (!confirm('Te déconnecter du serveur équipe ? Les tokens seront effacés.')) return;
     teamLogoutBtn.disabled = true;
     try {
       await teamLogout();

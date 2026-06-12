@@ -27,10 +27,7 @@ export function tryDirectPresetId(label: string): string | null {
 /**
  * Résout un libellé via une table d'alias (clés = sous-chaînes, ordre = priorité d'insertion).
  */
-export function resolveModelAlias(
-  label: string,
-  aliases: Record<string, string>
-): string | null {
+export function resolveModelAlias(label: string, aliases: Record<string, string>): string | null {
   const direct = tryDirectPresetId(label);
   if (direct) return direct;
 

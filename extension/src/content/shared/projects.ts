@@ -71,12 +71,11 @@ export async function setProjectForThread(
 ): Promise<void> {
   const data = await chrome.storage.local.get(THREAD_PROJECTS_KEY);
   const map = (data[THREAD_PROJECTS_KEY] ?? {}) as Record<string, string>;
-  if (project === null) {
-    delete map[threadKey];
-  } else {
-    map[threadKey] = project;
+  const next = Object.fromEntries(Object.entries(map).filter(([k]) => k !== threadKey));
+  if (project !== null) {
+    next[threadKey] = project;
   }
-  await chrome.storage.local.set({ [THREAD_PROJECTS_KEY]: map });
+  await chrome.storage.local.set({ [THREAD_PROJECTS_KEY]: next });
 }
 
 /**

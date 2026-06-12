@@ -194,10 +194,7 @@ async function initProjectSection(): Promise<void> {
   const team = await getTeamState().catch(() => null);
   if (!team?.enrolled) return;
 
-  const [list, current] = await Promise.all([
-    getProjectsList(),
-    getProjectForThread(threadKey)
-  ]);
+  const [list, current] = await Promise.all([getProjectsList(), getProjectForThread(threadKey)]);
   renderProjectOptions(select, list, current);
   row.removeAttribute('hidden');
 

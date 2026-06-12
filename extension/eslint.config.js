@@ -56,7 +56,7 @@ export default [
   {
     ignores: [
       'dist/**',
-      'dist-firefox/**',
+      'dist-firefox*/**',
       'node_modules/**',
       'coverage/**',
       'test-results/**',

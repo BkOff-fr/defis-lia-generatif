@@ -16,10 +16,7 @@ import { waitForNewMatching } from './shared/wait-for-bubble.js';
 import { estimate } from '../lib/empreinte/index.js';
 import { findPreset } from '../lib/presets.js';
 import { registryLabel } from '../lib/registry-meta.js';
-import {
-  collectModelLabels,
-  resolveModelFromLabels
-} from './shared/model-resolver.js';
+import { collectModelLabels, resolveModelFromLabels } from './shared/model-resolver.js';
 import type { EstimationSubmittedMessage } from '../lib/messages.js';
 
 const HOST = 'le-chat' as const;

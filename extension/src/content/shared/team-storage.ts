@@ -56,10 +56,8 @@ export async function getTeamState(): Promise<TeamState> {
     url: typeof r[KEYS.url] === 'string' ? (r[KEYS.url] as string) : null,
     userId: typeof r[KEYS.userId] === 'string' ? (r[KEYS.userId] as string) : null,
     mode,
-    fingerprint:
-      typeof r[KEYS.fingerprint] === 'string' ? (r[KEYS.fingerprint] as string) : null,
-    enrolledAt:
-      typeof r[KEYS.enrolledAt] === 'string' ? (r[KEYS.enrolledAt] as string) : null
+    fingerprint: typeof r[KEYS.fingerprint] === 'string' ? (r[KEYS.fingerprint] as string) : null,
+    enrolledAt: typeof r[KEYS.enrolledAt] === 'string' ? (r[KEYS.enrolledAt] as string) : null
   };
 }
 
@@ -92,10 +90,7 @@ export async function getTeamRefreshToken(): Promise<string | null> {
 }
 
 /** Persiste un nouveau couple access+refresh (post /enroll ou /refresh). */
-export async function setTeamTokens(args: {
-  access: string;
-  refresh: string;
-}): Promise<void> {
+export async function setTeamTokens(args: { access: string; refresh: string }): Promise<void> {
   await chrome.storage.local.set({
     [KEYS.access]: args.access,
     [KEYS.refresh]: args.refresh
@@ -147,6 +142,10 @@ export function browserFingerprint(): string {
     h ^= raw.charCodeAt(i);
     h = (h * 0x01000193) >>> 0;
   }
-  const platformShort = platform.toLowerCase().replace(/[^a-z]/g, '').slice(0, 8) || 'ext';
+  const platformShort =
+    platform
+      .toLowerCase()
+      .replace(/[^a-z]/g, '')
+      .slice(0, 8) || 'ext';
   return `ext-${platformShort}-${h.toString(16).padStart(8, '0')}`;
 }
